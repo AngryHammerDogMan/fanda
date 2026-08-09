@@ -1,0 +1,277 @@
+﻿package service
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"time"
+
+	"fanda-server/internal/database"
+	"fanda-server/internal/model"
+
+	"github.com/google/uuid"
+	"github.com/lib/pq"
+)
+
+type CalendarService struct{}
+
+func NewCalendarService() *CalendarService {
+	return &CalendarService{}
+}
+
+// CreateRecord 创建日历记录
+func (s *CalendarService) CreateRecord(ctx context.Context, uid uuid.UUID, req CreateRecordReq) (*model.CalendarRecord, error) {
+	recordDate, err := time.Parse("2006-01-02", req.RecordDate)
+	if err != nil {
+		return nil, errors.New("日期格式错误，应为 YYYY-MM-DD")
+	}
+
+	record := model.CalendarRecord{
+		UserID:     uid,
+		GroupType:  req.GroupType,
+		GroupID:    req.GroupID,
+		RecordDate: recordDate,
+		MealType:   req.MealType,
+		MealPeriod: req.MealPeriod,
+		Restaurant: req.Restaurant,
+		Source:     "manual",
+	}
+
+	if req.DishIDs != nil {
+		record.DishIDs = pq.StringArray(req.DishIDs)
+	}
+	if req.Amount != nil {
+		record.Amount = req.Amount
+	}
+
+	tx := database.DB.Begin()
+
+	if err := tx.Create(&record).Error; err != nil {
+		tx.Rollback()
+		return nil, fmt.Errorf("创建记录失败: %w", err)
+	}
+
+	// 添加照片
+	for i, photo := range req.Photos {
+		rp := model.RecordPhoto{
+			RecordID:  record.ID,
+			URL:       photo.URL,
+			Type:      photo.Type,
+			SortOrder: i,
+		}
+		if rp.Type == "" {
+			rp.Type = "image"
+		}
+		if err := tx.Create(&rp).Error; err != nil {
+			tx.Rollback()
+			return nil, fmt.Errorf("添加照片失败: %w", err)
+		}
+	}
+
+	// 添加留言
+	if req.Content != "" {
+		comment := model.RecordComment{
+			RecordID: record.ID,
+			UserID:   uid,
+			Content:  req.Content,
+		}
+		if err := tx.Create(&comment).Error; err != nil {
+			tx.Rollback()
+			return nil, fmt.Errorf("添加留言失败: %w", err)
+		}
+	}
+
+	if err := tx.Commit().Error; err != nil {
+		return nil, err
+	}
+
+	// 重新加载
+	database.DB.Preload("Photos").Preload("Comments").First(&record, "id = ?", record.ID)
+	return &record, nil
+}
+
+// UpdateRecord 更新日历记录
+func (s *CalendarService) UpdateRecord(ctx context.Context, uid uuid.UUID, recordID uuid.UUID, req UpdateRecordReq) error {
+	var record model.CalendarRecord
+	if err := database.DB.Where("id = ? AND user_id = ?", recordID, uid).First(&record).Error; err != nil {
+		return errors.New("记录不存在")
+	}
+
+	updates := map[string]interface{}{}
+	if req.MealType != "" {
+		updates["meal_type"] = req.MealType
+	}
+	if req.MealPeriod != "" {
+		updates["meal_period"] = req.MealPeriod
+	}
+	if req.Restaurant != "" {
+		updates["restaurant"] = req.Restaurant
+	}
+	if req.Amount != nil {
+		updates["amount"] = *req.Amount
+	}
+
+	if len(updates) > 0 {
+		if err := database.DB.Model(&record).Updates(updates).Error; err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// DeleteRecord 删除日历记录
+func (s *CalendarService) DeleteRecord(ctx context.Context, uid uuid.UUID, recordID uuid.UUID) error {
+	result := database.DB.Where("id = ? AND user_id = ?", recordID, uid).Delete(&model.CalendarRecord{})
+	if result.RowsAffected == 0 {
+		return errors.New("记录不存在")
+	}
+	return result.Error
+}
+
+// GetRecord 获取记录详情
+func (s *CalendarService) GetRecord(ctx context.Context, recordID uuid.UUID) (*model.CalendarRecord, error) {
+	var record model.CalendarRecord
+	if err := database.DB.Preload("Photos").Preload("Comments").First(&record, "id = ?", recordID).Error; err != nil {
+		return nil, errors.New("记录不存在")
+	}
+	return &record, nil
+}
+
+// ListRecords 按月份获取日历记录
+func (s *CalendarService) ListRecords(ctx context.Context, groupType string, groupID uuid.UUID, year, month int) ([]model.CalendarRecord, error) {
+	var records []model.CalendarRecord
+
+	startDate := time.Date(year, time.Month(month), 1, 0, 0, 0, 0, time.Local)
+	endDate := startDate.AddDate(0, 1, 0)
+
+	if err := database.DB.Preload("Photos").Preload("Comments").
+		Where("group_type = ? AND group_id = ? AND record_date >= ? AND record_date < ?", groupType, groupID, startDate, endDate).
+		Order("record_date ASC, created_at ASC").
+		Find(&records).Error; err != nil {
+		return nil, err
+	}
+
+	return records, nil
+}
+
+// ListRecordsByDate 按日期获取记录
+func (s *CalendarService) ListRecordsByDate(ctx context.Context, groupType string, groupID uuid.UUID, date string) ([]model.CalendarRecord, error) {
+	recordDate, _ := time.Parse("2006-01-02", date)
+
+	var records []model.CalendarRecord
+	if err := database.DB.Preload("Photos").Preload("Comments").
+		Where("group_type = ? AND group_id = ? AND record_date = ?", groupType, groupID, recordDate).
+		Order("created_at ASC").
+		Find(&records).Error; err != nil {
+		return nil, err
+	}
+
+	return records, nil
+}
+
+// AddComment 添加留言
+func (s *CalendarService) AddComment(ctx context.Context, uid uuid.UUID, recordID uuid.UUID, content string) (*model.RecordComment, error) {
+	// 检查记录是否存在
+	var record model.CalendarRecord
+	if err := database.DB.First(&record, "id = ?", recordID).Error; err != nil {
+		return nil, errors.New("记录不存在")
+	}
+
+	comment := model.RecordComment{
+		RecordID: recordID,
+		UserID:   uid,
+		Content:  content,
+	}
+	if err := database.DB.Create(&comment).Error; err != nil {
+		return nil, fmt.Errorf("添加留言失败: %w", err)
+	}
+	return &comment, nil
+}
+
+// AddPhoto 添加照片/视频
+func (s *CalendarService) AddPhoto(ctx context.Context, uid uuid.UUID, recordID uuid.UUID, url, fileType string) (*model.RecordPhoto, error) {
+	var record model.CalendarRecord
+	if err := database.DB.Where("id = ? AND user_id = ?", recordID, uid).First(&record).Error; err != nil {
+		return nil, errors.New("记录不存在")
+	}
+
+	if fileType == "" {
+		fileType = "image"
+	}
+
+	// 获取当前排序
+	var count int64
+	database.DB.Model(&model.RecordPhoto{}).Where("record_id = ?", recordID).Count(&count)
+
+	photo := model.RecordPhoto{
+		RecordID:  recordID,
+		URL:       url,
+		Type:      fileType,
+		SortOrder: int(count),
+	}
+	if err := database.DB.Create(&photo).Error; err != nil {
+		return nil, fmt.Errorf("添加照片失败: %w", err)
+	}
+	return &photo, nil
+}
+
+// GetMonthlyStats 获取月度统计
+func (s *CalendarService) GetMonthlyStats(ctx context.Context, groupType string, groupID uuid.UUID, year, month int) (map[string]interface{}, error) {
+	startDate := time.Date(year, time.Month(month), 1, 0, 0, 0, 0, time.Local)
+	endDate := startDate.AddDate(0, 1, 0)
+
+	var records []model.CalendarRecord
+	database.DB.Where("group_type = ? AND group_id = ? AND record_date >= ? AND record_date < ?", groupType, groupID, startDate, endDate).Find(&records)
+
+	var totalAmount float64
+	var unrecordedDays []string
+	mealCount := map[string]int{"cook": 0, "takeout": 0, "dineout": 0}
+	recordedDays := make(map[string]bool)
+
+	for _, r := range records {
+		mealCount[r.MealType]++
+		if r.Amount != nil {
+			totalAmount += *r.Amount
+		} else {
+			unrecordedDays = append(unrecordedDays, r.RecordDate.Format("2006-01-02"))
+		}
+		recordedDays[r.RecordDate.Format("2006-01-02")] = true
+	}
+
+	return map[string]interface{}{
+		"total_amount":    totalAmount,
+		"meal_count":      mealCount,
+		"total_records":   len(records),
+		"unrecorded_days": unrecordedDays,
+		"year":            year,
+		"month":           month,
+	}, nil
+}
+
+// ---- 请求结构 ----
+
+type CreateRecordReq struct {
+	GroupType  string       `json:"group_type" binding:"required,oneof=couple buddy"`
+	GroupID    uuid.UUID    `json:"group_id" binding:"required"`
+	RecordDate string       `json:"record_date" binding:"required"` // YYYY-MM-DD
+	MealType   string       `json:"meal_type" binding:"required,oneof=cook takeout dineout"`
+	MealPeriod string       `json:"meal_period"` // breakfast / lunch / dinner / snack
+	DishIDs    []string     `json:"dish_ids"`
+	Restaurant string       `json:"restaurant"`
+	Amount     *float64     `json:"amount"`
+	Photos     []PhotoReq   `json:"photos"`
+	Content    string       `json:"content"`
+}
+
+type PhotoReq struct {
+	URL  string `json:"url" binding:"required"`
+	Type string `json:"type"` // image / video
+}
+
+type UpdateRecordReq struct {
+	MealType   string   `json:"meal_type"`
+	MealPeriod string   `json:"meal_period"`
+	Restaurant string   `json:"restaurant"`
+	Amount     *float64 `json:"amount"`
+}

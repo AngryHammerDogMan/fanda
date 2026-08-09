@@ -1,0 +1,267 @@
+.page-plaza {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+// 搜索栏
+.search-bar {
+  display: flex;
+  align-items: center;
+  padding: 20px 32px;
+  background: var(--color-bg-white);
+  gap: 16px;
+
+  .search-input-wrap {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    background: var(--color-bg);
+    border-radius: 20px;
+    padding: 0 16px;
+    height: 36px;
+
+    .search-icon {
+      font-size: 14px;
+      margin-right: 10px;
+    }
+
+    .search-input {
+      flex: 1;
+      font-size: 13px;
+      height: 100%;
+    }
+  }
+
+  .search-btn {
+    background: linear-gradient(135deg, var(--color-primary), var(--color-primary-light));
+    color: #FFFFFF;
+    font-size: 13px;
+    padding: 10px 20px;
+    border-radius: 20px;
+    white-space: nowrap;
+    font-weight: 500;
+    height: 36px;
+    line-height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+}
+
+// 分类标签
+.category-tabs {
+  background: var(--color-bg-white);
+  padding: 0 32px 16px;
+  white-space: nowrap;
+
+  &-inner {
+    display: flex;
+    gap: 16px;
+  }
+
+  .category-tab {
+    flex-shrink: 0;
+    padding: 8px 22px;
+    background: var(--color-bg);
+    border-radius: 20px;
+    font-size: 12px;
+    color: var(--color-text-secondary);
+    transition: all 0.2s;
+
+    &.active {
+      background: linear-gradient(135deg, var(--color-primary), var(--color-primary-light));
+      color: #FFFFFF;
+      font-weight: 500;
+    }
+  }
+}
+
+// 分组选择器
+.group-selector {
+  display: flex;
+  align-items: center;
+  padding: 16px 32px;
+  background: var(--color-bg-white);
+  border-bottom: 1px solid var(--color-border);
+
+  .group-label {
+    font-size: 13px;
+    color: var(--color-text);
+    margin-right: 16px;
+  }
+
+  .group-options {
+    display: flex;
+    gap: 16px;
+  }
+
+  .group-option {
+    padding: 8px 22px;
+    border-radius: 20px;
+    font-size: 12px;
+    color: var(--color-text-secondary);
+    background: var(--color-bg);
+    border: 2px solid transparent;
+    transition: all 0.2s;
+
+    &.active {
+      color: var(--color-primary);
+      border-color: var(--color-primary);
+      background: rgba(255, 107, 53, 0.05);
+      font-weight: 500;
+    }
+  }
+}
+
+// 菜品列表
+.dish-list {
+  flex: 1;
+  padding: 20px 32px;
+}
+
+.dish-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+}
+
+.dish-card {
+  width: calc(50% - 10px);
+  background: var(--color-bg-white);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+}
+
+.dish-image-wrap {
+  position: relative;
+  width: 100%;
+  height: 120px;
+  overflow: hidden;
+
+  .dish-image {
+    width: 100%;
+    height: 100%;
+    background: var(--color-bg);
+  }
+
+  .dish-difficulty {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 10px;
+    color: #FFFFFF;
+    font-weight: 500;
+  }
+}
+
+.dish-info {
+  padding: 16px 16px 8px;
+
+  .dish-name {
+    display: block;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--color-text);
+    margin-bottom: 8px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .dish-meta {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 8px;
+
+    .dish-category {
+      font-size: 11px;
+      color: var(--color-primary);
+      background: rgba(255, 107, 53, 0.08);
+      padding: 2px 12px;
+      border-radius: 20px;
+    }
+
+    .dish-duration {
+      font-size: 11px;
+      color: var(--color-text-secondary);
+    }
+  }
+
+  .dish-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+
+    .dish-tag {
+      font-size: 10px;
+      color: var(--color-text-secondary);
+      background: var(--color-bg);
+      padding: 2px 10px;
+      border-radius: 12px;
+    }
+  }
+}
+
+.dish-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px 16px;
+
+  .import-count {
+    font-size: 11px;
+    color: var(--color-text-secondary);
+  }
+
+  .import-btn {
+    background: linear-gradient(135deg, var(--color-primary), var(--color-primary-light));
+    color: #FFFFFF;
+    font-size: 11px;
+    padding: 6px 20px;
+    border-radius: 16px;
+    font-weight: 500;
+  }
+}
+
+// 空状态
+.empty-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 120px 0;
+
+  .empty-text {
+    font-size: 14px;
+    color: var(--color-text-light);
+  }
+}
+
+// 加载状态
+.loading-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 0;
+
+  .loading-text {
+    font-size: 13px;
+    color: var(--color-text-secondary);
+  }
+}
+
+.no-more {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 0;
+
+  .no-more-text {
+    font-size: 12px;
+    color: var(--color-text-light);
+  }
+}

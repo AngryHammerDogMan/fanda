@@ -1,0 +1,237 @@
+// 用户
+export interface User {
+  uid: string
+  nickname: string
+  avatar: string
+  points: number
+  has_wx: boolean
+  has_dy: boolean
+  phone: string
+  has_phone: boolean
+  couple: CoupleInfo | null
+  buddy_groups: BuddyGroup[]
+  created_at: string
+}
+
+export interface LoginResult {
+  token: string
+  uid: string
+  nickname: string
+  avatar: string
+  is_new: boolean
+  need_bind_phone: boolean
+  phone: string
+}
+
+// 情侣
+export interface CoupleInfo {
+  id: string
+  user1_id: string
+  user2_id: string
+  status: string
+}
+
+// 饭搭子
+export interface BuddyGroup {
+  id: string
+  name: string
+  owner_id: string
+  max_member: number
+  status: string
+  created_at: string
+}
+
+export interface BuddyMember {
+  id: string
+  group_id: string
+  user_id: string
+  role: string // owner / admin / member
+  joined_at: string
+}
+
+// 菜品
+export interface Dish {
+  id: string
+  owner_id: string
+  group_type: string // couple / buddy
+  group_id: string
+  dish_type: string // dish / takeout / dineout
+  name: string
+  category: string
+  difficulty: number | null
+  duration: number
+  price: number | null
+  ingredients: Ingredient[] | null
+  steps: Step[] | null
+  photos: string[] | null
+  tags: string[]
+  restaurant: string
+  restaurant_note: string
+  source: string
+  is_deleted: boolean
+  created_at: string
+  updated_at: string
+}
+
+export interface Ingredient {
+  name: string
+  amount: string
+}
+
+export interface Step {
+  order: number
+  description: string
+  image?: string
+}
+
+export interface PlazaDish {
+  id: string
+  name: string
+  category: string
+  difficulty: number | null
+  duration: number
+  ingredients: Ingredient[] | null
+  steps: Step[] | null
+  photos: string[] | null
+  tags: string[]
+  import_count: number
+  created_at: string
+}
+
+// 订单
+export interface Order {
+  id: string
+  creator_id: string
+  group_type: string
+  group_id: string
+  dine_mode: string // together / solo
+  status: string // pending / confirmed / rejected / cancelled / voted
+  total_amount: number | null
+  order_items: OrderItem[]
+  created_at: string
+}
+
+export interface OrderItem {
+  id: string
+  order_id: string
+  dish_id: string
+  quantity: number
+  unit_price: number | null
+}
+
+export interface OrderVote {
+  id: string
+  order_id: string
+  user_id: string
+  vote: string
+  created_at: string
+}
+
+// 日历记录
+export interface CalendarRecord {
+  id: string
+  user_id: string
+  group_type: string
+  group_id: string
+  record_date: string
+  meal_type: string // cook / takeout / dineout
+  meal_period: string
+  dish_ids: string[]
+  restaurant: string
+  amount: number | null
+  source: string
+  photos: RecordPhoto[]
+  comments: RecordComment[]
+  created_at: string
+}
+
+export interface RecordPhoto {
+  id: string
+  record_id: string
+  url: string
+  type: string // image / video
+  sort_order: number
+}
+
+export interface RecordComment {
+  id: string
+  record_id: string
+  user_id: string
+  content: string
+  created_at: string
+}
+
+export interface MonthlyStats {
+  total_amount: number
+  meal_count: Record<string, number>
+  total_records: number
+  unrecorded_days: string[]
+  year: number
+  month: number
+}
+
+// 心愿
+export interface WishItem {
+  id: string
+  user_id: string
+  group_type: string
+  group_id: string
+  name: string
+  note: string
+  dish_id: string | null
+  is_completed: boolean
+  created_at: string
+}
+
+// 菜篮子
+export interface BasketItem {
+  id: string
+  user_id: string
+  group_type: string
+  group_id: string
+  name: string
+  quantity: string
+  is_purchased: boolean
+  created_at: string
+}
+
+// 预算
+export interface BudgetSetting {
+  id: string
+  user_id: string
+  group_type: string
+  group_id: string
+  month: string
+  budget: number
+}
+
+// 签到
+export interface CheckinStatus {
+  today_checked: boolean
+  month_count: number
+  streak: number
+}
+
+// 积分
+export interface PointRecord {
+  id: string
+  user_id: string
+  points: number
+  reason: string
+  created_at: string
+}
+
+// 通用响应
+export interface ApiResponse<T = any> {
+  code: number
+  message: string
+  data: T
+}
+
+// 分页响应
+export interface PaginatedData<T> {
+  list: T[]
+  total: number
+  page: number
+  page_size: number
+}

@@ -1,0 +1,270 @@
+.page-dishes {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--color-bg);
+  position: relative;
+}
+
+// 搜索栏
+.search-bar {
+  padding: 16px 24px;
+  background-color: var(--color-bg-white);
+  flex-shrink: 0;
+}
+
+.search-input-wrap {
+  display: flex;
+  align-items: center;
+  background-color: var(--color-bg);
+  border-radius: 20px;
+  padding: 10px 20px;
+}
+
+.search-icon {
+  font-size: 14px;
+  margin-right: 12px;
+  flex-shrink: 0;
+}
+
+.search-input {
+  flex: 1;
+  font-size: var(--font-sm);
+  color: var(--color-text);
+  height: 36px;
+  line-height: 36px;
+}
+
+.search-clear {
+  font-size: 12px;
+  color: var(--color-text-light);
+  padding: 4px 8px;
+  flex-shrink: 0;
+}
+
+// 分类标签栏
+.tab-bar {
+  background-color: var(--color-bg-white);
+  padding: 0 24px 16px;
+  flex-shrink: 0;
+}
+
+.tab-scroll {
+  width: 100%;
+  white-space: nowrap;
+}
+
+.tab-list {
+  display: flex;
+  gap: 12px;
+}
+
+.tab-item {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 24px;
+  border-radius: 20px;
+  background-color: var(--color-bg);
+  flex-shrink: 0;
+  transition: all 0.3s;
+
+  &.active {
+    background: linear-gradient(135deg, var(--color-primary), var(--color-primary-light));
+  }
+}
+
+.tab-label {
+  font-size: var(--font-sm);
+  color: var(--color-text);
+  font-weight: 500;
+
+  .tab-item.active & {
+    color: #FFFFFF;
+  }
+}
+
+// 菜品列表
+.dish-list-scroll {
+  flex: 1;
+  height: 0;
+}
+
+.dish-list {
+  padding: 0 24px;
+}
+
+.dish-card {
+  display: flex;
+  background: var(--color-bg-white);
+  border-radius: var(--radius-md);
+  margin-bottom: 16px;
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+  transition: transform 0.2s;
+
+  &:active {
+    transform: scale(0.98);
+  }
+}
+
+.dish-image-wrap {
+  position: relative;
+  width: 120px;
+  height: 120px;
+  flex-shrink: 0;
+}
+
+.dish-image {
+  width: 100%;
+  height: 100%;
+}
+
+.dish-image-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #FFF8F0, #FFF3E6);
+}
+
+.placeholder-icon {
+  font-size: 18px;
+}
+
+.dish-type-badge {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  background-color: rgba(0, 0, 0, 0.5);
+  border-radius: 6px;
+  padding: 2px 10px;
+}
+
+.badge-text {
+  font-size: 10px;
+  color: #FFFFFF;
+}
+
+.dish-info {
+  flex: 1;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  overflow: hidden;
+}
+
+.dish-name {
+  font-size: var(--font-md);
+  font-weight: 600;
+  color: var(--color-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-bottom: 8px;
+}
+
+.dish-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.tag {
+  font-size: var(--font-xs);
+  color: var(--color-primary);
+  background-color: #FFF8F0;
+  border-radius: 6px;
+  padding: 2px 10px;
+}
+
+.dish-meta {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 4px;
+}
+
+.meta-item {
+  font-size: var(--font-xs);
+  color: var(--color-text-secondary);
+
+  &.difficulty {
+    color: var(--color-warning);
+  }
+
+  &.duration {
+    color: var(--color-info);
+  }
+}
+
+.dish-price {
+  font-size: var(--font-md);
+  font-weight: 700;
+  color: var(--color-primary);
+}
+
+// 加载 & 空状态
+.loading-wrap {
+  padding: 32px;
+  text-align: center;
+}
+
+.loading-text {
+  font-size: var(--font-sm);
+  color: var(--color-text-light);
+}
+
+.empty-wrap {
+  padding: 120px 32px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.empty-icon {
+  font-size: 20px;
+  margin-bottom: 20px;
+}
+
+.empty-text {
+  font-size: var(--font-md);
+  color: var(--color-text-secondary);
+  margin-bottom: 8px;
+}
+
+.empty-hint {
+  font-size: var(--font-sm);
+  color: var(--color-text-light);
+}
+
+// 悬浮添加按钮
+.fab {
+  position: fixed;
+  right: 16px;
+  bottom: 72px;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--color-primary), var(--color-primary-light));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 6px 20px rgba(255, 107, 53, 0.4);
+  z-index: 100;
+  transition: transform 0.2s;
+
+  &:active {
+    transform: scale(0.9);
+  }
+}
+
+.fab-icon {
+  font-size: 16px;
+  color: #FFFFFF;
+  font-weight: 300;
+  line-height: 1;
+}

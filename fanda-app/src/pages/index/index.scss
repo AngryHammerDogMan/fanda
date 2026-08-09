@@ -1,0 +1,184 @@
+.page-index {
+  min-height: 100vh;
+}
+
+.header {
+  position: relative;
+  overflow: hidden;
+
+  &-bg {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 320px;
+    background: linear-gradient(135deg, #FF6B35, #FFB347);
+    border-radius: 0 0 40px 40px;
+  }
+
+  &-content {
+    position: relative;
+    padding: 60px 32px 40px;
+    z-index: 1;
+  }
+}
+
+.user-info {
+  display: flex;
+  align-items: center;
+  margin-bottom: 32px;
+
+  .avatar {
+    width: 96px;
+    height: 96px;
+    border-radius: 50%;
+    border: 4px solid rgba(255, 255, 255, 0.4);
+    background: rgba(255, 255, 255, 0.2);
+    margin-right: 24px;
+  }
+
+  .user-text {
+    .nickname {
+      display: block;
+      font-size: 18px;
+      font-weight: 700;
+      color: #FFFFFF;
+      margin-bottom: 8px;
+    }
+
+    .points {
+      font-size: 12px;
+      color: rgba(255, 255, 255, 0.8);
+    }
+  }
+}
+
+.header-actions {
+  display: flex;
+  justify-content: space-around;
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 24px;
+  padding: 20px 0;
+  backdrop-filter: blur(10px);
+
+  .action-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+
+    .action-icon {
+      font-size: 20px;
+      margin-bottom: 8px;
+    }
+
+    .action-label {
+      font-size: 11px;
+      color: #FFFFFF;
+    }
+  }
+}
+
+.section {
+  padding: 0 32px;
+  margin-top: 32px;
+
+  &-title {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--color-text);
+    margin-bottom: 20px;
+  }
+
+  &-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  &-more {
+    font-size: 12px;
+    color: var(--color-primary);
+  }
+}
+
+.checkin-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: linear-gradient(135deg, #FFF8F0, #FFF3E6);
+  border-radius: 20px;
+  padding: 28px 32px;
+  border: 2px solid rgba(255, 107, 53, 0.15);
+
+  .checkin-info {
+    .checkin-streak {
+      display: block;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--color-text);
+      margin-bottom: 6px;
+    }
+
+    .checkin-month {
+      font-size: 12px;
+      color: var(--color-text-secondary);
+    }
+  }
+
+  .checkin-btn {
+    background: linear-gradient(135deg, #FF6B35, #FFB347);
+    color: #FFFFFF;
+    font-size: 13px;
+    font-weight: 600;
+    padding: 12px 28px;
+    border-radius: 20px;
+    height: 40px;
+    line-height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    &.checked {
+      background: #CCCCCC;
+    }
+  }
+}
+
+.quick-actions {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+
+  .quick-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    background: var(--color-bg-white);
+    border-radius: 12px;
+    padding: 16px 8px;
+    box-shadow: var(--shadow-sm);
+
+    .quick-icon {
+      font-size: 22px;
+      margin-bottom: 12px;
+    }
+
+    .quick-label {
+      font-size: 11px;
+      color: var(--color-text);
+    }
+  }
+}
+
+.empty-state {
+  background: var(--color-bg-white);
+  border-radius: 16px;
+  padding: 60px 32px;
+  text-align: center;
+  box-shadow: var(--shadow-sm);
+
+  .empty-text {
+    font-size: 13px;
+    color: var(--color-text-light);
+  }
+}

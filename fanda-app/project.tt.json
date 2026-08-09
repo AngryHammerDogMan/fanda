@@ -1,0 +1,13 @@
+﻿{
+  "miniprogramRoot": "dist/",
+  "projectname": "fanda-app",
+  "description": "饭搭 - 情侣和饭搭子点菜小程序",
+  "appid": "your_douyin_appid",
+  "setting": {
+    "urlCheck": false,
+    "es6": true,
+    "postcss": false,
+    "minified": true
+  },
+  "compileType": "miniprogram"
+}

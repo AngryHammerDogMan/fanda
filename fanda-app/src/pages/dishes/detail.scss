@@ -1,0 +1,351 @@
+.page-dish-detail {
+  min-height: 100vh;
+  background-color: var(--color-bg);
+  padding-bottom: 120px;
+}
+
+.loading-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 60vh;
+}
+
+.loading-text {
+  font-size: var(--font-md);
+  color: var(--color-text-light);
+}
+
+.empty-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 60vh;
+}
+
+.empty-text {
+  font-size: var(--font-md);
+  color: var(--color-text-secondary);
+}
+
+// 图片轮播
+.image-gallery {
+  position: relative;
+  width: 100%;
+  height: 250px;
+  overflow: hidden;
+}
+
+.gallery-image {
+  width: 100%;
+  height: 100%;
+}
+
+.gallery-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #FFF8F0, #FFF3E6);
+}
+
+.placeholder-icon {
+  font-size: 20px;
+  margin-bottom: 12px;
+}
+
+.placeholder-text {
+  font-size: var(--font-sm);
+  color: var(--color-text-light);
+}
+
+.gallery-dots {
+  position: absolute;
+  bottom: 20px;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+}
+
+.dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background-color: rgba(255, 255, 255, 0.5);
+  transition: all 0.3s;
+
+  &.active {
+    background-color: #FFFFFF;
+    width: 24px;
+    border-radius: 6px;
+  }
+}
+
+// 详情区块
+.detail-section {
+  background-color: var(--color-bg-white);
+  margin: 16px 24px;
+  border-radius: var(--radius-md);
+  padding: 24px;
+  box-shadow: var(--shadow-sm);
+}
+
+.dish-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+
+.dish-name {
+  font-size: var(--font-xl);
+  font-weight: 700;
+  color: var(--color-text);
+  flex: 1;
+  margin-right: 16px;
+}
+
+.dish-type-tag {
+  padding: 6px 16px;
+  border-radius: 20px;
+  background: linear-gradient(135deg, var(--color-primary), var(--color-primary-light));
+  flex-shrink: 0;
+}
+
+.type-tag-text {
+  font-size: var(--font-xs);
+  color: #FFFFFF;
+}
+
+.dish-meta-row {
+  display: flex;
+  gap: 32px;
+  margin-bottom: 16px;
+}
+
+.meta-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.meta-label {
+  font-size: var(--font-xs);
+  color: var(--color-text-light);
+}
+
+.meta-value {
+  font-size: var(--font-md);
+  color: var(--color-text);
+  font-weight: 500;
+
+  &.difficulty {
+    color: var(--color-warning);
+  }
+}
+
+.price-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--color-border);
+}
+
+.price-label {
+  font-size: var(--font-sm);
+  color: var(--color-text-secondary);
+}
+
+.price-value {
+  font-size: var(--font-xl);
+  font-weight: 700;
+  color: var(--color-primary);
+}
+
+// 区块标题
+.section-title {
+  margin-bottom: 16px;
+}
+
+.title-text {
+  font-size: var(--font-md);
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+// 标签
+.tags-wrap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.tag-item {
+  font-size: var(--font-xs);
+  color: var(--color-primary);
+  background-color: #FFF8F0;
+  border-radius: 20px;
+  padding: 8px 20px;
+}
+
+// 食材列表
+.ingredients-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.ingredient-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--color-border);
+
+  &:last-child {
+    border-bottom: none;
+  }
+}
+
+.ingredient-name {
+  font-size: var(--font-sm);
+  color: var(--color-text);
+}
+
+.ingredient-amount {
+  font-size: var(--font-sm);
+  color: var(--color-text-secondary);
+}
+
+// 步骤列表
+.steps-list {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.step-item {
+  display: flex;
+  gap: 16px;
+}
+
+.step-order {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--color-primary), var(--color-primary-light));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.step-number {
+  font-size: 11px;
+  font-weight: 700;
+  color: #FFFFFF;
+}
+
+.step-content {
+  flex: 1;
+}
+
+.step-desc {
+  font-size: var(--font-sm);
+  color: var(--color-text);
+  line-height: 1.6;
+}
+
+.step-image {
+  margin-top: 12px;
+  width: 100%;
+  border-radius: var(--radius-sm);
+}
+
+// 餐厅信息
+.restaurant-info {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.info-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.info-label {
+  font-size: var(--font-sm);
+  color: var(--color-text-secondary);
+}
+
+.info-value {
+  font-size: var(--font-sm);
+  color: var(--color-text);
+  font-weight: 500;
+}
+
+// 底部操作栏
+.bottom-actions {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  gap: 16px;
+  padding: 16px 24px;
+  background-color: var(--color-bg-white);
+  box-shadow: 0 -2px 16px rgba(0, 0, 0, 0.06);
+  z-index: 100;
+}
+
+.action-btn {
+  flex: 1;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 20px;
+  transition: opacity 0.2s;
+
+  &:active {
+    opacity: 0.8;
+  }
+
+  &.primary {
+    flex: 2;
+    background: linear-gradient(135deg, var(--color-primary), var(--color-primary-light));
+  }
+
+  &.outline {
+    background: var(--color-bg-white);
+    border: 2px solid var(--color-primary);
+  }
+
+  &.danger {
+    background: var(--color-bg-white);
+    border: 2px solid var(--color-danger);
+  }
+}
+
+.btn-text {
+  font-size: var(--font-sm);
+  font-weight: 600;
+
+  .action-btn.primary & {
+    color: #FFFFFF;
+  }
+
+  .action-btn.outline & {
+    color: var(--color-primary);
+  }
+
+  .action-btn.danger & {
+    color: var(--color-danger);
+  }
+}

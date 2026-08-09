@@ -1,0 +1,386 @@
+import { View, Text, Image, ScrollView } from '@tarojs/components'
+import Taro, { useDidShow } from '@tarojs/taro'
+import { useState } from 'react'
+import { authAPI, featureAPI } from '@/services/api'
+import type { User, CheckinStatus, PointRecord } from '@/types'
+import './index.scss'
+
+// 自动检测当前平台
+const CURRENT_PLATFORM = process.env.TARO_ENV === 'weapp' ? 'wechat' : 'douyin'
+const PLATFORM_NAME = CURRENT_PLATFORM === 'wechat' ? '微信' : '抖音'
+const OTHER_PLATFORM_NAME = CURRENT_PLATFORM === 'wechat' ? '抖音' : '微信'
+const OTHER_PLATFORM_KEY = CURRENT_PLATFORM === 'wechat' ? 'has_dy' : 'has_wx'
+
+export default function Profile() {
+  const [user, setUser] = useState<User | null>(null)
+  const [checkinStatus, setCheckinStatus] = useState<CheckinStatus | null>(null)
+  const [pointHistory, setPointHistory] = useState<PointRecord[]>([])
+  const [showPointHistory, setShowPointHistory] = useState(false)
+  const [loading, setLoading] = useState(false)
+
+  useDidShow(() => {
+    loadAll()
+  })
+
+  const loadAll = async () => {
+    try {
+      const [profileRes, checkinRes] = await Promise.all([
+        authAPI.getProfile(),
+        featureAPI.getCheckinStatus(),
+      ])
+      setUser(profileRes.data)
+      setCheckinStatus(checkinRes.data)
+    } catch (err) {
+      console.error('加载数据失败', err)
+    }
+  }
+
+  const loadPointHistory = async () => {
+    setLoading(true)
+    try {
+      const res = await featureAPI.getPointHistory(1, 20)
+      setPointHistory(res.data?.list || res.data || [])
+      setShowPointHistory(true)
+    } catch (err) {
+      console.error('加载积分历史失败', err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleEditProfile = () => {
+    Taro.showModal({
+      title: '修改昵称',
+      editable: true,
+      placeholderText: user?.nickname || '',
+      success: async (res) => {
+        if (res.confirm && res.content) {
+          try {
+            await authAPI.updateProfile(res.content, user?.avatar || '')
+            Taro.showToast({ title: '修改成功', icon: 'success' })
+            loadAll()
+          } catch (err: any) {
+            Taro.showToast({ title: err.message || '修改失败', icon: 'none' })
+          }
+        }
+      },
+    })
+  }
+
+  const handleChooseAvatar = async () => {
+    try {
+      const res = await Taro.chooseImage({
+        count: 1,
+        sizeType: ['compressed'],
+        sourceType: ['album', 'camera'],
+      })
+      const tempPath = res.tempFilePaths[0]
+      // 模拟上传，实际项目中需要上传到云存储
+      Taro.showToast({ title: '头像上传成功', icon: 'success' })
+      loadAll()
+    } catch (err) {
+      // 用户取消选择
+    }
+  }
+
+  const handleGenerateBindCode = async () => {
+    try {
+      const res = await authAPI.generateBindCode()
+      const code = res.data?.code || res.data
+      Taro.showModal({
+        title: '绑定码',
+        content: `您的绑定码为：${code}\n请在另一平台输入此码完成绑定`,
+        showCancel: false,
+        confirmText: '复制',
+        success: () => {
+          Taro.setClipboardData({ data: code })
+          Taro.showToast({ title: '已复制', icon: 'success' })
+        },
+      })
+    } catch (err: any) {
+      Taro.showToast({ title: err.message || '生成失败', icon: 'none' })
+    }
+  }
+
+  const handleBindPlatform = () => {
+    Taro.showModal({
+      title: '绑定其他平台',
+      editable: true,
+      placeholderText: '输入绑定码',
+      success: async (res) => {
+        if (res.confirm && res.content) {
+          try {
+            await authAPI.bindPlatform(res.content)
+            Taro.showToast({ title: '绑定成功', icon: 'success' })
+            loadAll()
+          } catch (err: any) {
+            Taro.showToast({ title: err.message || '绑定失败', icon: 'none' })
+          }
+        }
+      },
+    })
+  }
+
+  const handleBindPhoneAction = () => {
+    Taro.showModal({
+      title: '绑定手机号',
+      editable: true,
+      placeholderText: '请输入手机号',
+      success: async (res) => {
+        if (res.confirm && res.content) {
+          const phone = res.content.trim()
+          if (phone.length !== 11) {
+            Taro.showToast({ title: '请输入正确的手机号', icon: 'none' })
+            return
+          }
+          try {
+            await authAPI.bindPhone(phone)
+            Taro.showToast({ title: '绑定成功', icon: 'success' })
+            loadAll()
+          } catch (err: any) {
+            Taro.showToast({ title: err.message || '绑定失败', icon: 'none' })
+          }
+        }
+      },
+    })
+  }
+
+  const handleNavigate = (url: string) => {
+    Taro.navigateTo({ url })
+  }
+
+  const handleLogout = () => {
+    Taro.showModal({
+      title: '退出登录',
+      content: '确定要退出登录吗？',
+      success: (res) => {
+        if (res.confirm) {
+          Taro.removeStorageSync('token')
+          Taro.reLaunch({ url: '/pages/login/index' })
+        }
+      },
+    })
+  }
+
+  return (
+    <View className='page-profile'>
+      {/* 头部个人信息 */}
+      <View className='profile-header'>
+        <View className='header-bg' />
+        <View className='header-content'>
+          <View className='avatar-wrap' onClick={handleChooseAvatar}>
+            <Image className='avatar' src={user?.avatar || ''} mode='aspectFill' />
+            <View className='avatar-edit'>
+              <Text>📷</Text>
+            </View>
+          </View>
+          <View className='user-info' onClick={handleEditProfile}>
+            <Text className='nickname'>{user?.nickname || '未设置昵称'}</Text>
+            <View className='edit-tag'>
+              <Text>编辑</Text>
+            </View>
+          </View>
+          <View className='points-row'>
+            <View className='points-item'>
+              <Text className='points-value'>{user?.points || 0}</Text>
+              <Text className='points-label'>积分</Text>
+            </View>
+            <View className='points-divider' />
+            <View className='points-item'>
+              <Text className='points-value'>{checkinStatus?.streak || 0}</Text>
+              <Text className='points-label'>连续签到</Text>
+            </View>
+            <View className='points-divider' />
+            <View className='points-item'>
+              <Text className='points-value'>{checkinStatus?.month_count || 0}</Text>
+              <Text className='points-label'>本月签到</Text>
+            </View>
+          </View>
+        </View>
+      </View>
+
+      {/* 跨平台绑定 */}
+      <View className='section'>
+        <View className='section-title'>账号绑定</View>
+        <View className='bind-card'>
+          {/* 手机号 */}
+          <View className='bind-item'>
+            <View className='bind-left'>
+              <Text className='bind-icon'>📱</Text>
+              <View className='bind-text'>
+                <Text className='bind-label'>手机号</Text>
+                <Text className='bind-desc'>用于跨平台数据互通</Text>
+              </View>
+            </View>
+            <Text className={`bind-status ${user?.has_phone ? 'bound' : ''}`}>
+              {user?.has_phone ? (user?.phone || '已绑定') : '未绑定'}
+            </Text>
+          </View>
+
+          {/* 微信 */}
+          <View className='bind-item'>
+            <View className='bind-left'>
+              <Text className='bind-icon'>💚</Text>
+              <View className='bind-text'>
+                <Text className='bind-label'>微信</Text>
+              </View>
+            </View>
+            <Text className={`bind-status ${user?.has_wx ? 'bound' : ''}`}>
+              {user?.has_wx ? '已绑定' : '未绑定'}
+            </Text>
+          </View>
+
+          {/* 抖音 */}
+          <View className='bind-item'>
+            <View className='bind-left'>
+              <Text className='bind-icon'>🎵</Text>
+              <View className='bind-text'>
+                <Text className='bind-label'>抖音</Text>
+              </View>
+            </View>
+            <Text className={`bind-status ${user?.has_dy ? 'bound' : ''}`}>
+              {user?.has_dy ? '已绑定' : '未绑定'}
+            </Text>
+          </View>
+
+          {/* 操作按钮 */}
+          {!user?.has_phone && (
+            <View className='bind-actions'>
+              <View className='bind-btn primary' onClick={handleBindPhoneAction}>
+                <Text>绑定手机号</Text>
+              </View>
+            </View>
+          )}
+          {user?.has_phone && !user?.[OTHER_PLATFORM_KEY as keyof typeof user] && (
+            <View className='bind-actions'>
+              <View className='bind-btn primary' onClick={handleGenerateBindCode}>
+                <Text>生成绑定码</Text>
+              </View>
+              <View className='bind-btn' onClick={handleBindPlatform}>
+                <Text>输入绑定码</Text>
+              </View>
+            </View>
+          )}
+          {user?.has_phone && user?.[OTHER_PLATFORM_KEY as keyof typeof user] && (
+            <Text className='bind-all-done'>
+              ✅ 微信和抖音已绑定，数据实时同步
+            </Text>
+          )}
+          {user?.has_phone && !user?.[OTHER_PLATFORM_KEY as keyof typeof user] && (
+            <View className='bind-tip'>
+              <Text className='bind-tip-text'>
+                💡 在{PLATFORM_NAME}生成绑定码，在{OTHER_PLATFORM_NAME}小程序中输入，即可实现数据互通
+              </Text>
+            </View>
+          )}
+        </View>
+      </View>
+
+      {/* 关系管理 */}
+      <View className='section'>
+        <View className='section-title'>关系管理</View>
+        <View className='menu-list'>
+          <View className='menu-item' onClick={() => handleNavigate('/pages/couple/index')}>
+            <View className='menu-left'>
+              <Text className='menu-icon'>💑</Text>
+              <View className='menu-text'>
+                <Text className='menu-name'>情侣管理</Text>
+                <Text className='menu-desc'>
+                  {user?.couple ? '已绑定' : '未绑定'}
+                </Text>
+              </View>
+            </View>
+            <Text className='menu-arrow'>&gt;</Text>
+          </View>
+          <View className='menu-item' onClick={() => handleNavigate('/pages/buddy/index')}>
+            <View className='menu-left'>
+              <Text className='menu-icon'>👥</Text>
+              <View className='menu-text'>
+                <Text className='menu-name'>饭搭子管理</Text>
+                <Text className='menu-desc'>
+                  {user?.buddy_groups?.length || 0} 个群组
+                </Text>
+              </View>
+            </View>
+            <Text className='menu-arrow'>&gt;</Text>
+          </View>
+        </View>
+      </View>
+
+      {/* 积分与签到 */}
+      <View className='section'>
+        <View className='section-title'>积分与签到</View>
+        <View className='menu-list'>
+          <View className='menu-item' onClick={loadPointHistory}>
+            <View className='menu-left'>
+              <Text className='menu-icon'>🎁</Text>
+              <View className='menu-text'>
+                <Text className='menu-name'>积分明细</Text>
+                <Text className='menu-desc'>查看积分获取记录</Text>
+              </View>
+            </View>
+            <Text className='menu-arrow'>&gt;</Text>
+          </View>
+        </View>
+      </View>
+
+      {/* 积分历史 */}
+      {showPointHistory && (
+        <View className='section'>
+          <View className='section-title'>积分记录</View>
+          {pointHistory.length === 0 ? (
+            <View className='empty-history'>
+              <Text className='empty-text'>暂无积分记录</Text>
+            </View>
+          ) : (
+            <View className='history-list'>
+              {pointHistory.map(record => (
+                <View key={record.id} className='history-item'>
+                  <View className='history-info'>
+                    <Text className='history-reason'>{record.reason}</Text>
+                    <Text className='history-date'>{record.created_at}</Text>
+                  </View>
+                  <Text className={`history-points ${record.points >= 0 ? 'positive' : 'negative'}`}>
+                    {record.points >= 0 ? '+' : ''}{record.points}
+                  </Text>
+                </View>
+              ))}
+            </View>
+          )}
+        </View>
+      )}
+
+      {/* 设置 */}
+      <View className='section'>
+        <View className='section-title'>设置</View>
+        <View className='menu-list'>
+          <View className='menu-item'>
+            <View className='menu-left'>
+              <Text className='menu-icon'>⚙️</Text>
+              <View className='menu-text'>
+                <Text className='menu-name'>通用设置</Text>
+              </View>
+            </View>
+            <Text className='menu-arrow'>&gt;</Text>
+          </View>
+          <View className='menu-item'>
+            <View className='menu-left'>
+              <Text className='menu-icon'>❓</Text>
+              <View className='menu-text'>
+                <Text className='menu-name'>关于我们</Text>
+              </View>
+            </View>
+            <Text className='menu-arrow'>&gt;</Text>
+          </View>
+        </View>
+      </View>
+
+      {/* 退出登录 */}
+      <View className='logout-section'>
+        <View className='logout-btn' onClick={handleLogout}>
+          <Text>退出登录</Text>
+        </View>
+      </View>
+    </View>
+  )
+}

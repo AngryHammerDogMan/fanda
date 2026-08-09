@@ -1,0 +1,128 @@
+// 全局样式变量
+page {
+  --color-primary: #FF6B35;
+  --color-primary-light: #FF8C5A;
+  --color-primary-dark: #E55A2B;
+  --color-secondary: #FFB347;
+  --color-success: #52C41A;
+  --color-warning: #FAAD14;
+  --color-danger: #FF4D4F;
+  --color-info: #1890FF;
+  --color-bg: #F5F5F5;
+  --color-bg-white: #FFFFFF;
+  --color-text: #333333;
+  --color-text-secondary: #999999;
+  --color-text-light: #CCCCCC;
+  --color-border: #EEEEEE;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-round: 50%;
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.06);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.1);
+  --font-xs: 10px;
+  --font-sm: 12px;
+  --font-md: 14px;
+  --font-lg: 16px;
+  --font-xl: 18px;
+  --font-xxl: 22px;
+
+  font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Helvetica Neue', sans-serif;
+  font-size: 14px;
+  color: var(--color-text);
+  background-color: var(--color-bg);
+  box-sizing: border-box;
+}
+
+// ========== 微信原生组件重置 ==========
+// 重置微信原生 button 的默认样式（Taro <Button> 组件渲染为 <button>）
+button {
+  padding: 0;
+  margin: 0;
+  font-size: inherit;
+  line-height: inherit;
+  color: inherit;
+  background: none;
+  border-radius: 0;
+
+  &::after {
+    display: none;
+    border: none;
+  }
+}
+
+// 重置微信原生 input 的默认样式
+input {
+  padding: 0;
+  margin: 0;
+}
+
+// 通用工具类
+.flex-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.flex-between {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.flex-column {
+  display: flex;
+  flex-direction: column;
+}
+
+.text-ellipsis {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+// 按钮
+.btn-primary {
+  background: linear-gradient(135deg, var(--color-primary), var(--color-primary-light));
+  color: #FFFFFF;
+  border: none;
+  border-radius: 20px;
+  height: 40px;
+  line-height: 40px;
+  padding: 0 24px;
+  font-size: var(--font-sm);
+  font-weight: 500;
+  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-outline {
+  background: transparent;
+  color: var(--color-primary);
+  border: 2px solid var(--color-primary);
+  border-radius: 20px;
+  height: 40px;
+  line-height: 40px;
+  padding: 0 24px;
+  font-size: var(--font-sm);
+  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+// 卡片
+.card {
+  background: var(--color-bg-white);
+  border-radius: var(--radius-md);
+  padding: 24px;
+  margin: 16px 0;
+  box-shadow: var(--shadow-sm);
+}
+
+// 安全区域
+.safe-bottom {
+  padding-bottom: env(safe-area-inset-bottom);
+}

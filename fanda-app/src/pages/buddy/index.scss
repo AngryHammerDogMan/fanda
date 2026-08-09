@@ -1,0 +1,282 @@
+.page-buddy {
+  min-height: 100vh;
+  background: var(--color-bg);
+}
+
+// 群组区域
+.group-section {
+  padding: 24px 32px;
+}
+
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+
+  .section-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--color-text);
+  }
+
+  .create-btn {
+    background: linear-gradient(135deg, var(--color-primary), var(--color-primary-light));
+    color: #FFFFFF;
+    font-size: 12px;
+    padding: 8px 16px;
+    border-radius: 16px;
+    font-weight: 500;
+  }
+}
+
+// 创建表单
+.create-form {
+  background: var(--color-bg-white);
+  border-radius: var(--radius-md);
+  padding: 24px;
+  margin-bottom: 20px;
+  box-shadow: var(--shadow-sm);
+
+  .create-input {
+    height: 40px;
+    background: var(--color-bg);
+    border-radius: var(--radius-sm);
+    padding: 0 12px;
+    font-size: 14px;
+    border: 2px solid var(--color-border);
+    margin-bottom: 16px;
+  }
+
+  .create-actions {
+    display: flex;
+    gap: 12px;
+
+    .create-cancel {
+      flex: 1;
+      text-align: center;
+      padding: 10px 0;
+      border-radius: 20px;
+      font-size: 13px;
+      color: var(--color-text-secondary);
+      background: var(--color-bg);
+    }
+
+    .create-confirm {
+      flex: 2;
+      text-align: center;
+      padding: 10px 0;
+      border-radius: 20px;
+      font-size: 13px;
+      color: #FFFFFF;
+      background: linear-gradient(135deg, var(--color-primary), var(--color-primary-light));
+      font-weight: 500;
+    }
+  }
+}
+
+// 空状态
+.empty-groups {
+  background: var(--color-bg-white);
+  border-radius: var(--radius-md);
+  padding: 48px 32px;
+  text-align: center;
+  box-shadow: var(--shadow-sm);
+
+  .empty-text {
+    display: block;
+    font-size: 14px;
+    color: var(--color-text);
+    margin-bottom: 12px;
+  }
+
+  .empty-hint {
+    font-size: 12px;
+    color: var(--color-text-secondary);
+  }
+}
+
+// 群组列表
+.group-list {
+  .group-card {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--color-bg-white);
+    border-radius: var(--radius-md);
+    padding: 24px;
+    margin-bottom: 12px;
+    box-shadow: var(--shadow-sm);
+    border: 2px solid transparent;
+    transition: all 0.2s;
+
+    &.active {
+      border-color: var(--color-primary);
+      background: rgba(255, 107, 53, 0.03);
+    }
+
+    .group-info {
+      .group-name {
+        display: block;
+        font-size: 14px;
+        font-weight: 500;
+        color: var(--color-text);
+        margin-bottom: 6px;
+      }
+
+      .group-meta {
+        font-size: 11px;
+        color: var(--color-text-secondary);
+      }
+    }
+
+    .owner-tag {
+      background: linear-gradient(135deg, var(--color-primary), var(--color-primary-light));
+      color: #FFFFFF;
+      font-size: 11px;
+      padding: 4px 16px;
+      border-radius: 20px;
+    }
+  }
+}
+
+// 详情区域
+.detail-section {
+  padding: 0 32px 32px;
+}
+
+// 成员区域
+.member-section {
+  background: var(--color-bg-white);
+  border-radius: var(--radius-md);
+  padding: 24px;
+  box-shadow: var(--shadow-sm);
+}
+
+.member-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+
+  .member-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--color-text);
+  }
+
+  .member-actions {
+    display: flex;
+    gap: 12px;
+  }
+
+  .member-action-btn {
+    padding: 8px 12px;
+    border-radius: 16px;
+    font-size: 12px;
+    color: var(--color-primary);
+    background: rgba(255, 107, 53, 0.08);
+    border: 2px solid var(--color-primary);
+  }
+}
+
+// 加入表单
+.join-form {
+  margin-bottom: 20px;
+
+  .join-input {
+    height: 40px;
+    background: var(--color-bg);
+    border-radius: var(--radius-sm);
+    padding: 0 12px;
+    font-size: 13px;
+    border: 2px solid var(--color-border);
+    margin-bottom: 12px;
+    text-align: center;
+    letter-spacing: 4px;
+  }
+
+  .join-actions {
+    display: flex;
+    gap: 12px;
+
+    .join-cancel {
+      flex: 1;
+      text-align: center;
+      padding: 10px 0;
+      border-radius: 20px;
+      font-size: 13px;
+      color: var(--color-text-secondary);
+      background: var(--color-bg);
+    }
+
+    .join-confirm {
+      flex: 2;
+      text-align: center;
+      padding: 10px 0;
+      border-radius: 20px;
+      font-size: 13px;
+      color: #FFFFFF;
+      background: linear-gradient(135deg, var(--color-primary), var(--color-primary-light));
+      font-weight: 500;
+    }
+  }
+}
+
+// 成员列表
+.member-list {
+  .member-item {
+    display: flex;
+    align-items: center;
+    padding: 20px 0;
+    border-bottom: 1px solid var(--color-border);
+
+    &:last-child {
+      border-bottom: none;
+    }
+
+    .member-avatar {
+      margin-right: 16px;
+      flex-shrink: 0;
+
+      .member-avatar-text {
+        font-size: 20px;
+      }
+    }
+
+    .member-info {
+      flex: 1;
+
+      .member-name {
+        display: block;
+        font-size: 13px;
+        color: var(--color-text);
+        margin-bottom: 4px;
+      }
+
+      .member-role {
+        font-size: 11px;
+        color: var(--color-text-secondary);
+      }
+    }
+
+    .remove-btn {
+      padding: 8px 20px;
+      border-radius: 24px;
+      font-size: 11px;
+      color: var(--color-danger);
+      background: rgba(255, 77, 79, 0.08);
+      border: 2px solid var(--color-danger);
+    }
+  }
+}
+
+.empty-members {
+  padding: 32px 0;
+  text-align: center;
+
+  .empty-text {
+    font-size: 13px;
+    color: var(--color-text-light);
+  }
+}

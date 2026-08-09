@@ -1,0 +1,274 @@
+.page-orders {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--color-bg);
+}
+
+// Tab 栏
+.tab-bar {
+  background: var(--color-bg-white);
+  padding: 16px 0;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
+
+  .tab-scroll {
+    white-space: nowrap;
+    padding: 0 24px;
+  }
+
+  .tab-item {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 12px 28px;
+    margin-right: 16px;
+    border-radius: 32px;
+    font-size: var(--font-sm);
+    color: var(--color-text-secondary);
+    background: #F5F5F5;
+    transition: all 0.2s ease;
+
+    &.active {
+      background: linear-gradient(135deg, var(--color-primary), var(--color-primary-light));
+      color: #FFFFFF;
+      font-weight: 600;
+    }
+  }
+}
+
+// 订单列表
+.order-list {
+  flex: 1;
+  padding: 16px 24px;
+  padding-bottom: 120px;
+}
+
+// 空状态
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 120px 32px;
+  text-align: center;
+
+  .empty-icon {
+    font-size: 20px;
+    margin-bottom: 24px;
+  }
+
+  .empty-text {
+    font-size: var(--font-lg);
+    color: var(--color-text);
+    font-weight: 600;
+    margin-bottom: 12px;
+  }
+
+  .empty-hint {
+    font-size: var(--font-sm);
+    color: var(--color-text-light);
+  }
+}
+
+// 订单卡片
+.order-card {
+  background: var(--color-bg-white);
+  border-radius: var(--radius-md);
+  padding: 24px;
+  margin-bottom: 20px;
+  box-shadow: var(--shadow-sm);
+}
+
+.order-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--color-border);
+
+  .order-meta {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .order-type {
+    font-size: var(--font-sm);
+    color: var(--color-primary);
+    background: rgba(255, 107, 53, 0.08);
+    padding: 4px 14px;
+    border-radius: 20px;
+  }
+
+  .order-dine-mode {
+    font-size: var(--font-xs);
+    color: var(--color-text-secondary);
+  }
+}
+
+// 状态标签
+.status-badge {
+  padding: 6px 16px;
+  border-radius: 20px;
+  font-size: var(--font-xs);
+  font-weight: 500;
+
+  &.status-pending {
+    background: #FFF7E6;
+    color: #FA8C16;
+  }
+
+  &.status-confirmed {
+    background: #F6FFED;
+    color: #52C41A;
+  }
+
+  &.status-rejected {
+    background: #FFF1F0;
+    color: #FF4D4F;
+  }
+
+  &.status-cancelled {
+    background: #F5F5F5;
+    color: #999999;
+  }
+
+  &.status-voted {
+    background: #E6F7FF;
+    color: #1890FF;
+  }
+}
+
+// 菜品列表
+.order-dishes {
+  margin-bottom: 20px;
+
+  .dish-item {
+    display: flex;
+    align-items: center;
+    padding: 10px 0;
+
+    .dish-name {
+      flex: 1;
+      font-size: var(--font-sm);
+      color: var(--color-text);
+    }
+
+    .dish-quantity {
+      font-size: var(--font-xs);
+      color: var(--color-text-secondary);
+      margin-right: 16px;
+      padding: 2px 12px;
+      background: #F5F5F5;
+      border-radius: 12px;
+    }
+
+    .dish-price {
+      font-size: var(--font-sm);
+      color: var(--color-text);
+      font-weight: 500;
+    }
+  }
+}
+
+// 订单底部
+.order-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 16px;
+  border-top: 1px solid var(--color-border);
+}
+
+.order-info {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+
+  .order-time {
+    font-size: var(--font-xs);
+    color: var(--color-text-light);
+  }
+
+  .order-total {
+    font-size: var(--font-sm);
+    color: var(--color-text);
+
+    .total-price {
+      color: var(--color-danger);
+      font-weight: 600;
+      font-size: var(--font-md);
+    }
+  }
+}
+
+// 操作按钮
+.order-actions {
+  display: flex;
+  gap: 12px;
+
+  .action-btn {
+    padding: 10px 24px;
+    border-radius: 24px;
+    font-size: var(--font-xs);
+    font-weight: 500;
+
+    &.confirm {
+      background: linear-gradient(135deg, var(--color-primary), var(--color-primary-light));
+      color: #FFFFFF;
+    }
+
+    &.reject {
+      background: #F5F5F5;
+      color: var(--color-text-secondary);
+    }
+
+    &.cancel {
+      background: #FFF1F0;
+      color: var(--color-danger);
+    }
+  }
+}
+
+// 加载更多
+.loading-more {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px;
+  font-size: var(--font-xs);
+  color: var(--color-text-light);
+
+  .no-more {
+    color: var(--color-text-light);
+  }
+}
+
+// 新建按钮
+.create-btn-wrapper {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: var(--color-bg-white);
+  padding: 16px 32px;
+  box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.06);
+
+  .create-btn {
+    background: linear-gradient(135deg, var(--color-primary), var(--color-primary-light));
+    border-radius: 48px;
+    padding: 24px 0;
+    text-align: center;
+    box-shadow: 0 4px 16px rgba(255, 107, 53, 0.3);
+
+    &-text {
+      font-size: var(--font-lg);
+      color: #FFFFFF;
+      font-weight: 600;
+    }
+  }
+}

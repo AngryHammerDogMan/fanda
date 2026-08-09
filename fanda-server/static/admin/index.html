@@ -1,0 +1,333 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>饭搭 - 后台管理</title>
+<style>
+:root{--primary:#FF6B35;--primary-light:#FFF8F0;--bg:#F5F5F5;--white:#fff;--text:#333;--text2:#999;--border:#eee;--success:#52C41A;--warning:#FAAD14;--danger:#FF4D4F;--info:#1890FF;--shadow:0 2px 8px rgba(0,0,0,.06);--radius:12px}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,'PingFang SC','Helvetica Neue',sans-serif;background:var(--bg);color:var(--text);font-size:14px}
+/* Login */
+.login-page{display:flex;align-items:center;justify-content:center;min-height:100vh;background:linear-gradient(135deg,#FFF8F0,#FFF3E6)}
+.login-box{background:var(--white);padding:48px 40px;border-radius:16px;box-shadow:0 4px 24px rgba(0,0,0,.08);width:380px;text-align:center}
+.login-box .logo{font-size:48px;display:block;margin-bottom:16px}
+.login-box h1{font-size:20px;color:var(--primary);margin-bottom:8px}
+.login-box p{font-size:13px;color:var(--text2);margin-bottom:32px}
+.login-box input{width:100%;height:44px;border:1px solid var(--border);border-radius:8px;padding:0 16px;font-size:14px;margin-bottom:16px;outline:none;transition:border-color .2s}
+.login-box input:focus{border-color:var(--primary)}
+.login-box button{width:100%;height:44px;background:linear-gradient(135deg,var(--primary),#FFB347);color:#fff;border:none;border-radius:8px;font-size:15px;font-weight:600;cursor:pointer;transition:opacity .2s}
+.login-box button:hover{opacity:.9}
+.login-box .error{color:var(--danger);font-size:12px;margin-top:8px}
+/* Layout */
+.app{display:none}
+.app.active{display:flex;min-height:100vh}
+.sidebar{width:220px;background:var(--white);border-right:1px solid var(--border);padding:20px 0;flex-shrink:0}
+.sidebar-brand{padding:0 20px 20px;border-bottom:1px solid var(--border);margin-bottom:12px}
+.sidebar-brand .brand-icon{font-size:24px;display:inline-block;margin-right:8px;vertical-align:middle}
+.sidebar-brand .brand-name{font-size:15px;font-weight:700;color:var(--primary);vertical-align:middle}
+.nav-item{display:flex;align-items:center;gap:10px;padding:12px 20px;cursor:pointer;font-size:14px;color:var(--text);transition:all .2s;border-left:3px solid transparent}
+.nav-item:hover{background:var(--primary-light)}
+.nav-item.active{background:var(--primary-light);color:var(--primary);border-left-color:var(--primary);font-weight:600}
+.nav-item .nav-icon{font-size:16px;width:24px;text-align:center}
+.main{flex:1;padding:24px;overflow-y:auto;max-height:100vh}
+.topbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:24px}
+.topbar h2{font-size:18px;font-weight:700}
+.topbar .logout-btn{padding:8px 20px;background:var(--white);border:1px solid var(--border);border-radius:8px;font-size:13px;color:var(--text2);cursor:pointer}
+.topbar .logout-btn:hover{color:var(--danger);border-color:var(--danger)}
+/* Stats cards */
+.stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;margin-bottom:24px}
+.stat-card{background:var(--white);padding:20px;border-radius:var(--radius);box-shadow:var(--shadow)}
+.stat-card .stat-icon{font-size:24px;display:block;margin-bottom:8px}
+.stat-card .stat-value{font-size:24px;font-weight:700;color:var(--primary)}
+.stat-card .stat-label{font-size:12px;color:var(--text2);margin-top:4px}
+.stat-card .stat-sub{font-size:11px;color:var(--text2);margin-top:2px}
+/* Toolbar */
+.toolbar{display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap;align-items:center}
+.toolbar input,.toolbar select{height:36px;border:1px solid var(--border);border-radius:8px;padding:0 12px;font-size:13px;outline:none;min-width:180px}
+.toolbar input:focus,.toolbar select:focus{border-color:var(--primary)}
+.toolbar .btn{height:36px;padding:0 16px;border-radius:8px;border:none;font-size:13px;cursor:pointer;transition:opacity .2s}
+.toolbar .btn-primary{background:var(--primary);color:#fff}
+.toolbar .btn-primary:hover{opacity:.9}
+.toolbar .btn-outline{background:var(--white);color:var(--primary);border:1px solid var(--primary)}
+/* Table */
+.table-wrap{background:var(--white);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden}
+.table-wrap .table-header{padding:16px 20px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center}
+.table-wrap .table-header h3{font-size:15px;font-weight:600}
+.table-wrap .table-count{font-size:12px;color:var(--text2)}
+table{width:100%;border-collapse:collapse}
+th,td{padding:12px 16px;text-align:left;font-size:13px;border-bottom:1px solid var(--border)}
+th{background:#FAFAFA;font-weight:600;color:var(--text2);font-size:12px;white-space:nowrap}
+tr:hover td{background:#FFFDFA}
+td .badge{display:inline-block;padding:2px 10px;border-radius:10px;font-size:11px;font-weight:500}
+.badge-success{background:#F6FFED;color:var(--success)}
+.badge-warning{background:#FFFBE6;color:var(--warning)}
+.badge-info{background:#E6F7FF;color:var(--info)}
+.badge-danger{background:#FFF2F0;color:var(--danger)}
+.badge-default{background:#F5F5F5;color:var(--text2)}
+td .delete-btn{color:var(--danger);cursor:pointer;font-size:12px;padding:4px 10px;border:1px solid var(--danger);border-radius:6px;background:transparent;transition:all .2s}
+td .delete-btn:hover{background:var(--danger);color:#fff}
+.empty-row td{text-align:center;padding:48px;color:var(--text2)}
+/* Pagination */
+.pagination{display:flex;justify-content:center;align-items:center;gap:8px;padding:16px;border-top:1px solid var(--border)}
+.pagination button{width:32px;height:32px;border:1px solid var(--border);border-radius:6px;background:var(--white);font-size:12px;cursor:pointer;transition:all .2s}
+.pagination button:hover{border-color:var(--primary);color:var(--primary)}
+.pagination button.active{background:var(--primary);color:#fff;border-color:var(--primary)}
+.pagination button:disabled{opacity:.4;cursor:not-allowed}
+.pagination .page-info{font-size:12px;color:var(--text2);margin:0 8px}
+/* Loading */
+.loading{text-align:center;padding:40px;color:var(--text2)}
+</style>
+</head>
+<body>
+
+<!-- Login -->
+<div id="loginPage" class="login-page">
+  <div class="login-box">
+    <span class="logo">🍽️</span>
+    <h1>后台管理系统</h1>
+    <p>饭搭 · 数据管理</p>
+    <input type="password" id="adminPass" placeholder="请输入管理员密码" onkeydown="if(event.key==='Enter')login()">
+    <button onclick="login()">登 录</button>
+    <p class="error" id="loginError"></p>
+  </div>
+</div>
+
+<!-- App -->
+<div id="app" class="app">
+  <nav class="sidebar">
+    <div class="sidebar-brand">
+      <span class="brand-icon">🍽️</span>
+      <span class="brand-name">饭搭</span>
+    </div>
+    <div class="nav-item active" data-page="dashboard" onclick="switchPage('dashboard')">
+      <span class="nav-icon">📊</span> 仪表盘
+    </div>
+    <div class="nav-item" data-page="users" onclick="switchPage('users')">
+      <span class="nav-icon">👥</span> 用户管理
+    </div>
+    <div class="nav-item" data-page="dishes" onclick="switchPage('dishes')">
+      <span class="nav-icon">🍳</span> 菜品管理
+    </div>
+    <div class="nav-item" data-page="orders" onclick="switchPage('orders')">
+      <span class="nav-icon">📋</span> 订单管理
+    </div>
+    <div class="nav-item" data-page="records" onclick="switchPage('records')">
+      <span class="nav-icon">📅</span> 用餐记录
+    </div>
+  </nav>
+  <div class="main">
+    <div class="topbar">
+      <h2 id="pageTitle">仪表盘</h2>
+      <button class="logout-btn" onclick="logout()">退出登录</button>
+    </div>
+    <div id="pageContent"></div>
+  </div>
+</div>
+
+<script>
+const API = '/api/v1/admin';
+let token = localStorage.getItem('admin_token');
+let currentPage = {};
+
+function login() {
+  const pass = document.getElementById('adminPass').value;
+  if (!pass) return;
+  document.getElementById('loginError').textContent = '';
+  fetch(API + '/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ password: pass })
+  }).then(r => r.json()).then(data => {
+    if (data.code === 0) {
+      token = data.data.token;
+      localStorage.setItem('admin_token', token);
+      document.getElementById('loginPage').style.display = 'none';
+      document.getElementById('app').classList.add('active');
+      switchPage('dashboard');
+    } else {
+      document.getElementById('loginError').textContent = data.message || '密码错误';
+    }
+  });
+}
+
+function logout() {
+  localStorage.removeItem('admin_token');
+  token = null;
+  document.getElementById('loginPage').style.display = 'flex';
+  document.getElementById('app').classList.remove('active');
+  document.getElementById('adminPass').value = '';
+}
+
+function api(path, params) {
+  const qs = params ? '?' + new URLSearchParams(params).toString() : '';
+  return fetch(API + path + qs, {
+    headers: { 'Authorization': 'Bearer ' + token }
+  }).then(r => {
+    if (r.status === 401) { logout(); throw new Error('未授权'); }
+    return r.json();
+  });
+}
+
+function switchPage(page) {
+  document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+  document.querySelector(`[data-page="${page}"]`).classList.add('active');
+  const titles = { dashboard: '仪表盘', users: '用户管理', dishes: '菜品管理', orders: '订单管理', records: '用餐记录' };
+  document.getElementById('pageTitle').textContent = titles[page] || page;
+  currentPage[page] = 1;
+  switch (page) {
+    case 'dashboard': loadDashboard(); break;
+    case 'users': loadUsers(1); break;
+    case 'dishes': loadDishes(1); break;
+    case 'orders': loadOrders(1); break;
+    case 'records': loadRecords(1); break;
+  }
+}
+
+function loadDashboard() {
+  document.getElementById('pageContent').innerHTML = '<div class="loading">加载中...</div>';
+  api('/stats').then(data => {
+    if (data.code !== 0) return;
+    const d = data.data;
+    document.getElementById('pageContent').innerHTML = `
+      <div class="stats-grid">
+        <div class="stat-card"><span class="stat-icon">👥</span><div class="stat-value">${d.total_users}</div><div class="stat-label">注册用户</div><div class="stat-sub">今日 +${d.today_users||0}</div></div>
+        <div class="stat-card"><span class="stat-icon">🍳</span><div class="stat-value">${d.total_dishes}</div><div class="stat-label">菜品总数</div><div class="stat-sub">今日 +${d.today_dishes||0}</div></div>
+        <div class="stat-card"><span class="stat-icon">📋</span><div class="stat-value">${d.total_orders}</div><div class="stat-label">订单总数</div><div class="stat-sub">今日 +${d.today_orders||0}</div></div>
+        <div class="stat-card"><span class="stat-icon">📅</span><div class="stat-value">${d.total_records}</div><div class="stat-label">用餐记录</div></div>
+        <div class="stat-card"><span class="stat-icon">💰</span><div class="stat-value">¥${Number(d.total_budget||0).toFixed(2)}</div><div class="stat-label">消费总额</div></div>
+        <div class="stat-card"><span class="stat-icon">📆</span><div class="stat-value">¥${Number(d.month_budget||0).toFixed(2)}</div><div class="stat-label">本月消费</div></div>
+      </div>`;
+  });
+}
+
+function loadUsers(page) {
+  currentPage.users = page;
+  document.getElementById('pageContent').innerHTML = '<div class="loading">加载中...</div>';
+  const keyword = document.getElementById('userSearch')?.value || '';
+  api('/users', { page, page_size: 20, keyword }).then(data => {
+    if (data.code !== 0) return;
+    const d = data.data;
+    let html = `<div class="toolbar"><input type="text" id="userSearch" placeholder="搜索昵称/手机号..." value="${esc(keyword)}" onkeydown="if(event.key==='Enter')loadUsers(1)"><button class="btn btn-primary" onclick="loadUsers(1)">搜索</button><button class="btn btn-outline" onclick="document.getElementById('userSearch').value='';loadUsers(1)">重置</button></div>`;
+    html += `<div class="table-wrap"><div class="table-header"><h3>用户列表</h3><span class="table-count">共 ${d.total} 人</span></div><table><thead><tr><th>昵称</th><th>手机号</th><th>微信</th><th>抖音</th><th>积分</th><th>注册时间</th></tr></thead><tbody>`;
+    if (!d.list || d.list.length === 0) {
+      html += '<tr class="empty-row"><td colspan="6">暂无数据</td></tr>';
+    } else {
+      d.list.forEach(u => {
+        html += `<tr><td>${esc(u.nickname)}</td><td>${u.phone ? u.phone.slice(0,3)+'****'+u.phone.slice(7) : '-'}</td><td>${u.has_wx?'<span class="badge badge-success">已绑定</span>':'<span class="badge badge-default">未绑定</span>'}</td><td>${u.has_dy?'<span class="badge badge-success">已绑定</span>':'<span class="badge badge-default">未绑定</span>'}</td><td>${u.points}</td><td>${fmtDate(u.created_at)}</td></tr>`;
+      });
+    }
+    html += '</tbody></table>' + paginationHtml(d.total, page, 20, 'loadUsers') + '</div>';
+    document.getElementById('pageContent').innerHTML = html;
+  });
+}
+
+function loadDishes(page) {
+  currentPage.dishes = page;
+  document.getElementById('pageContent').innerHTML = '<div class="loading">加载中...</div>';
+  const keyword = document.getElementById('dishSearch')?.value || '';
+  const dishType = document.getElementById('dishTypeFilter')?.value || '';
+  api('/dishes', { page, page_size: 20, keyword, dish_type: dishType }).then(data => {
+    if (data.code !== 0) return;
+    const d = data.data;
+    let html = `<div class="toolbar"><input type="text" id="dishSearch" placeholder="搜索菜品名/餐厅..." value="${esc(keyword)}" onkeydown="if(event.key==='Enter')loadDishes(1)"><select id="dishTypeFilter" onchange="loadDishes(1)"><option value="">全部类型</option><option value="dish" ${dishType==='dish'?'selected':''}>菜品</option><option value="takeout" ${dishType==='takeout'?'selected':''}>外卖</option><option value="dineout" ${dishType==='dineout'?'selected':''}>外食</option></select><button class="btn btn-primary" onclick="loadDishes(1)">搜索</button><button class="btn btn-outline" onclick="document.getElementById('dishSearch').value='';document.getElementById('dishTypeFilter').value='';loadDishes(1)">重置</button></div>`;
+    html += `<div class="table-wrap"><div class="table-header"><h3>菜品列表</h3><span class="table-count">共 ${d.total} 道</span></div><table><thead><tr><th>菜品名</th><th>类型</th><th>分组</th><th>价格</th><th>创建时间</th><th>操作</th></tr></thead><tbody>`;
+    if (!d.list || d.list.length === 0) {
+      html += '<tr class="empty-row"><td colspan="6">暂无数据</td></tr>';
+    } else {
+      const typeMap = { dish: '菜品', takeout: '外卖', dineout: '外食' };
+      const groupMap = { couple: '情侣', buddy: '饭搭子' };
+      d.list.forEach(d => {
+        html += `<tr><td>${esc(d.name)}</td><td><span class="badge badge-info">${typeMap[d.dish_type]||d.dish_type}</span></td><td><span class="badge badge-default">${groupMap[d.group_type]||d.group_type}</span></td><td>${d.price>0?'¥'+d.price:'-'}</td><td>${fmtDate(d.created_at)}</td><td><button class="delete-btn" onclick="delDish('${d.id}',this)">删除</button></td></tr>`;
+      });
+    }
+    html += '</tbody></table>' + paginationHtml(d.total, page, 20, 'loadDishes') + '</div>';
+    document.getElementById('pageContent').innerHTML = html;
+  });
+}
+
+function delDish(id, btn) {
+  if (!confirm('确定删除这道菜品吗？')) return;
+  api('/dishes/' + id, { method: 'DELETE' }).then(data => {
+    if (data.code === 0) {
+      btn.closest('tr').remove();
+    }
+  });
+}
+
+function loadOrders(page) {
+  currentPage.orders = page;
+  document.getElementById('pageContent').innerHTML = '<div class="loading">加载中...</div>';
+  const status = document.getElementById('orderStatusFilter')?.value || '';
+  api('/orders', { page, page_size: 20, status }).then(data => {
+    if (data.code !== 0) return;
+    const d = data.data;
+    let html = `<div class="toolbar"><select id="orderStatusFilter" onchange="loadOrders(1)"><option value="">全部状态</option><option value="pending" ${status==='pending'?'selected':''}>待确认</option><option value="confirmed" ${status==='confirmed'?'selected':''}>已确认</option><option value="rejected" ${status==='rejected'?'selected':''}>已拒绝</option><option value="cancelled" ${status==='cancelled'?'selected':''}>已取消</option><option value="voted" ${status==='voted'?'selected':''}>投票中</option></select><button class="btn btn-outline" onclick="document.getElementById('orderStatusFilter').value='';loadOrders(1)">重置</button></div>`;
+    html += `<div class="table-wrap"><div class="table-header"><h3>订单列表</h3><span class="table-count">共 ${d.total} 单</span></div><table><thead><tr><th>分组</th><th>就餐模式</th><th>状态</th><th>金额</th><th>创建时间</th></tr></thead><tbody>`;
+    if (!d.list || d.list.length === 0) {
+      html += '<tr class="empty-row"><td colspan="5">暂无数据</td></tr>';
+    } else {
+      const groupMap = { couple: '情侣', buddy: '饭搭子' };
+      const modeMap = { together: '共同就餐', solo: '个人就餐' };
+      const statusMap = { pending: '待确认', confirmed: '已确认', rejected: '已拒绝', cancelled: '已取消', voted: '投票中' };
+      const statusClass = { pending: 'badge-warning', confirmed: 'badge-success', rejected: 'badge-danger', cancelled: 'badge-default', voted: 'badge-info' };
+      d.list.forEach(o => {
+        html += `<tr><td><span class="badge badge-default">${groupMap[o.group_type]||o.group_type}</span></td><td>${modeMap[o.dine_mode]||o.dine_mode}</td><td><span class="badge ${statusClass[o.status]||'badge-default'}">${statusMap[o.status]||o.status}</span></td><td>${o.total_amount>0?'¥'+o.total_amount:'-'}</td><td>${fmtDate(o.created_at)}</td></tr>`;
+      });
+    }
+    html += '</tbody></table>' + paginationHtml(d.total, page, 20, 'loadOrders') + '</div>';
+    document.getElementById('pageContent').innerHTML = html;
+  });
+}
+
+function loadRecords(page) {
+  currentPage.records = page;
+  document.getElementById('pageContent').innerHTML = '<div class="loading">加载中...</div>';
+  const mealType = document.getElementById('recordMealFilter')?.value || '';
+  api('/records', { page, page_size: 20, meal_type: mealType }).then(data => {
+    if (data.code !== 0) return;
+    const d = data.data;
+    let html = `<div class="toolbar"><select id="recordMealFilter" onchange="loadRecords(1)"><option value="">全部类型</option><option value="cook" ${mealType==='cook'?'selected':''}>自己做饭</option><option value="takeout" ${mealType==='takeout'?'selected':''}>外卖</option><option value="dineout" ${mealType==='dineout'?'selected':''}>外食</option></select><button class="btn btn-outline" onclick="document.getElementById('recordMealFilter').value='';loadRecords(1)">重置</button></div>`;
+    html += `<div class="table-wrap"><div class="table-header"><h3>用餐记录</h3><span class="table-count">共 ${d.total} 条</span></div><table><thead><tr><th>日期</th><th>分组</th><th>类型</th><th>金额</th><th>创建时间</th></tr></thead><tbody>`;
+    if (!d.list || d.list.length === 0) {
+      html += '<tr class="empty-row"><td colspan="5">暂无数据</td></tr>';
+    } else {
+      const groupMap = { couple: '情侣', buddy: '饭搭子' };
+      const mealMap = { cook: '自己做饭', takeout: '外卖', dineout: '外食' };
+      d.list.forEach(r => {
+        html += `<tr><td>${r.record_date}</td><td><span class="badge badge-default">${groupMap[r.group_type]||r.group_type}</span></td><td><span class="badge badge-info">${mealMap[r.meal_type]||r.meal_type}</span></td><td>${r.amount>0?'¥'+r.amount:'-'}</td><td>${fmtDate(r.created_at)}</td></tr>`;
+      });
+    }
+    html += '</tbody></table>' + paginationHtml(d.total, page, 20, 'loadRecords') + '</div>';
+    document.getElementById('pageContent').innerHTML = html;
+  });
+}
+
+function paginationHtml(total, page, pageSize, fnName) {
+  const totalPages = Math.ceil(total / pageSize);
+  if (totalPages <= 1) return '';
+  let html = '<div class="pagination">';
+  html += `<button ${page===1?'disabled':''} onclick="${fnName}(1)">&laquo;</button>`;
+  html += `<button ${page===1?'disabled':''} onclick="${fnName}(${page-1})">&lsaquo;</button>`;
+  for (let i = Math.max(1, page-2); i <= Math.min(totalPages, page+2); i++) {
+    html += `<button class="${i===page?'active':''}" onclick="${fnName}(${i})">${i}</button>`;
+  }
+  html += `<button ${page===totalPages?'disabled':''} onclick="${fnName}(${page+1})">&rsaquo;</button>`;
+  html += `<button ${page===totalPages?'disabled':''} onclick="${fnName}(${totalPages})">&raquo;</button>`;
+  html += `<span class="page-info">第 ${page}/${totalPages} 页</span>`;
+  html += '</div>';
+  return html;
+}
+
+function esc(s) { return s ? s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;') : ''; }
+function fmtDate(d) { return d ? new Date(d).toLocaleString('zh-CN',{hour12:false}) : '-'; }
+
+// Init
+if (token) {
+  document.getElementById('loginPage').style.display = 'none';
+  document.getElementById('app').classList.add('active');
+  switchPage('dashboard');
+}
+</script>
+</body>
+</html>
