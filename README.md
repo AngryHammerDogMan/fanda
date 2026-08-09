@@ -1,4 +1,4 @@
-﻿# 🍽️ 饭搭 (Fanda)
+# 🍽️ 饭搭 (Fanda)
 
 > 情侣和饭搭子的点菜小程序 —— 一起决定吃什么，不再纠结！
 
@@ -31,7 +31,7 @@ fanda/
 | UI 样式 | Sass |
 | 后端框架 | Go + Gin |
 | 数据库 | PostgreSQL |
-| 缓存 | Redis |
+| 缓存 | Redis（可选） |
 | 认证 | JWT |
 
 ## 快速开始
@@ -43,7 +43,27 @@ fanda/
 - PostgreSQL >= 14
 - Redis（可选，缓存用）
 
-### 后端启动
+### 1. 数据库初始化
+
+```bash
+# 初始化 PostgreSQL 数据目录（仅首次）
+initdb -D C:\pgsql\pgsql\data -U postgres --auth=trust --encoding=UTF8
+
+# 注册为 Windows 服务（开机自启）
+pg_ctl register -N PostgreSQL -D C:\pgsql\pgsql\data -S auto
+
+# 启动服务
+net start PostgreSQL
+
+# 创建数据库
+psql -U postgres -c "CREATE DATABASE fanda;"
+
+# 运行迁移
+psql -U postgres -d fanda -f fanda-server/migrations/001_init.sql
+psql -U postgres -d fanda -f fanda-server/migrations/002_add_phone.sql
+```
+
+### 2. 后端启动
 
 ```bash
 cd fanda-server
@@ -54,12 +74,12 @@ cp .env.example .env
 
 # 安装依赖 & 运行
 go mod tidy
-go run cmd/main.go
+go run cmd/server/main.go
 # 服务运行在 http://localhost:8080
 # 后台管理 http://localhost:8080/admin/
 ```
 
-### 前端启动
+### 3. 前端启动
 
 ```bash
 cd fanda-app
@@ -78,7 +98,7 @@ npm run dev:tt
 
 ## 后台管理
 
-访问 `http://localhost:8080/admin/`，默认密码 `admin123`（可通过 `.env` 的 `ADMIN_PASSWORD` 修改）。
+访问 `http://localhost:8080/admin/`，默认密码 `admin123`（可在 `fanda-server/internal/handler/admin.go` 中修改）。
 
 ## License
 
