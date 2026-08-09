@@ -1,4 +1,4 @@
-﻿import { defineConfig, type UserConfigExport } from '@tarojs/cli'
+import { defineConfig, type UserConfigExport } from '@tarojs/cli'
 import path from 'path'
 
 export default defineConfig<'webpack5'>(async (merge, { command, mode }) => {

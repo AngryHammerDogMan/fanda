@@ -1,4 +1,4 @@
-﻿package router
+package router
 
 import (
 	"fanda-server/internal/config"
