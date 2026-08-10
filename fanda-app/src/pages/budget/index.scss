@@ -2,14 +2,17 @@
   min-height: 100vh;
   display: flex;
   flex-direction: column;
-  background: var(--color-bg);
+  background:
+    radial-gradient(circle at 88% 0%, rgba(255, 179, 71, 0.14), transparent 280px),
+    linear-gradient(180deg, var(--color-paper), var(--color-cream));
 }
 
 // 分组选择
 .group-bar {
-  background: var(--color-bg-white);
+  background: rgba(255, 255, 255, 0.76);
   padding: 20px 32px;
   border-bottom: 1px solid var(--color-border);
+  backdrop-filter: blur(10px);
 }
 
 .group-type-tabs {
@@ -24,7 +27,7 @@
     color: var(--color-text-secondary);
     background: var(--color-bg);
     border: 2px solid transparent;
-    transition: all 0.2s;
+    transition: background-color 0.2s, color 0.2s, transform 0.2s, opacity 0.2s;
 
     &.active {
       color: var(--color-primary);
@@ -66,7 +69,7 @@
   align-items: center;
   justify-content: center;
   padding: 24px 32px;
-  background: var(--color-bg-white);
+  background: rgba(255, 255, 255, 0.76);
   border-bottom: 1px solid var(--color-border);
 
   .month-arrow {
@@ -75,7 +78,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    background: var(--color-bg);
+    background: var(--color-soft);
     border-radius: 50%;
 
     .arrow-text {
@@ -107,8 +110,9 @@
 
   .overview-card {
     flex: 1;
-    background: var(--color-bg-white);
-    border-radius: var(--radius-md);
+    background: rgba(255, 255, 255, 0.88);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-card);
     padding: 24px 16px;
     text-align: center;
     box-shadow: var(--shadow-sm);
@@ -200,8 +204,9 @@
   .stat-card {
     flex: 1;
     min-width: calc(33.33% - 12px);
-    background: var(--color-bg-white);
-    border-radius: var(--radius-md);
+    background: rgba(255, 255, 255, 0.88);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-card);
     padding: 20px 16px;
     text-align: center;
     box-shadow: var(--shadow-sm);
@@ -243,7 +248,7 @@
 .bottom-section {
   padding: 20px 32px;
   padding-bottom: calc(20px + env(safe-area-inset-bottom));
-  background: var(--color-bg-white);
+  background: rgba(255, 255, 255, 0.9);
   border-top: 1px solid var(--color-border);
   margin-top: auto;
 }
@@ -254,7 +259,7 @@
   font-size: 14px;
   text-align: center;
   padding: 10px 0;
-  border-radius: 20px;
+  border-radius: 999px;
   font-weight: 600;
   height: 40px;
   line-height: 40px;

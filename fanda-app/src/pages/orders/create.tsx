@@ -1,4 +1,4 @@
-import { View, Text, ScrollView, Input } from '@tarojs/components'
+import { View, Text, ScrollView, Input, Image } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { useState, useEffect } from 'react'
 import { authAPI, dishAPI, orderAPI } from '@/services/api'
@@ -9,6 +9,8 @@ interface SelectedDish {
   dish: Dish
   quantity: number
 }
+
+const sticker = (name: string) => `/assets/stickers/${name}.png`
 
 export default function CreateOrder() {
   const [user, setUser] = useState<User | null>(null)
@@ -175,14 +177,14 @@ export default function CreateOrder() {
               className={`option-item ${groupType === 'couple' ? 'active' : ''}`}
               onClick={() => setGroupType('couple')}
             >
-              <Text className='option-icon'>💑</Text>
+              <Image className='option-icon' src={sticker('couple')} mode='aspectFit' />
               <Text className='option-label'>情侣</Text>
             </View>
             <View
               className={`option-item ${groupType === 'buddy' ? 'active' : ''}`}
               onClick={() => setGroupType('buddy')}
             >
-              <Text className='option-icon'>👥</Text>
+              <Image className='option-icon' src={sticker('buddy')} mode='aspectFit' />
               <Text className='option-label'>饭搭子</Text>
             </View>
           </View>
@@ -223,7 +225,7 @@ export default function CreateOrder() {
                 className={`option-item large ${dineMode === 'together' ? 'active' : ''}`}
                 onClick={() => setDineMode('together')}
               >
-                <Text className='option-icon'>🍽️</Text>
+                <Image className='option-icon' src={sticker('menu')} mode='aspectFit' />
                 <View className='option-text'>
                   <Text className='option-label'>共同就餐</Text>
                   <Text className='option-desc'>与伙伴一起用餐</Text>
@@ -233,7 +235,7 @@ export default function CreateOrder() {
                 className={`option-item large ${dineMode === 'solo' ? 'active' : ''}`}
                 onClick={() => setDineMode('solo')}
               >
-                <Text className='option-icon'>📝</Text>
+                <Image className='option-icon' src={sticker('order-muted')} mode='aspectFit' />
                 <View className='option-text'>
                   <Text className='option-label'>个人记录</Text>
                   <Text className='option-desc'>仅记录个人用餐</Text>

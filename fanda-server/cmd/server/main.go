@@ -10,7 +10,10 @@ import (
 
 func main() {
 	// 加载配置
-	cfg := config.Load()
+	cfg, err := config.Load()
+	if err != nil {
+		log.Fatalf("配置加载失败: %v", err)
+	}
 
 	// 初始化数据库
 	database.InitPostgres(cfg)

@@ -1,9 +1,11 @@
-import { View, Text, Input } from '@tarojs/components'
+import { View, Text, Input, Image } from '@tarojs/components'
 import Taro, { useDidShow } from '@tarojs/taro'
 import { useState, useEffect } from 'react'
 import { authAPI, featureAPI } from '@/services/api'
 import type { User, WishItem, BuddyGroup } from '@/types'
 import './index.scss'
+
+const sticker = (name: string) => `/assets/stickers/${name}.png`
 
 type FilterType = '全部' | '未完成' | '已完成'
 
@@ -205,6 +207,7 @@ export default function Wishes() {
       <View className='wish-list'>
         {wishes.length === 0 && !loading ? (
           <View className='empty-state'>
+            <Image className='empty-icon' src={sticker('wish')} mode='aspectFit' />
             <Text className='empty-text'>暂无心愿</Text>
             <Text className='empty-hint'>点击下方按钮添加心愿</Text>
           </View>
@@ -226,7 +229,7 @@ export default function Wishes() {
                 </View>
               </View>
               <View className='wish-del' onClick={() => handleDelete(wish.id)}>
-                <Text className='del-icon'>🗑</Text>
+                <Image className='del-icon' src={sticker('wish-muted')} mode='aspectFit' />
               </View>
             </View>
           ))

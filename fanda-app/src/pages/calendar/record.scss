@@ -1,6 +1,8 @@
 .page-record {
   min-height: 100vh;
-  background: var(--color-bg);
+  background:
+    radial-gradient(circle at 88% 0%, rgba(255, 179, 71, 0.14), transparent 280px),
+    linear-gradient(180deg, var(--color-paper), var(--color-cream));
   padding-bottom: 40px;
 }
 
@@ -11,6 +13,14 @@
   align-items: center;
   justify-content: center;
   min-height: 60vh;
+  flex-direction: column;
+
+  .empty-icon {
+    width: 96px;
+    height: 96px;
+    margin-bottom: 18px;
+    filter: drop-shadow(0 10px 16px var(--color-sticker-shadow));
+  }
 
   .loading-text,
   .empty-text {
@@ -21,7 +31,7 @@
 
 // 头部
 .record-header {
-  background: var(--color-bg-white);
+  background: rgba(255, 255, 255, 0.82);
   padding: 32px;
   display: flex;
   flex-direction: column;
@@ -61,9 +71,12 @@
 
 // 信息区
 .info-section {
-  background: var(--color-bg-white);
-  margin: 0 0 16px;
+  background: rgba(255, 255, 255, 0.88);
+  margin: 0 24px 16px;
   padding: 24px 32px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-sm);
 }
 
 .info-row {
@@ -116,9 +129,12 @@
 
 // 照片区
 .photo-section {
-  background: var(--color-bg-white);
+  background: rgba(255, 255, 255, 0.88);
   padding: 24px 32px;
-  margin-bottom: 16px;
+  margin: 0 24px 16px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-sm);
 }
 
 .section-title {
@@ -144,9 +160,12 @@
 
 // 评论区
 .comment-section {
-  background: var(--color-bg-white);
+  background: rgba(255, 255, 255, 0.88);
   padding: 24px 32px;
-  margin-bottom: 16px;
+  margin: 0 24px 16px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-sm);
 }
 
 .comment-list {
@@ -188,6 +207,14 @@
   text-align: center;
   padding: 24px 0;
 
+  .comment-empty-icon {
+    width: 56px;
+    height: 56px;
+    margin-bottom: 8px;
+    opacity: 0.82;
+    filter: drop-shadow(0 6px 10px var(--color-sticker-shadow));
+  }
+
   .empty-hint {
     font-size: var(--font-xs);
     color: var(--color-text-light);
@@ -221,7 +248,7 @@
     background: linear-gradient(135deg, var(--color-primary), var(--color-primary-light));
     color: #fff;
     font-size: 12px;
-    border-radius: 18px;
+    border-radius: 999px;
     border: none;
     display: flex;
     align-items: center;
@@ -245,7 +272,7 @@
   .btn-edit, .btn-delete {
     flex: 1;
     padding: 10px;
-    border-radius: 20px;
+    border-radius: 999px;
     display: flex;
     align-items: center;
     justify-content: center;

@@ -44,7 +44,10 @@ func (h *CalendarHandler) CreateRecord(c *gin.Context) {
 // PUT /api/v1/calendar/records/:id
 func (h *CalendarHandler) UpdateRecord(c *gin.Context) {
 	uid := c.MustGet("uid").(uuid.UUID)
-	recordID, _ := uuid.Parse(c.Param("id"))
+	recordID, ok := parseUUIDParam(c, "id")
+	if !ok {
+		return
+	}
 
 	var req service.UpdateRecordReq
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -64,7 +67,10 @@ func (h *CalendarHandler) UpdateRecord(c *gin.Context) {
 // DELETE /api/v1/calendar/records/:id
 func (h *CalendarHandler) DeleteRecord(c *gin.Context) {
 	uid := c.MustGet("uid").(uuid.UUID)
-	recordID, _ := uuid.Parse(c.Param("id"))
+	recordID, ok := parseUUIDParam(c, "id")
+	if !ok {
+		return
+	}
 
 	if err := h.service.DeleteRecord(c.Request.Context(), uid, recordID); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": err.Error()})
@@ -77,9 +83,13 @@ func (h *CalendarHandler) DeleteRecord(c *gin.Context) {
 // GetRecord 获取记录详情
 // GET /api/v1/calendar/records/:id
 func (h *CalendarHandler) GetRecord(c *gin.Context) {
-	recordID, _ := uuid.Parse(c.Param("id"))
+	uid := c.MustGet("uid").(uuid.UUID)
+	recordID, ok := parseUUIDParam(c, "id")
+	if !ok {
+		return
+	}
 
-	record, err := h.service.GetRecord(c.Request.Context(), recordID)
+	record, err := h.service.GetRecord(c.Request.Context(), uid, recordID)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"code": 404, "message": err.Error()})
 		return
@@ -91,8 +101,12 @@ func (h *CalendarHandler) GetRecord(c *gin.Context) {
 // ListRecords 按月获取日历记录
 // GET /api/v1/calendar/records?group_type=couple&group_id=xxx&year=2026&month=8
 func (h *CalendarHandler) ListRecords(c *gin.Context) {
+	uid := c.MustGet("uid").(uuid.UUID)
 	groupType := c.Query("group_type")
-	groupID, _ := uuid.Parse(c.Query("group_id"))
+	groupID, ok := parseUUIDQuery(c, "group_id")
+	if !ok {
+		return
+	}
 	year, _ := strconv.Atoi(c.DefaultQuery("year", "2026"))
 	month, _ := strconv.Atoi(c.DefaultQuery("month", "8"))
 
@@ -101,7 +115,7 @@ func (h *CalendarHandler) ListRecords(c *gin.Context) {
 		return
 	}
 
-	records, err := h.service.ListRecords(c.Request.Context(), groupType, groupID, year, month)
+	records, err := h.service.ListRecords(c.Request.Context(), uid, groupType, groupID, year, month)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": err.Error()})
 		return
@@ -113,8 +127,12 @@ func (h *CalendarHandler) ListRecords(c *gin.Context) {
 // ListRecordsByDate 按日期获取记录
 // GET /api/v1/calendar/records/date?group_type=couple&group_id=xxx&date=2026-08-08
 func (h *CalendarHandler) ListRecordsByDate(c *gin.Context) {
+	uid := c.MustGet("uid").(uuid.UUID)
 	groupType := c.Query("group_type")
-	groupID, _ := uuid.Parse(c.Query("group_id"))
+	groupID, ok := parseUUIDQuery(c, "group_id")
+	if !ok {
+		return
+	}
 	date := c.Query("date")
 
 	if groupType == "" || groupID == uuid.Nil || date == "" {
@@ -122,7 +140,7 @@ func (h *CalendarHandler) ListRecordsByDate(c *gin.Context) {
 		return
 	}
 
-	records, err := h.service.ListRecordsByDate(c.Request.Context(), groupType, groupID, date)
+	records, err := h.service.ListRecordsByDate(c.Request.Context(), uid, groupType, groupID, date)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": err.Error()})
 		return
@@ -135,7 +153,10 @@ func (h *CalendarHandler) ListRecordsByDate(c *gin.Context) {
 // POST /api/v1/calendar/records/:id/comments
 func (h *CalendarHandler) AddComment(c *gin.Context) {
 	uid := c.MustGet("uid").(uuid.UUID)
-	recordID, _ := uuid.Parse(c.Param("id"))
+	recordID, ok := parseUUIDParam(c, "id")
+	if !ok {
+		return
+	}
 
 	var req struct {
 		Content string `json:"content" binding:"required"`
@@ -158,7 +179,10 @@ func (h *CalendarHandler) AddComment(c *gin.Context) {
 // POST /api/v1/calendar/records/:id/photos
 func (h *CalendarHandler) AddPhoto(c *gin.Context) {
 	uid := c.MustGet("uid").(uuid.UUID)
-	recordID, _ := uuid.Parse(c.Param("id"))
+	recordID, ok := parseUUIDParam(c, "id")
+	if !ok {
+		return
+	}
 
 	var req struct {
 		URL  string `json:"url" binding:"required"`
@@ -181,8 +205,12 @@ func (h *CalendarHandler) AddPhoto(c *gin.Context) {
 // GetMonthlyStats 获取月度统计
 // GET /api/v1/calendar/stats?group_type=couple&group_id=xxx&year=2026&month=8
 func (h *CalendarHandler) GetMonthlyStats(c *gin.Context) {
+	uid := c.MustGet("uid").(uuid.UUID)
 	groupType := c.Query("group_type")
-	groupID, _ := uuid.Parse(c.Query("group_id"))
+	groupID, ok := parseUUIDQuery(c, "group_id")
+	if !ok {
+		return
+	}
 	year, _ := strconv.Atoi(c.DefaultQuery("year", "2026"))
 	month, _ := strconv.Atoi(c.DefaultQuery("month", "8"))
 
@@ -191,7 +219,7 @@ func (h *CalendarHandler) GetMonthlyStats(c *gin.Context) {
 		return
 	}
 
-	stats, err := h.service.GetMonthlyStats(c.Request.Context(), groupType, groupID, year, month)
+	stats, err := h.service.GetMonthlyStats(c.Request.Context(), uid, groupType, groupID, year, month)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": err.Error()})
 		return

@@ -2,17 +2,20 @@
   min-height: 100vh;
   display: flex;
   flex-direction: column;
-  background-color: var(--color-bg);
+  background:
+    radial-gradient(circle at 12% 0%, rgba(255, 107, 53, 0.12), transparent 280px),
+    linear-gradient(180deg, var(--color-paper), var(--color-cream));
 }
 
 // Tab 栏
 .tab-bar {
-  background: var(--color-bg-white);
-  padding: 16px 0;
+  background: rgba(255, 248, 240, 0.88);
+  padding: 18px 0;
   position: sticky;
   top: 0;
   z-index: 10;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
+  backdrop-filter: blur(10px);
+  box-shadow: 0 8px 24px rgba(58, 33, 23, 0.06);
 
   .tab-scroll {
     white-space: nowrap;
@@ -28,8 +31,9 @@
     border-radius: 32px;
     font-size: var(--font-sm);
     color: var(--color-text-secondary);
-    background: #F5F5F5;
-    transition: all 0.2s ease;
+    background: var(--color-card);
+    border: 1px solid var(--color-border);
+    transition: background-color 0.2s ease, color 0.2s ease, transform 0.2s ease, opacity 0.2s ease;
 
     &.active {
       background: linear-gradient(135deg, var(--color-primary), var(--color-primary-light));
@@ -56,8 +60,10 @@
   text-align: center;
 
   .empty-icon {
-    font-size: 20px;
+    width: 96px;
+    height: 96px;
     margin-bottom: 24px;
+    filter: drop-shadow(0 10px 16px var(--color-sticker-shadow));
   }
 
   .empty-text {
@@ -75,8 +81,9 @@
 
 // 订单卡片
 .order-card {
-  background: var(--color-bg-white);
-  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.88);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
   padding: 24px;
   margin-bottom: 20px;
   box-shadow: var(--shadow-sm);
@@ -163,7 +170,7 @@
       color: var(--color-text-secondary);
       margin-right: 16px;
       padding: 2px 12px;
-      background: #F5F5F5;
+      background: var(--color-soft);
       border-radius: 12px;
     }
 
@@ -223,7 +230,7 @@
     }
 
     &.reject {
-      background: #F5F5F5;
+      background: var(--color-soft);
       color: var(--color-text-secondary);
     }
 
@@ -254,7 +261,7 @@
   bottom: 0;
   left: 0;
   right: 0;
-  background: var(--color-bg-white);
+  background: rgba(255, 255, 255, 0.9);
   padding: 16px 32px;
   box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.06);
 

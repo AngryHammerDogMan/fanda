@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"fanda-server/internal/config"
 	"log"
 	"time"
 
@@ -22,9 +23,15 @@ func Logger() gin.HandlerFunc {
 	}
 }
 
-func CORS() gin.HandlerFunc {
+func CORS(cfg *config.Config) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		c.Header("Access-Control-Allow-Origin", "*")
+		origin := c.GetHeader("Origin")
+		if origin != "" && cfg.AllowsOrigin(origin) {
+			c.Header("Access-Control-Allow-Origin", origin)
+			c.Header("Vary", "Origin")
+		} else if cfg.CORSAllowOrigins == "*" {
+			c.Header("Access-Control-Allow-Origin", "*")
+		}
 		c.Header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
 		c.Header("Access-Control-Allow-Headers", "Content-Type, Authorization")
 

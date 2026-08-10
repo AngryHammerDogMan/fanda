@@ -2,6 +2,9 @@
   min-height: 100vh;
   display: flex;
   flex-direction: column;
+  background:
+    radial-gradient(circle at 10% 0%, rgba(255, 107, 53, 0.12), transparent 260px),
+    linear-gradient(180deg, var(--color-paper), var(--color-cream));
 }
 
 // 搜索栏
@@ -9,20 +12,22 @@
   display: flex;
   align-items: center;
   padding: 20px 32px;
-  background: var(--color-bg-white);
+  background: rgba(255, 255, 255, 0.76);
   gap: 16px;
 
   .search-input-wrap {
     flex: 1;
     display: flex;
     align-items: center;
-    background: var(--color-bg);
-    border-radius: 20px;
+    background: var(--color-card);
+    border: 1px solid var(--color-border);
+    border-radius: 999px;
     padding: 0 16px;
     height: 36px;
 
     .search-icon {
-      font-size: 14px;
+      width: 30px;
+      height: 30px;
       margin-right: 10px;
     }
 
@@ -38,7 +43,7 @@
     color: #FFFFFF;
     font-size: 13px;
     padding: 10px 20px;
-    border-radius: 20px;
+    border-radius: 999px;
     white-space: nowrap;
     font-weight: 500;
     height: 36px;
@@ -51,7 +56,7 @@
 
 // 分类标签
 .category-tabs {
-  background: var(--color-bg-white);
+  background: rgba(255, 255, 255, 0.76);
   padding: 0 32px 16px;
   white-space: nowrap;
 
@@ -67,7 +72,7 @@
     border-radius: 20px;
     font-size: 12px;
     color: var(--color-text-secondary);
-    transition: all 0.2s;
+    transition: background-color 0.2s, color 0.2s, transform 0.2s, opacity 0.2s;
 
     &.active {
       background: linear-gradient(135deg, var(--color-primary), var(--color-primary-light));
@@ -82,7 +87,7 @@
   display: flex;
   align-items: center;
   padding: 16px 32px;
-  background: var(--color-bg-white);
+  background: rgba(255, 255, 255, 0.76);
   border-bottom: 1px solid var(--color-border);
 
   .group-label {
@@ -103,7 +108,7 @@
     color: var(--color-text-secondary);
     background: var(--color-bg);
     border: 2px solid transparent;
-    transition: all 0.2s;
+    transition: background-color 0.2s, color 0.2s, transform 0.2s, opacity 0.2s;
 
     &.active {
       color: var(--color-primary);
@@ -128,8 +133,9 @@
 
 .dish-card {
   width: calc(50% - 10px);
-  background: var(--color-bg-white);
-  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.88);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
   overflow: hidden;
   box-shadow: var(--shadow-sm);
 }
@@ -234,6 +240,14 @@
   align-items: center;
   justify-content: center;
   padding: 120px 0;
+  flex-direction: column;
+
+  .empty-icon {
+    width: 96px;
+    height: 96px;
+    margin-bottom: 18px;
+    filter: drop-shadow(0 10px 16px var(--color-sticker-shadow));
+  }
 
   .empty-text {
     font-size: 14px;

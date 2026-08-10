@@ -1,25 +1,32 @@
-// 全局样式变量
 page {
   --color-primary: #FF6B35;
-  --color-primary-light: #FF8C5A;
-  --color-primary-dark: #E55A2B;
+  --color-primary-light: #FF9A5F;
+  --color-primary-dark: #D94D22;
   --color-secondary: #FFB347;
-  --color-success: #52C41A;
-  --color-warning: #FAAD14;
-  --color-danger: #FF4D4F;
-  --color-info: #1890FF;
-  --color-bg: #F5F5F5;
+  --color-success: #78A95F;
+  --color-warning: #D9A32F;
+  --color-danger: #C74738;
+  --color-info: #5EA7A1;
+  --color-paper: #FFF8F0;
+  --color-cream: #FFFDF8;
+  --color-soft: #FFF0E2;
+  --color-card: #FFFFFF;
+  --color-bg: #FFF8F0;
   --color-bg-white: #FFFFFF;
-  --color-text: #333333;
-  --color-text-secondary: #999999;
-  --color-text-light: #CCCCCC;
-  --color-border: #EEEEEE;
-  --radius-sm: 8px;
-  --radius-md: 12px;
-  --radius-lg: 16px;
+  --color-ink: #2A160D;
+  --color-text: #2A160D;
+  --color-text-secondary: #876B55;
+  --color-text-light: #B79A84;
+  --color-border: #EAD3BE;
+  --color-sticker-shadow: rgba(58, 33, 23, 0.16);
+  --radius-sm: 10px;
+  --radius-md: 16px;
+  --radius-lg: 22px;
+  --radius-card: 24px;
   --radius-round: 50%;
-  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.06);
-  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.1);
+  --shadow-sm: 0 8px 24px rgba(58, 33, 23, 0.08);
+  --shadow-md: 0 16px 42px rgba(58, 33, 23, 0.12);
+  --shadow-sticker: 0 10px 22px var(--color-sticker-shadow);
   --font-xs: 10px;
   --font-sm: 12px;
   --font-md: 14px;
@@ -30,7 +37,9 @@ page {
   font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Helvetica Neue', sans-serif;
   font-size: 14px;
   color: var(--color-text);
-  background-color: var(--color-bg);
+  background:
+    radial-gradient(circle at 10% 0%, rgba(255, 107, 53, 0.12), transparent 320px),
+    linear-gradient(180deg, var(--color-paper) 0%, var(--color-cream) 100%);
   box-sizing: border-box;
 }
 
@@ -115,11 +124,68 @@ input {
 
 // 卡片
 .card {
-  background: var(--color-bg-white);
-  border-radius: var(--radius-md);
+  background: var(--color-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
   padding: 24px;
   margin: 16px 0;
   box-shadow: var(--shadow-sm);
+}
+
+.fanda-card {
+  background: rgba(255, 255, 255, 0.86);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-sm);
+}
+
+.fanda-title {
+  font-size: 22px;
+  font-weight: 800;
+  line-height: 1.15;
+  letter-spacing: -0.04em;
+  color: var(--color-ink);
+}
+
+.fanda-subtitle {
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--color-text-secondary);
+}
+
+.sticker-icon {
+  width: 64px;
+  height: 64px;
+  filter: drop-shadow(0 8px 12px var(--color-sticker-shadow));
+}
+
+.sticker-icon-sm {
+  width: 44px;
+  height: 44px;
+  filter: drop-shadow(0 6px 10px var(--color-sticker-shadow));
+}
+
+.fanda-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  padding: 8px 18px;
+  color: var(--color-primary);
+  background: var(--color-soft);
+  border: 1px solid rgba(255, 107, 53, 0.16);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.fanda-empty {
+  margin: 24px 0;
+  padding: 48px 28px;
+  text-align: center;
+  color: var(--color-text-secondary);
+  background: rgba(255, 255, 255, 0.78);
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-card);
 }
 
 // 安全区域

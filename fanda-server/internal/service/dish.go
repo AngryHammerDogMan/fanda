@@ -21,16 +21,20 @@ func NewDishService() *DishService {
 
 // CreateDish 创建菜品
 func (s *DishService) CreateDish(ctx context.Context, uid uuid.UUID, req CreateDishReq) (*model.Dish, error) {
+	if err := CanAccessGroup(ctx, uid, req.GroupType, req.GroupID); err != nil {
+		return nil, err
+	}
+
 	dish := model.Dish{
-		OwnerID:   uid,
-		GroupType: req.GroupType,
-		GroupID:   req.GroupID,
-		DishType:  req.DishType,
-		Name:      req.Name,
-		Category:  req.Category,
-		Duration:  req.Duration,
-		Tags:      pq.StringArray(req.Tags),
-		Restaurant: req.Restaurant,
+		OwnerID:        uid,
+		GroupType:      req.GroupType,
+		GroupID:        req.GroupID,
+		DishType:       req.DishType,
+		Name:           req.Name,
+		Category:       req.Category,
+		Duration:       req.Duration,
+		Tags:           pq.StringArray(req.Tags),
+		Restaurant:     req.Restaurant,
 		RestaurantNote: req.RestaurantNote,
 	}
 
@@ -123,18 +127,23 @@ func (s *DishService) DeleteDish(ctx context.Context, uid uuid.UUID, dishID uuid
 }
 
 // GetDish 获取菜品详情
-func (s *DishService) GetDish(ctx context.Context, dishID uuid.UUID) (*model.Dish, error) {
-	var dish model.Dish
-	if err := database.DB.Where("id = ? AND is_deleted = false", dishID).First(&dish).Error; err != nil {
+func (s *DishService) GetDish(ctx context.Context, uid uuid.UUID, dishID uuid.UUID) (*model.Dish, error) {
+	dish, err := CanAccessDish(ctx, uid, dishID)
+	if err != nil {
 		return nil, errors.New("菜品不存在")
 	}
-	return &dish, nil
+	return dish, nil
 }
 
 // ListDishes 获取菜品列表
-func (s *DishService) ListDishes(ctx context.Context, groupType string, groupID uuid.UUID, dishType, category, keyword string, page, pageSize int) ([]model.Dish, int64, error) {
+func (s *DishService) ListDishes(ctx context.Context, uid uuid.UUID, groupType string, groupID uuid.UUID, dishType, category, keyword string, page, pageSize int) ([]model.Dish, int64, error) {
 	var dishes []model.Dish
 	var total int64
+	page, pageSize = NormalizePagination(page, pageSize)
+
+	if err := CanAccessGroup(ctx, uid, groupType, groupID); err != nil {
+		return nil, 0, err
+	}
 
 	query := database.DB.Model(&model.Dish{}).
 		Where("group_type = ? AND group_id = ? AND is_deleted = false", groupType, groupID)
@@ -163,25 +172,29 @@ func (s *DishService) ListDishes(ctx context.Context, groupType string, groupID 
 
 // ImportFromPlaza 从学菜广场导入菜品
 func (s *DishService) ImportFromPlaza(ctx context.Context, uid uuid.UUID, plazaID uuid.UUID, groupType string, groupID uuid.UUID) (*model.Dish, error) {
+	if err := CanAccessGroup(ctx, uid, groupType, groupID); err != nil {
+		return nil, err
+	}
+
 	var plaza model.PlazaDish
 	if err := database.DB.First(&plaza, "id = ?", plazaID).Error; err != nil {
 		return nil, errors.New("学菜广场菜品不存在")
 	}
 
 	dish := model.Dish{
-		OwnerID:   uid,
-		GroupType: groupType,
-		GroupID:   groupID,
-		DishType:  "dish",
-		Name:      plaza.Name,
-		Category:  plaza.Category,
-		Difficulty: plaza.Difficulty,
-		Duration:  plaza.Duration,
+		OwnerID:     uid,
+		GroupType:   groupType,
+		GroupID:     groupID,
+		DishType:    "dish",
+		Name:        plaza.Name,
+		Category:    plaza.Category,
+		Difficulty:  plaza.Difficulty,
+		Duration:    plaza.Duration,
 		Ingredients: plaza.Ingredients,
-		Steps:      plaza.Steps,
-		Photos:     plaza.Photos,
-		Tags:       plaza.Tags,
-		Source:     "plaza",
+		Steps:       plaza.Steps,
+		Photos:      plaza.Photos,
+		Tags:        plaza.Tags,
+		Source:      "plaza",
 	}
 
 	if err := database.DB.Create(&dish).Error; err != nil {
@@ -198,6 +211,7 @@ func (s *DishService) ImportFromPlaza(ctx context.Context, uid uuid.UUID, plazaI
 func (s *DishService) SearchPlaza(ctx context.Context, category, keyword string, page, pageSize int) ([]model.PlazaDish, int64, error) {
 	var dishes []model.PlazaDish
 	var total int64
+	page, pageSize = NormalizePagination(page, pageSize)
 
 	query := database.DB.Model(&model.PlazaDish{})
 	if category != "" {
@@ -229,20 +243,20 @@ func (s *DishService) GetPlazaCategories(ctx context.Context) ([]string, error) 
 // ---- 请求结构 ----
 
 type CreateDishReq struct {
-	GroupType      string        `json:"group_type" binding:"required,oneof=couple buddy"`
-	GroupID        uuid.UUID     `json:"group_id" binding:"required"`
-	DishType       string        `json:"dish_type" binding:"required,oneof=dish takeout dineout"`
-	Name           string        `json:"name" binding:"required,max=100"`
-	Category       string        `json:"category"`
-	Difficulty     *int          `json:"difficulty"`
-	Duration       int           `json:"duration"`
-	Price          *float64      `json:"price"`
-	Ingredients    interface{}   `json:"ingredients"`
-	Steps          interface{}   `json:"steps"`
-	Photos         interface{}   `json:"photos"`
-	Tags           []string      `json:"tags"`
-	Restaurant     string        `json:"restaurant"`
-	RestaurantNote string        `json:"restaurant_note"`
+	GroupType      string      `json:"group_type" binding:"required,oneof=couple buddy"`
+	GroupID        uuid.UUID   `json:"group_id" binding:"required"`
+	DishType       string      `json:"dish_type" binding:"required,oneof=dish takeout dineout"`
+	Name           string      `json:"name" binding:"required,max=100"`
+	Category       string      `json:"category"`
+	Difficulty     *int        `json:"difficulty"`
+	Duration       int         `json:"duration"`
+	Price          *float64    `json:"price"`
+	Ingredients    interface{} `json:"ingredients"`
+	Steps          interface{} `json:"steps"`
+	Photos         interface{} `json:"photos"`
+	Tags           []string    `json:"tags"`
+	Restaurant     string      `json:"restaurant"`
+	RestaurantNote string      `json:"restaurant_note"`
 }
 
 type UpdateDishReq struct {

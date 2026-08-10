@@ -18,6 +18,8 @@ const DISH_TYPE_LABELS: Record<string, string> = {
   dineout: '外食',
 }
 
+const sticker = (name: string) => `/assets/stickers/${name}.png`
+
 export default function DishDetail() {
   const router = useRouter()
   const { id } = router.params
@@ -87,7 +89,7 @@ export default function DishDetail() {
     return (
       <View className='page-dish-detail'>
         <View className='loading-wrap'>
-          <Text className='loading-text'>加载中...</Text>
+          <Text className='loading-text'>加载中…</Text>
         </View>
       </View>
     )
@@ -115,7 +117,7 @@ export default function DishDetail() {
           />
         ) : (
           <View className='gallery-placeholder'>
-            <Text className='placeholder-icon'>🍽️</Text>
+            <Image className='placeholder-icon' src={sticker('menu')} mode='aspectFit' />
             <Text className='placeholder-text'>暂无图片</Text>
           </View>
         )}

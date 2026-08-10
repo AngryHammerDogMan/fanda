@@ -3,6 +3,7 @@
 
 -- 启用 uuid 扩展
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
 
 -- ============================================================
 -- 1. 用户表
@@ -94,20 +95,6 @@ CREATE TABLE buddy_invites (
 );
 
 CREATE INDEX idx_buddy_invites_code ON buddy_invites(code);
-
--- ============================================================
--- 7. 跨平台绑定表
--- ============================================================
-CREATE TABLE cross_platform_binds (
-    id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id     UUID NOT NULL REFERENCES users(uid),
-    bind_code   VARCHAR(10) NOT NULL UNIQUE,
-    is_used     BOOLEAN DEFAULT FALSE,
-    expires_at  TIMESTAMPTZ NOT NULL,
-    created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-
-CREATE INDEX idx_bind_code ON cross_platform_binds(bind_code);
 
 -- ============================================================
 -- 8. 菜品表
@@ -356,7 +343,6 @@ COMMENT ON TABLE couple_invites IS '情侣邀请码表';
 COMMENT ON TABLE buddy_groups IS '饭搭子组合表';
 COMMENT ON TABLE buddy_members IS '饭搭子成员表';
 COMMENT ON TABLE buddy_invites IS '饭搭子邀请码表';
-COMMENT ON TABLE cross_platform_binds IS '跨平台绑定表';
 COMMENT ON TABLE dishes IS '菜品表';
 COMMENT ON TABLE orders IS '订单表';
 COMMENT ON TABLE order_items IS '订单菜品关联表';

@@ -22,6 +22,10 @@ func NewFeatureService() *FeatureService {
 
 // CreateWish 创建心愿
 func (s *FeatureService) CreateWish(ctx context.Context, uid uuid.UUID, req CreateWishReq) (*model.WishItem, error) {
+	if err := CanAccessGroup(ctx, uid, req.GroupType, req.GroupID); err != nil {
+		return nil, err
+	}
+
 	wish := model.WishItem{
 		UserID:    uid,
 		GroupType: req.GroupType,
@@ -39,8 +43,11 @@ func (s *FeatureService) CreateWish(ctx context.Context, uid uuid.UUID, req Crea
 }
 
 // ListWishes 获取心愿列表
-func (s *FeatureService) ListWishes(ctx context.Context, groupType string, groupID uuid.UUID, completed *bool) ([]model.WishItem, error) {
+func (s *FeatureService) ListWishes(ctx context.Context, uid uuid.UUID, groupType string, groupID uuid.UUID, completed *bool) ([]model.WishItem, error) {
 	var wishes []model.WishItem
+	if err := CanAccessGroup(ctx, uid, groupType, groupID); err != nil {
+		return nil, err
+	}
 	query := database.DB.Where("group_type = ? AND group_id = ?", groupType, groupID)
 	if completed != nil {
 		query = query.Where("is_completed = ?", *completed)
@@ -54,7 +61,7 @@ func (s *FeatureService) ListWishes(ctx context.Context, groupType string, group
 // CompleteWish 完成心愿
 func (s *FeatureService) CompleteWish(ctx context.Context, uid uuid.UUID, wishID uuid.UUID) error {
 	result := database.DB.Model(&model.WishItem{}).
-		Where("id = ?", wishID).
+		Where("id = ? AND user_id = ?", wishID, uid).
 		Update("is_completed", true)
 	if result.RowsAffected == 0 {
 		return errors.New("心愿不存在")
@@ -105,7 +112,7 @@ func (s *FeatureService) Checkin(ctx context.Context, uid uuid.UUID) (map[string
 	}
 
 	// 更新用户积分
-	if err := tx.Model(&model.User{}).Where("uid = ?", uid).UpdateColumn("points", database.DB.Raw("points + ?", points)).Error; err != nil {
+	if err := tx.Model(&model.User{}).Where("uid = ?", uid).UpdateColumn("points", tx.Raw("points + ?", points)).Error; err != nil {
 		tx.Rollback()
 		return nil, fmt.Errorf("更新积分失败: %w", err)
 	}
@@ -174,6 +181,10 @@ func (s *FeatureService) GetCheckinStatus(ctx context.Context, uid uuid.UUID) (m
 
 // AddToBasket 添加到菜篮子
 func (s *FeatureService) AddToBasket(ctx context.Context, uid uuid.UUID, req BasketReq) (*model.ShoppingBasket, error) {
+	if err := CanAccessGroup(ctx, uid, req.GroupType, req.GroupID); err != nil {
+		return nil, err
+	}
+
 	item := model.ShoppingBasket{
 		UserID:    uid,
 		GroupType: req.GroupType,
@@ -191,8 +202,11 @@ func (s *FeatureService) AddToBasket(ctx context.Context, uid uuid.UUID, req Bas
 }
 
 // ListBasket 获取菜篮子
-func (s *FeatureService) ListBasket(ctx context.Context, groupType string, groupID uuid.UUID) ([]model.ShoppingBasket, error) {
+func (s *FeatureService) ListBasket(ctx context.Context, uid uuid.UUID, groupType string, groupID uuid.UUID) ([]model.ShoppingBasket, error) {
 	var items []model.ShoppingBasket
+	if err := CanAccessGroup(ctx, uid, groupType, groupID); err != nil {
+		return nil, err
+	}
 	if err := database.DB.Where("group_type = ? AND group_id = ?", groupType, groupID).
 		Order("is_purchased ASC, created_at DESC").Find(&items).Error; err != nil {
 		return nil, err
@@ -203,7 +217,7 @@ func (s *FeatureService) ListBasket(ctx context.Context, groupType string, group
 // ToggleBasketPurchased 切换购买状态
 func (s *FeatureService) ToggleBasketPurchased(ctx context.Context, uid uuid.UUID, itemID uuid.UUID) error {
 	var item model.ShoppingBasket
-	if err := database.DB.Where("id = ?", itemID).First(&item).Error; err != nil {
+	if err := database.DB.Where("id = ? AND user_id = ?", itemID, uid).First(&item).Error; err != nil {
 		return errors.New("物品不存在")
 	}
 	return database.DB.Model(&item).Update("is_purchased", !item.IsPurchased).Error
@@ -222,6 +236,10 @@ func (s *FeatureService) DeleteBasket(ctx context.Context, uid uuid.UUID, itemID
 
 // SetBudget 设置预算
 func (s *FeatureService) SetBudget(ctx context.Context, uid uuid.UUID, req BudgetReq) (*model.BudgetSetting, error) {
+	if err := CanAccessGroup(ctx, uid, req.GroupType, req.GroupID); err != nil {
+		return nil, err
+	}
+
 	var budget model.BudgetSetting
 	// 查找已有设置，存在则更新
 	err := database.DB.Where("user_id = ? AND group_type = ? AND group_id = ? AND month = ?",
@@ -249,7 +267,11 @@ func (s *FeatureService) SetBudget(ctx context.Context, uid uuid.UUID, req Budge
 }
 
 // GetBudget 获取预算
-func (s *FeatureService) GetBudget(ctx context.Context, groupType string, groupID uuid.UUID, month string) (*model.BudgetSetting, error) {
+func (s *FeatureService) GetBudget(ctx context.Context, uid uuid.UUID, groupType string, groupID uuid.UUID, month string) (*model.BudgetSetting, error) {
+	if err := CanAccessGroup(ctx, uid, groupType, groupID); err != nil {
+		return nil, err
+	}
+
 	var budget model.BudgetSetting
 	if err := database.DB.Where("group_type = ? AND group_id = ? AND month = ?", groupType, groupID, month).First(&budget).Error; err != nil {
 		return nil, errors.New("未设置预算")
@@ -263,6 +285,7 @@ func (s *FeatureService) GetBudget(ctx context.Context, groupType string, groupI
 func (s *FeatureService) GetPointHistory(ctx context.Context, uid uuid.UUID, page, pageSize int) ([]model.PointRecord, int64, error) {
 	var records []model.PointRecord
 	var total int64
+	page, pageSize = NormalizePagination(page, pageSize)
 
 	query := database.DB.Model(&model.PointRecord{}).Where("user_id = ?", uid)
 	if err := query.Count(&total).Error; err != nil {

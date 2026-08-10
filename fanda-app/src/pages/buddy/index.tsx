@@ -1,9 +1,11 @@
-import { View, Text, Input } from '@tarojs/components'
+import { View, Text, Input, Image } from '@tarojs/components'
 import Taro, { useDidShow } from '@tarojs/taro'
 import { useState } from 'react'
 import { authAPI } from '@/services/api'
 import type { User, BuddyGroup, BuddyMember } from '@/types'
 import './index.scss'
+
+const sticker = (name: string) => `/assets/stickers/${name}.png`
 
 export default function Buddy() {
   const [user, setUser] = useState<User | null>(null)
@@ -175,6 +177,7 @@ export default function Buddy() {
 
         {groups.length === 0 ? (
           <View className='empty-groups'>
+            <Image className='empty-icon' src={sticker('buddy')} mode='aspectFit' />
             <Text className='empty-text'>暂无饭搭子群组</Text>
             <Text className='empty-hint'>创建一个群组，邀请好友一起吃饭吧</Text>
           </View>
@@ -244,7 +247,7 @@ export default function Buddy() {
             <View className='member-list'>
               <View className='member-item'>
                 <View className='member-avatar'>
-                  <Text className='member-avatar-text'>👤</Text>
+                  <Image className='member-avatar-img' src={sticker('profile')} mode='aspectFit' />
                 </View>
                 <View className='member-info'>
                   <Text className='member-name'>我（{user?.nickname}）</Text>
@@ -254,7 +257,7 @@ export default function Buddy() {
               {members.map(member => (
                 <View key={member.id} className='member-item'>
                   <View className='member-avatar'>
-                    <Text className='member-avatar-text'>👤</Text>
+                    <Image className='member-avatar-img' src={sticker('buddy-muted')} mode='aspectFit' />
                   </View>
                   <View className='member-info'>
                     <Text className='member-name'>{member.user_id}</Text>

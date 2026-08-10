@@ -7,6 +7,7 @@ import './record.scss'
 
 const MEAL_LABELS: Record<string, string> = { cook: '做饭', takeout: '外卖', dineout: '外出' }
 const MEAL_COLORS: Record<string, string> = { cook: '#52C41A', takeout: '#FF6B35', dineout: '#1890FF' }
+const sticker = (name: string) => `/assets/stickers/${name}.png`
 
 export default function RecordDetail() {
   const router = useRouter()
@@ -89,7 +90,7 @@ export default function RecordDetail() {
     return (
       <View className='page-record'>
         <View className='loading-state'>
-          <Text className='loading-text'>加载中...</Text>
+          <Text className='loading-text'>加载中…</Text>
         </View>
       </View>
     )
@@ -99,6 +100,7 @@ export default function RecordDetail() {
     return (
       <View className='page-record'>
         <View className='empty-state'>
+          <Image className='empty-icon' src={sticker('calendar')} mode='aspectFit' />
           <Text className='empty-text'>记录不存在</Text>
         </View>
       </View>
@@ -182,6 +184,7 @@ export default function RecordDetail() {
           </View>
         ) : (
           <View className='comment-empty'>
+            <Image className='comment-empty-icon' src={sticker('calendar-muted')} mode='aspectFit' />
             <Text className='empty-hint'>暂无评论</Text>
           </View>
         )}

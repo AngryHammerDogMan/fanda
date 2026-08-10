@@ -19,6 +19,10 @@ func NewOrderService() *OrderService {
 
 // CreateOrder 创建订单
 func (s *OrderService) CreateOrder(ctx context.Context, uid uuid.UUID, req CreateOrderReq) (*model.Order, error) {
+	if err := CanAccessGroup(ctx, uid, req.GroupType, req.GroupID); err != nil {
+		return nil, err
+	}
+
 	order := model.Order{
 		CreatorID: uid,
 		GroupType: req.GroupType,
@@ -71,7 +75,10 @@ func (s *OrderService) CreateOrder(ctx context.Context, uid uuid.UUID, req Creat
 }
 
 // GetOrder 获取订单详情
-func (s *OrderService) GetOrder(ctx context.Context, orderID uuid.UUID) (*model.Order, error) {
+func (s *OrderService) GetOrder(ctx context.Context, uid uuid.UUID, orderID uuid.UUID) (*model.Order, error) {
+	if _, err := CanAccessOrder(ctx, uid, orderID); err != nil {
+		return nil, errors.New("订单不存在")
+	}
 	var order model.Order
 	if err := database.DB.Preload("OrderItems").First(&order, "id = ?", orderID).Error; err != nil {
 		return nil, errors.New("订单不存在")
@@ -80,9 +87,14 @@ func (s *OrderService) GetOrder(ctx context.Context, orderID uuid.UUID) (*model.
 }
 
 // ListOrders 获取订单列表
-func (s *OrderService) ListOrders(ctx context.Context, groupType string, groupID uuid.UUID, status string, page, pageSize int) ([]model.Order, int64, error) {
+func (s *OrderService) ListOrders(ctx context.Context, uid uuid.UUID, groupType string, groupID uuid.UUID, status string, page, pageSize int) ([]model.Order, int64, error) {
 	var orders []model.Order
 	var total int64
+	page, pageSize = NormalizePagination(page, pageSize)
+
+	if err := CanAccessGroup(ctx, uid, groupType, groupID); err != nil {
+		return nil, 0, err
+	}
 
 	query := database.DB.Model(&model.Order{}).
 		Where("group_type = ? AND group_id = ?", groupType, groupID)
@@ -105,8 +117,8 @@ func (s *OrderService) ListOrders(ctx context.Context, groupType string, groupID
 
 // ConfirmOrder 确认订单（情侣模式：对方确认；饭搭子：无需确认，直接同意）
 func (s *OrderService) ConfirmOrder(ctx context.Context, uid uuid.UUID, orderID uuid.UUID) error {
-	var order model.Order
-	if err := database.DB.First(&order, "id = ?", orderID).Error; err != nil {
+	order, err := CanAccessOrder(ctx, uid, orderID)
+	if err != nil {
 		return errors.New("订单不存在")
 	}
 
@@ -119,13 +131,13 @@ func (s *OrderService) ConfirmOrder(ctx context.Context, uid uuid.UUID, orderID 
 		return errors.New("不能确认自己的订单")
 	}
 
-	return database.DB.Model(&order).Update("status", "confirmed").Error
+	return database.DB.Model(order).Update("status", "confirmed").Error
 }
 
 // RejectOrder 拒绝订单
 func (s *OrderService) RejectOrder(ctx context.Context, uid uuid.UUID, orderID uuid.UUID) error {
-	var order model.Order
-	if err := database.DB.First(&order, "id = ?", orderID).Error; err != nil {
+	order, err := CanAccessOrder(ctx, uid, orderID)
+	if err != nil {
 		return errors.New("订单不存在")
 	}
 
@@ -137,13 +149,13 @@ func (s *OrderService) RejectOrder(ctx context.Context, uid uuid.UUID, orderID u
 		return errors.New("不能拒绝自己的订单")
 	}
 
-	return database.DB.Model(&order).Update("status", "rejected").Error
+	return database.DB.Model(order).Update("status", "rejected").Error
 }
 
 // CancelOrder 取消订单
 func (s *OrderService) CancelOrder(ctx context.Context, uid uuid.UUID, orderID uuid.UUID) error {
-	var order model.Order
-	if err := database.DB.First(&order, "id = ?", orderID).Error; err != nil {
+	order, err := CanAccessOrder(ctx, uid, orderID)
+	if err != nil {
 		return errors.New("订单不存在")
 	}
 
@@ -155,13 +167,13 @@ func (s *OrderService) CancelOrder(ctx context.Context, uid uuid.UUID, orderID u
 		return errors.New("已确认的订单不能取消")
 	}
 
-	return database.DB.Model(&order).Update("status", "cancelled").Error
+	return database.DB.Model(order).Update("status", "cancelled").Error
 }
 
 // VoteOrder 投票（饭搭子模式）
 func (s *OrderService) VoteOrder(ctx context.Context, uid uuid.UUID, orderID uuid.UUID, vote string) error {
-	var order model.Order
-	if err := database.DB.First(&order, "id = ?", orderID).Error; err != nil {
+	order, err := CanAccessOrder(ctx, uid, orderID)
+	if err != nil {
 		return errors.New("订单不存在")
 	}
 
@@ -192,7 +204,11 @@ func (s *OrderService) VoteOrder(ctx context.Context, uid uuid.UUID, orderID uui
 }
 
 // GetOrderVotes 获取订单投票结果
-func (s *OrderService) GetOrderVotes(ctx context.Context, orderID uuid.UUID) (map[string]interface{}, error) {
+func (s *OrderService) GetOrderVotes(ctx context.Context, uid uuid.UUID, orderID uuid.UUID) (map[string]interface{}, error) {
+	if _, err := CanAccessOrder(ctx, uid, orderID); err != nil {
+		return nil, errors.New("订单不存在")
+	}
+
 	var votes []model.OrderVote
 	database.DB.Where("order_id = ?", orderID).Find(&votes)
 
@@ -220,9 +236,9 @@ func (s *OrderService) GetOrderVotes(ctx context.Context, orderID uuid.UUID) (ma
 // ---- 请求结构 ----
 
 type CreateOrderReq struct {
-	GroupType string        `json:"group_type" binding:"required,oneof=couple buddy"`
-	GroupID   uuid.UUID     `json:"group_id" binding:"required"`
-	DineMode  string        `json:"dine_mode" binding:"required,oneof=together solo"`
+	GroupType string         `json:"group_type" binding:"required,oneof=couple buddy"`
+	GroupID   uuid.UUID      `json:"group_id" binding:"required"`
+	DineMode  string         `json:"dine_mode" binding:"required,oneof=together solo"`
 	Items     []OrderItemReq `json:"items" binding:"required,min=1"`
 }
 

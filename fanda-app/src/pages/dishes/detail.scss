@@ -1,6 +1,8 @@
 .page-dish-detail {
   min-height: 100vh;
-  background-color: var(--color-bg);
+  background:
+    radial-gradient(circle at 10% 0%, rgba(255, 107, 53, 0.12), transparent 280px),
+    linear-gradient(180deg, var(--color-paper), var(--color-cream));
   padding-bottom: 120px;
 }
 
@@ -48,12 +50,14 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #FFF8F0, #FFF3E6);
+  background: linear-gradient(135deg, var(--color-soft), var(--color-paper));
 }
 
 .placeholder-icon {
-  font-size: 20px;
+  width: 96px;
+  height: 96px;
   margin-bottom: 12px;
+  filter: drop-shadow(0 10px 16px var(--color-sticker-shadow));
 }
 
 .placeholder-text {
@@ -76,7 +80,7 @@
   height: 12px;
   border-radius: 50%;
   background-color: rgba(255, 255, 255, 0.5);
-  transition: all 0.3s;
+  transition: background-color 0.3s, color 0.3s, transform 0.3s, opacity 0.3s;
 
   &.active {
     background-color: #FFFFFF;
@@ -87,9 +91,10 @@
 
 // 详情区块
 .detail-section {
-  background-color: var(--color-bg-white);
+  background-color: rgba(255, 255, 255, 0.88);
   margin: 16px 24px;
-  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
   padding: 24px;
   box-shadow: var(--shadow-sm);
 }
@@ -299,7 +304,7 @@
   display: flex;
   gap: 16px;
   padding: 16px 24px;
-  background-color: var(--color-bg-white);
+  background-color: rgba(255, 255, 255, 0.9);
   box-shadow: 0 -2px 16px rgba(0, 0, 0, 0.06);
   z-index: 100;
 }
@@ -310,7 +315,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 20px;
+  border-radius: 999px;
   transition: opacity 0.2s;
 
   &:active {

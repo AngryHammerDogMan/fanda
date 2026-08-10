@@ -1,21 +1,22 @@
-import { View, Text, Button, Input } from '@tarojs/components'
+import { View, Text, Button, Input, Image } from '@tarojs/components'
 import Taro, { useDidShow } from '@tarojs/taro'
 import { useState } from 'react'
 import { authAPI } from '@/services/api'
 import './index.scss'
 
 // 自动检测当前平台
+const IS_H5_PREVIEW = process.env.TARO_ENV === 'h5'
 const CURRENT_PLATFORM = process.env.TARO_ENV === 'weapp' ? 'wechat' : 'douyin'
-const PLATFORM_NAME = CURRENT_PLATFORM === 'wechat' ? '微信' : '抖音'
+const PLATFORM_NAME = IS_H5_PREVIEW ? '浏览器预览' : CURRENT_PLATFORM === 'wechat' ? '微信' : '抖音'
 const OTHER_PLATFORM_NAME = CURRENT_PLATFORM === 'wechat' ? '抖音' : '微信'
+const sticker = (name: string) => `/assets/stickers/${name}.png`
 
 export default function Login() {
   const [loading, setLoading] = useState(false)
-  // 步骤: choose(选择登录方式) | phone(手机号登录) | wechat(平台登录后) | nickname(设置昵称) | bind_phone(绑定手机号)
-  const [step, setStep] = useState<'choose' | 'phone' | 'wechat' | 'nickname' | 'bind_phone'>('choose')
+  // 步骤: choose(平台一键登录) | wechat(平台登录中) | nickname(设置昵称) | bind_phone(绑定手机号)
+  const [step, setStep] = useState<'choose' | 'wechat' | 'nickname' | 'bind_phone'>('choose')
   const [phone, setPhone] = useState('')
   const [nickname, setNickname] = useState('')
-  const [loginData, setLoginData] = useState<any>(null)
 
   // 已登录用户自动跳转首页
   useDidShow(() => {
@@ -25,36 +26,32 @@ export default function Login() {
     }
   })
 
-  // ============ 手机号登录 ============
-  const handlePhoneLogin = async () => {
-    if (!phone || phone.length !== 11) {
-      Taro.showToast({ title: '请输入正确的手机号', icon: 'none' })
-      return
-    }
-    if (loading) return
-    setLoading(true)
-
-    try {
-      const res = await authAPI.loginByPhone(phone)
-      const data = res.data
-
-      Taro.setStorageSync('token', data.token)
-      Taro.setStorageSync('uid', data.uid)
-
-      Taro.showToast({ title: data.is_new ? '注册成功' : '欢迎回来', icon: 'success' })
-      setTimeout(() => {
-        Taro.switchTab({ url: '/pages/index/index' })
-      }, 800)
-    } catch (err: any) {
-      Taro.showToast({ title: err.message || '登录失败', icon: 'none' })
-    } finally {
-      setLoading(false)
-    }
+  const handleH5MockLogin = () => {
+    Taro.setStorageSync('token', 'h5-preview-token')
+    Taro.setStorageSync('uid', 'h5-preview-user')
+    Taro.setStorageSync('h5_preview_user', {
+      uid: 'h5-preview-user',
+      nickname: '饭搭预览用户',
+      points: 1280,
+      has_phone: true,
+      has_wx: true,
+      has_dy: true,
+    })
+    Taro.showToast({ title: '已进入预览模式', icon: 'success' })
+    setTimeout(() => {
+      Taro.switchTab({ url: '/pages/index/index' })
+    }, 500)
   }
 
   // ============ 微信/抖音平台登录 ============
   const handlePlatformLogin = async () => {
     if (loading) return
+
+    if (IS_H5_PREVIEW) {
+      handleH5MockLogin()
+      return
+    }
+
     setLoading(true)
     setStep('wechat')
 
@@ -64,7 +61,6 @@ export default function Login() {
 
       Taro.setStorageSync('token', res.data.token)
       Taro.setStorageSync('uid', res.data.uid)
-      setLoginData(res.data)
 
       if (res.data.is_new) {
         // 新用户：先设置昵称
@@ -132,55 +128,26 @@ export default function Login() {
       <View className='page-login'>
         <View className='login-container'>
           {/* Logo */}
-          <View className='logo-section'>
-            <Text className='logo-icon'>🍽️</Text>
+          <View className='logo-section login-hero'>
+            <Image className='logo-icon' src={sticker('home')} mode='aspectFit' />
             <Text className='logo-title'>饭搭</Text>
             <Text className='logo-subtitle'>和喜欢的人一起吃饭</Text>
-          </View>
-
-          {/* 手机号登录区 */}
-          <View className='login-block'>
-            <Text className='login-block-title'>手机号登录 / 注册</Text>
-            <View className='phone-input-wrap'>
-              <View className='phone-prefix'>
-                <Text>+86</Text>
-              </View>
-              <Input
-                className='phone-input'
-                type='number'
-                value={phone}
-                placeholder='请输入手机号'
-                placeholderClass='phone-placeholder'
-                maxlength={11}
-                onInput={(e) => setPhone(e.detail.value)}
-              />
-            </View>
-            <Button
-              className={`login-btn primary ${loading ? 'loading' : ''}`}
-              onClick={handlePhoneLogin}
-              loading={loading}
-            >
-              登录 / 注册
-            </Button>
-            <Text className='login-block-hint'>手机号即账号，{PLATFORM_NAME}和{OTHER_PLATFORM_NAME}数据互通</Text>
-          </View>
-
-          {/* 分隔线 */}
-          <View className='divider'>
-            <View className='divider-line' />
-            <Text className='divider-text'>其他方式</Text>
-            <View className='divider-line' />
           </View>
 
           {/* 平台登录 */}
           <View className='login-block'>
             <Button
-              className={`login-btn platform ${loading ? 'loading' : ''}`}
+              className={`login-btn primary ${loading ? 'loading' : ''}`}
               onClick={handlePlatformLogin}
+              loading={loading}
             >
-              {PLATFORM_NAME}一键登录
+              {IS_H5_PREVIEW ? '浏览器预览登录' : `${PLATFORM_NAME}一键登录`}
             </Button>
-            <Text className='login-block-hint'>登录后需要绑定手机号才能实现数据互通</Text>
+            <Text className='login-block-hint'>
+              {IS_H5_PREVIEW
+                ? 'H5 预览会使用本地 mock 用户，不调用微信或抖音登录能力'
+                : '登录后会自动检查手机号；未绑定时再提示绑定，已绑定同一手机号的数据会自动互通'}
+            </Text>
           </View>
 
           <Text className='agreement-text'>
@@ -197,7 +164,7 @@ export default function Login() {
       <View className='page-login'>
         <View className='login-container'>
           <View className='welcome-section'>
-            <Text className='welcome-emoji'>🎉</Text>
+            <Image className='welcome-emoji' src={sticker('checkin')} mode='aspectFit' />
             <Text className='welcome-title'>欢迎加入饭搭！</Text>
             <Text className='welcome-desc'>设置一个昵称，让伙伴们认识你</Text>
           </View>
@@ -228,10 +195,10 @@ export default function Login() {
       <View className='page-login'>
         <View className='login-container'>
           <View className='welcome-section'>
-            <Text className='welcome-emoji'>📱</Text>
+            <Image className='welcome-emoji' src={sticker('profile')} mode='aspectFit' />
             <Text className='welcome-title'>绑定手机号</Text>
             <Text className='welcome-desc'>
-              绑定后，{PLATFORM_NAME}和{OTHER_PLATFORM_NAME}数据自动互通
+              如果手机号已绑定过，历史菜单、订单和日历会自动互通
             </Text>
           </View>
 
@@ -272,7 +239,7 @@ export default function Login() {
     <View className='page-login'>
       <View className='login-container'>
         <View className='logo-section'>
-          <Text className='logo-icon'>🍽️</Text>
+          <Image className='logo-icon' src={sticker('home')} mode='aspectFit' />
           <Text className='logo-title'>饭搭</Text>
           <Text className='logo-subtitle'>正在登录...</Text>
         </View>

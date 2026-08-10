@@ -2,7 +2,6 @@ package handler
 
 import (
 	"net/http"
-	"strconv"
 
 	"fanda-server/internal/service"
 
@@ -44,7 +43,10 @@ func (h *DishHandler) CreateDish(c *gin.Context) {
 // PUT /api/v1/dishes/:id
 func (h *DishHandler) UpdateDish(c *gin.Context) {
 	uid := c.MustGet("uid").(uuid.UUID)
-	dishID, _ := uuid.Parse(c.Param("id"))
+	dishID, ok := parseUUIDParam(c, "id")
+	if !ok {
+		return
+	}
 
 	var req service.UpdateDishReq
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -64,7 +66,10 @@ func (h *DishHandler) UpdateDish(c *gin.Context) {
 // DELETE /api/v1/dishes/:id
 func (h *DishHandler) DeleteDish(c *gin.Context) {
 	uid := c.MustGet("uid").(uuid.UUID)
-	dishID, _ := uuid.Parse(c.Param("id"))
+	dishID, ok := parseUUIDParam(c, "id")
+	if !ok {
+		return
+	}
 
 	if err := h.service.DeleteDish(c.Request.Context(), uid, dishID); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": err.Error()})
@@ -77,9 +82,13 @@ func (h *DishHandler) DeleteDish(c *gin.Context) {
 // GetDish 获取菜品详情
 // GET /api/v1/dishes/:id
 func (h *DishHandler) GetDish(c *gin.Context) {
-	dishID, _ := uuid.Parse(c.Param("id"))
+	uid := c.MustGet("uid").(uuid.UUID)
+	dishID, ok := parseUUIDParam(c, "id")
+	if !ok {
+		return
+	}
 
-	dish, err := h.service.GetDish(c.Request.Context(), dishID)
+	dish, err := h.service.GetDish(c.Request.Context(), uid, dishID)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"code": 404, "message": err.Error()})
 		return
@@ -91,20 +100,23 @@ func (h *DishHandler) GetDish(c *gin.Context) {
 // ListDishes 获取菜品列表
 // GET /api/v1/dishes?group_type=couple&group_id=xxx&dish_type=&category=&keyword=&page=1&page_size=20
 func (h *DishHandler) ListDishes(c *gin.Context) {
+	uid := c.MustGet("uid").(uuid.UUID)
 	groupType := c.Query("group_type")
-	groupID, _ := uuid.Parse(c.Query("group_id"))
+	groupID, ok := parseUUIDQuery(c, "group_id")
+	if !ok {
+		return
+	}
 	dishType := c.Query("dish_type")
 	category := c.Query("category")
 	keyword := c.Query("keyword")
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
+	page, pageSize := parsePagination(c)
 
 	if groupType == "" || groupID == uuid.Nil {
 		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "缺少 group_type 或 group_id"})
 		return
 	}
 
-	dishes, total, err := h.service.ListDishes(c.Request.Context(), groupType, groupID, dishType, category, keyword, page, pageSize)
+	dishes, total, err := h.service.ListDishes(c.Request.Context(), uid, groupType, groupID, dishType, category, keyword, page, pageSize)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": err.Error()})
 		return
@@ -137,8 +149,16 @@ func (h *DishHandler) ImportFromPlaza(c *gin.Context) {
 		return
 	}
 
-	plazaID, _ := uuid.Parse(req.PlazaID)
-	groupID, _ := uuid.Parse(req.GroupID)
+	plazaID, err := uuid.Parse(req.PlazaID)
+	if err != nil || plazaID == uuid.Nil {
+		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "无效的 plaza_id"})
+		return
+	}
+	groupID, err := uuid.Parse(req.GroupID)
+	if err != nil || groupID == uuid.Nil {
+		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "无效的 group_id"})
+		return
+	}
 
 	dish, err := h.service.ImportFromPlaza(c.Request.Context(), uid, plazaID, req.GroupType, groupID)
 	if err != nil {
@@ -154,8 +174,7 @@ func (h *DishHandler) ImportFromPlaza(c *gin.Context) {
 func (h *DishHandler) SearchPlaza(c *gin.Context) {
 	category := c.Query("category")
 	keyword := c.Query("keyword")
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
+	page, pageSize := parsePagination(c)
 
 	dishes, total, err := h.service.SearchPlaza(c.Request.Context(), category, keyword, page, pageSize)
 	if err != nil {

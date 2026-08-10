@@ -1,9 +1,11 @@
-import { View, Text, Input } from '@tarojs/components'
+import { View, Text, Input, Image } from '@tarojs/components'
 import Taro, { useDidShow } from '@tarojs/taro'
 import { useState, useEffect } from 'react'
 import { authAPI, featureAPI } from '@/services/api'
 import type { User, BasketItem, BuddyGroup } from '@/types'
 import './index.scss'
+
+const sticker = (name: string) => `/assets/stickers/${name}.png`
 
 export default function Basket() {
   const [user, setUser] = useState<User | null>(null)
@@ -179,6 +181,7 @@ export default function Basket() {
       <View className='item-list'>
         {items.length === 0 && !loading ? (
           <View className='empty-state'>
+            <Image className='empty-icon' src={sticker('basket')} mode='aspectFit' />
             <Text className='empty-text'>菜篮子空空如也</Text>
             <Text className='empty-hint'>点击下方按钮添加物品</Text>
           </View>
@@ -195,7 +198,7 @@ export default function Basket() {
                 <Text className='item-quantity'>{item.quantity}</Text>
               </View>
               <View className='item-del' onClick={() => handleDelete(item.id)}>
-                <Text className='del-icon'>🗑</Text>
+                <Image className='del-icon' src={sticker('basket-muted')} mode='aspectFit' />
               </View>
             </View>
           ))

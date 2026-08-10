@@ -1,8 +1,11 @@
 package config
 
 import (
+	"errors"
+	"fmt"
 	"os"
 	"strconv"
+	"strings"
 
 	"github.com/joho/godotenv"
 )
@@ -35,12 +38,14 @@ type Config struct {
 
 	UploadDir     string
 	MaxUploadSize int64
+
+	CORSAllowOrigins string
 }
 
-func Load() *Config {
+func Load() (*Config, error) {
 	_ = godotenv.Load()
 
-	return &Config{
+	cfg := &Config{
 		ServerPort: getEnv("SERVER_PORT", "8080"),
 		ServerMode: getEnv("SERVER_MODE", "debug"),
 
@@ -66,9 +71,49 @@ func Load() *Config {
 		DyAppID:  getEnv("DY_APPID", ""),
 		DySecret: getEnv("DY_SECRET", ""),
 
-		UploadDir:     getEnv("UPLOAD_DIR", "./uploads"),
-		MaxUploadSize: int64(getEnvInt("MAX_UPLOAD_SIZE", 10485760)),
+		UploadDir:        getEnv("UPLOAD_DIR", "./uploads"),
+		MaxUploadSize:    int64(getEnvInt("MAX_UPLOAD_SIZE", 10485760)),
+		CORSAllowOrigins: getEnv("CORS_ALLOW_ORIGINS", "*"),
 	}
+
+	if err := cfg.Validate(); err != nil {
+		return nil, err
+	}
+	return cfg, nil
+}
+
+func (c *Config) Validate() error {
+	if c.ServerMode != "release" {
+		return nil
+	}
+
+	var problems []string
+	if c.JWTSecret == "" || c.JWTSecret == "default-secret" || len(c.JWTSecret) < 32 {
+		problems = append(problems, "JWT_SECRET 必须设置为至少 32 位的非默认密钥")
+	}
+	if c.AdminPassword == "" || c.AdminPassword == "admin123" || len(c.AdminPassword) < 12 {
+		problems = append(problems, "ADMIN_PASSWORD 必须设置为至少 12 位的非默认密码")
+	}
+	if len(problems) > 0 {
+		return errors.New("生产配置不安全: " + strings.Join(problems, "; "))
+	}
+	return nil
+}
+
+func (c *Config) AllowsOrigin(origin string) bool {
+	if c.CORSAllowOrigins == "*" {
+		return true
+	}
+	for _, item := range strings.Split(c.CORSAllowOrigins, ",") {
+		if strings.TrimSpace(item) == origin {
+			return true
+		}
+	}
+	return false
+}
+
+func (c *Config) String() string {
+	return fmt.Sprintf("port=%s mode=%s db=%s:%s/%s", c.ServerPort, c.ServerMode, c.DBHost, c.DBPort, c.DBName)
 }
 
 func getEnv(key, fallback string) string {

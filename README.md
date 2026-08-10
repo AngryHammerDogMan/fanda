@@ -70,7 +70,7 @@ cd fanda-server
 
 # 配置环境变量
 cp .env.example .env
-# 编辑 .env 填入数据库连接信息
+# 编辑 .env 填入数据库连接信息、JWT_SECRET 和 ADMIN_PASSWORD
 
 # 安装依赖 & 运行
 go mod tidy
@@ -87,18 +87,21 @@ cd fanda-app
 # 安装依赖
 npm install
 
-# 微信小程序开发模式
+# 微信小程序开发模式（默认请求 http://localhost:8080/api/v1）
 npm run dev:weapp
 
 # 抖音小程序开发模式
 npm run dev:tt
+
+# 生产构建时指定后端 API 地址
+API_BASE_URL=https://your-domain.com/api/v1 npm run build:weapp
 ```
 
 用微信/抖音开发者工具导入 `fanda-app/dist` 目录即可预览。
 
 ## 后台管理
 
-访问 `http://localhost:8080/admin/`，默认密码 `admin123`（可在 `fanda-server/internal/handler/admin.go` 中修改）。
+访问 `http://localhost:8080/admin/`。后台密码通过 `fanda-server/.env` 中的 `ADMIN_PASSWORD` 配置，生产环境不要使用默认或弱密码。
 
 ## License
 

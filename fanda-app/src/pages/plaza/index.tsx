@@ -5,6 +5,8 @@ import { dishAPI } from '@/services/api'
 import type { PlazaDish } from '@/types'
 import './index.scss'
 
+const sticker = (name: string) => `/assets/stickers/${name}.png`
+
 export default function Plaza() {
   const [categories, setCategories] = useState<string[]>([])
   const [activeCategory, setActiveCategory] = useState<string>('全部')
@@ -110,10 +112,10 @@ export default function Plaza() {
       {/* 搜索栏 */}
       <View className='search-bar'>
         <View className='search-input-wrap'>
-          <Text className='search-icon'>🔍</Text>
+          <Image className='search-icon' src={sticker('plaza-muted')} mode='aspectFit' />
           <Input
             className='search-input'
-            placeholder='搜索菜品名称...'
+            placeholder='搜索菜品名称…'
             value={keyword}
             onInput={e => setKeyword(e.detail.value)}
             onConfirm={handleSearch}
@@ -164,6 +166,7 @@ export default function Plaza() {
       >
         {dishes.length === 0 && !loading ? (
           <View className='empty-state'>
+            <Image className='empty-icon' src={sticker('plaza')} mode='aspectFit' />
             <Text className='empty-text'>暂无菜品</Text>
           </View>
         ) : (
@@ -210,7 +213,7 @@ export default function Plaza() {
         )}
         {loading && (
           <View className='loading-state'>
-            <Text className='loading-text'>加载中...</Text>
+            <Text className='loading-text'>加载中…</Text>
           </View>
         )}
         {!hasMore && dishes.length > 0 && (

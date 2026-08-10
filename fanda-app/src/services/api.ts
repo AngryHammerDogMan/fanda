@@ -1,15 +1,122 @@
 import Taro from '@tarojs/taro'
 import type { ApiResponse } from '@/types'
 
-// 开发环境 API 地址，上线后替换为正式域名
-const BASE_URL = 'http://localhost:8080/api/v1'
+declare const API_BASE_URL: string
+
+const BASE_URL = API_BASE_URL
 
 // 是否正在跳转登录页（防止重复跳转）
 let isRedirectingToLogin = false
 
+const isH5PreviewRequest = (token: string) => {
+  return process.env.TARO_ENV === 'h5' && token === 'h5-preview-token'
+}
+
+const h5User = {
+  uid: 'h5-preview-user',
+  nickname: '饭搭预览用户',
+  avatar: '',
+  points: 1280,
+  has_wx: true,
+  has_dy: true,
+  phone: '138****8000',
+  has_phone: true,
+  couple: { id: 'h5-couple', user1_id: 'h5-preview-user', user2_id: 'h5-partner', status: 'active' },
+  buddy_groups: [{ id: 'h5-buddy', name: '周末饭搭局', owner_id: 'h5-preview-user', max_member: 6, status: 'active', created_at: '2026-08-10T09:00:00Z' }],
+  created_at: '2026-08-10T09:00:00Z',
+}
+
+const h5Dishes = [
+  {
+    id: 'h5-dish-1',
+    owner_id: 'h5-preview-user',
+    group_type: 'couple',
+    group_id: 'h5-couple',
+    dish_type: 'dish',
+    name: '番茄牛腩煲',
+    category: '家常菜',
+    difficulty: 2,
+    duration: 45,
+    price: 42,
+    ingredients: [{ name: '牛腩', amount: '500g' }, { name: '番茄', amount: '3 个' }],
+    steps: [{ order: 1, description: '牛腩焯水后和番茄慢炖。' }],
+    photos: null,
+    tags: ['暖胃', '晚餐'],
+    restaurant: '',
+    restaurant_note: '',
+    source: 'manual',
+    is_deleted: false,
+    created_at: '2026-08-10T09:00:00Z',
+    updated_at: '2026-08-10T09:00:00Z',
+  },
+  {
+    id: 'h5-dish-2',
+    owner_id: 'h5-preview-user',
+    group_type: 'couple',
+    group_id: 'h5-couple',
+    dish_type: 'takeout',
+    name: '牛油果鸡胸沙拉',
+    category: '轻食',
+    difficulty: null,
+    duration: 28,
+    price: 36,
+    ingredients: null,
+    steps: null,
+    photos: null,
+    tags: ['外卖', '预算内'],
+    restaurant: '轻食研究所',
+    restaurant_note: '适合工作日晚餐',
+    source: 'manual',
+    is_deleted: false,
+    created_at: '2026-08-10T09:00:00Z',
+    updated_at: '2026-08-10T09:00:00Z',
+  },
+]
+
+const ok = <T>(data: T): ApiResponse<T> => ({ code: 0, message: 'ok', data })
+
+const list = <T>(items: T[]) => ({ list: items, total: items.length, page: 1, page_size: 20 })
+
+const createH5PreviewResponse = <T>(options: Taro.request.Option): ApiResponse<T> => {
+  const url = options.url || ''
+  const today = new Date().toISOString().slice(0, 10)
+
+  if (url === '/auth/profile') return ok(h5User) as ApiResponse<T>
+  if (url === '/checkin/status') return ok({ today_checked: false, month_count: 18, streak: 7 }) as ApiResponse<T>
+  if (url === '/checkin') return ok({ today_checked: true, month_count: 19, streak: 8 }) as ApiResponse<T>
+  if (url === '/dishes') return ok(list(h5Dishes)) as ApiResponse<T>
+  if (url.startsWith('/dishes/')) return ok(h5Dishes[0]) as ApiResponse<T>
+  if (url === '/plaza') return ok(list(h5Dishes.map((dish) => ({ ...dish, import_count: 128 })))) as ApiResponse<T>
+  if (url === '/plaza/categories') return ok(['家常菜', '轻食', '快手菜', '外食灵感']) as ApiResponse<T>
+  if (url === '/orders') {
+    return ok(list([
+      { id: 'h5-order-1', creator_id: 'h5-preview-user', group_type: 'couple', group_id: 'h5-couple', dine_mode: 'together', status: 'pending', total_amount: 58, order_items: [{ id: 'h5-order-item-1', order_id: 'h5-order-1', dish_id: 'h5-dish-1', quantity: 1, unit_price: 42 }], created_at: '2026-08-10T18:30:00Z' },
+    ])) as ApiResponse<T>
+  }
+  if (url === '/calendar/records' || url === '/calendar/records/date') {
+    return ok(list([
+      { id: 'h5-record-1', user_id: 'h5-preview-user', group_type: 'couple', group_id: 'h5-couple', record_date: today, meal_type: 'dineout', meal_period: 'dinner', dish_ids: [], restaurant: '烧鸟小馆', amount: 168, source: 'manual', photos: [], comments: [], created_at: '2026-08-10T19:30:00Z' },
+    ])) as ApiResponse<T>
+  }
+  if (url === '/calendar/stats') {
+    return ok({ total_amount: 680, meal_count: { cook: 8, takeout: 6, dineout: 4 }, total_records: 18, unrecorded_days: [], year: 2026, month: 8 }) as ApiResponse<T>
+  }
+  if (url === '/wishes') return ok(list([{ id: 'h5-wish-1', user_id: 'h5-preview-user', group_type: 'couple', group_id: 'h5-couple', name: '想去吃巴斯克蛋糕', note: '周末下午茶', dish_id: null, is_completed: false, created_at: '2026-08-10T09:00:00Z' }])) as ApiResponse<T>
+  if (url === '/basket') return ok(list([{ id: 'h5-basket-1', user_id: 'h5-preview-user', group_type: 'couple', group_id: 'h5-couple', name: '番茄', quantity: '3 个', is_purchased: false, created_at: '2026-08-10T09:00:00Z' }])) as ApiResponse<T>
+  if (url === '/budget') return ok({ id: 'h5-budget', user_id: 'h5-preview-user', group_type: 'couple', group_id: 'h5-couple', month: '2026-08', budget: 1200, spent: 680 }) as ApiResponse<T>
+  if (url === '/points/history') return ok(list([{ id: 'h5-point-1', user_id: 'h5-preview-user', points: 10, reason: '每日签到', created_at: '2026-08-10T09:00:00Z' }])) as ApiResponse<T>
+  if (url.includes('/invite')) return ok({ code: 'H5FANDA', expires_at: '2026-08-10T10:00:00Z' }) as ApiResponse<T>
+
+  return ok({}) as ApiResponse<T>
+}
+
 // 请求拦截器
 const request = async <T>(options: Taro.request.Option): Promise<ApiResponse<T>> => {
   const token = Taro.getStorageSync('token')
+
+  if (isH5PreviewRequest(token)) {
+    return createH5PreviewResponse<T>(options)
+  }
 
   const header: Record<string, string> = {
     'Content-Type': 'application/json',
@@ -58,20 +165,11 @@ export const authAPI = {
   login: (code: string, platform: string) =>
     request<any>({ url: '/auth/login', method: 'POST', data: { code, platform } }),
 
-  loginByPhone: (phone: string) =>
-    request<any>({ url: '/auth/login/phone', method: 'POST', data: { phone } }),
-
   getProfile: () =>
     request<any>({ url: '/auth/profile', method: 'GET' }),
 
   updateProfile: (nickname: string, avatar: string) =>
     request<any>({ url: '/auth/profile', method: 'PUT', data: { nickname, avatar } }),
-
-  generateBindCode: () =>
-    request<any>({ url: '/auth/bind-code', method: 'POST' }),
-
-  bindPlatform: (bindCode: string) =>
-    request<any>({ url: '/auth/bind', method: 'POST', data: { bind_code: bindCode } }),
 
   bindPhone: (phone: string) =>
     request<any>({ url: '/auth/bind-phone', method: 'POST', data: { phone } }),

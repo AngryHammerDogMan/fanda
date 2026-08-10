@@ -46,7 +46,11 @@ func (h *AdminHandler) AdminLogin(c *gin.Context) {
 		"exp":  time.Now().Add(24 * time.Hour).Unix(),
 		"iat":  time.Now().Unix(),
 	})
-	tokenStr, _ := token.SignedString([]byte(h.cfg.JWTSecret))
+	tokenStr, err := token.SignedString([]byte(h.cfg.JWTSecret))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": "生成管理员令牌失败"})
+		return
+	}
 
 	c.JSON(http.StatusOK, gin.H{"code": 0, "message": "ok", "data": gin.H{"token": tokenStr}})
 }

@@ -1,4 +1,4 @@
-import { View, Text, ScrollView } from '@tarojs/components'
+import { View, Text, ScrollView, Image } from '@tarojs/components'
 import Taro, { useDidShow, useRouter } from '@tarojs/taro'
 import { useState, useMemo } from 'react'
 import { calendarAPI, authAPI } from '@/services/api'
@@ -8,6 +8,7 @@ import './index.scss'
 const WEEK_DAYS = ['日', '一', '二', '三', '四', '五', '六']
 const MEAL_LABELS: Record<string, string> = { cook: '做饭', takeout: '外卖', dineout: '外出' }
 const MEAL_COLORS: Record<string, string> = { cook: '#52C41A', takeout: '#FF6B35', dineout: '#1890FF' }
+const sticker = (name: string) => `/assets/stickers/${name}.png`
 
 export default function Calendar() {
   const now = new Date()
@@ -208,6 +209,24 @@ export default function Calendar() {
 
   return (
     <View className='page-calendar'>
+      <View className='calendar-hero'>
+        <View>
+          <Text className='fanda-title'>美食日历</Text>
+          <Text className='fanda-subtitle'>把每一顿饭都记成生活账本</Text>
+        </View>
+        <Image className='hero-sticker' src={sticker('calendar')} mode='aspectFit' />
+      </View>
+
+      <View className='budget-banner'>
+        <Image className='sticker-icon-sm' src={sticker('budget')} mode='aspectFit' />
+        <View className='budget-copy'>
+          <Text className='budget-title'>本月餐桌</Text>
+          <Text className='budget-desc'>
+            {monthlyStats ? `已记录 ${monthlyStats.total_records} 餐 · 合计 ¥${monthlyStats.total_amount}` : '选择关系后查看本月餐桌记录'}
+          </Text>
+        </View>
+      </View>
+
       {/* 分组选择器 */}
       <View className='group-selector'>
         <View

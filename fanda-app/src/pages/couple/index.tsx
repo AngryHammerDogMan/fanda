@@ -5,6 +5,8 @@ import { authAPI } from '@/services/api'
 import type { User, CoupleInfo } from '@/types'
 import './index.scss'
 
+const sticker = (name: string) => `/assets/stickers/${name}.png`
+
 export default function Couple() {
   const [user, setUser] = useState<User | null>(null)
   const [couple, setCouple] = useState<CoupleInfo | null>(null)
@@ -87,7 +89,7 @@ export default function Couple() {
       {/* 当前状态 */}
       <View className='status-section'>
         <View className='status-header'>
-          <Text className='status-icon'>💑</Text>
+          <Image className='status-icon' src={sticker('couple')} mode='aspectFit' />
           <Text className='status-title'>
             {couple ? '已绑定情侣' : '未绑定情侣'}
           </Text>
@@ -95,7 +97,7 @@ export default function Couple() {
         {couple ? (
           <View className='partner-card'>
             <View className='partner-avatar'>
-              <Image className='partner-img' src='' mode='aspectFill' />
+              <Image className='partner-img' src={sticker('couple-muted')} mode='aspectFit' />
             </View>
             <View className='partner-info'>
               <Text className='partner-label'>对方ID</Text>
@@ -120,7 +122,7 @@ export default function Couple() {
           <>
             <View className='action-card'>
               <View className='action-header'>
-                <Text className='action-icon'>📤</Text>
+                <Image className='action-icon' src={sticker('couple')} mode='aspectFit' />
                 <Text className='action-title'>创建邀请</Text>
               </View>
               <Text className='action-desc'>生成邀请码，分享给对方完成绑定</Text>
@@ -131,7 +133,7 @@ export default function Couple() {
 
             <View className='action-card'>
               <View className='action-header'>
-                <Text className='action-icon'>📥</Text>
+                <Image className='action-icon' src={sticker('couple-muted')} mode='aspectFit' />
                 <Text className='action-title'>加入情侣</Text>
               </View>
               <Text className='action-desc'>输入对方分享的邀请码完成绑定</Text>
@@ -163,7 +165,7 @@ export default function Couple() {
         ) : (
           <View className='action-card'>
             <View className='action-header'>
-              <Text className='action-icon'>🔗</Text>
+              <Image className='action-icon' src={sticker('couple')} mode='aspectFit' />
               <Text className='action-title'>情侣功能</Text>
             </View>
             <Text className='action-desc'>你们可以共享菜品、点单和日历记录</Text>

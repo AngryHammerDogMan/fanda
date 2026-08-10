@@ -13,7 +13,7 @@ func Setup(cfg *config.Config) *gin.Engine {
 
 	r := gin.New()
 	r.Use(middleware.Logger())
-	r.Use(middleware.CORS())
+	r.Use(middleware.CORS(cfg))
 	r.Use(gin.Recovery())
 
 	// 静态文件（上传目录）
@@ -39,7 +39,6 @@ func Setup(cfg *config.Config) *gin.Engine {
 		auth := api.Group("/auth")
 		{
 			auth.POST("/login", authHandler.Login)
-			auth.POST("/login/phone", authHandler.LoginByPhone)
 		}
 
 		// ============ 后台管理 ============
@@ -65,8 +64,6 @@ func Setup(cfg *config.Config) *gin.Engine {
 			// 用户认证
 			authGroup := protected.Group("/auth")
 			{
-				authGroup.POST("/bind-code", authHandler.GenerateBindCode)
-				authGroup.POST("/bind", authHandler.BindPlatform)
 				authGroup.POST("/bind-phone", authHandler.BindPhone)
 				authGroup.GET("/profile", authHandler.GetProfile)
 				authGroup.PUT("/profile", authHandler.UpdateProfile)

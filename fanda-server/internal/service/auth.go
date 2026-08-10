@@ -27,13 +27,13 @@ func NewAuthService(cfg *config.Config) *AuthService {
 
 // LoginResult 登录返回
 type LoginResult struct {
-	Token        string `json:"token"`
-	UID          string `json:"uid"`
-	Nickname     string `json:"nickname"`
-	Avatar       string `json:"avatar"`
-	IsNew        bool   `json:"is_new"`
-	NeedBindPhone bool  `json:"need_bind_phone"`
-	Phone        string `json:"phone,omitempty"`
+	Token         string `json:"token"`
+	UID           string `json:"uid"`
+	Nickname      string `json:"nickname"`
+	Avatar        string `json:"avatar"`
+	IsNew         bool   `json:"is_new"`
+	NeedBindPhone bool   `json:"need_bind_phone"`
+	Phone         string `json:"phone,omitempty"`
 }
 
 // Login 平台登录
@@ -90,55 +90,6 @@ func (s *AuthService) Login(ctx context.Context, platform, code string) (*LoginR
 		IsNew:         isNew,
 		NeedBindPhone: user.Phone == nil,
 		Phone:         phoneMasked,
-	}, nil
-}
-
-// LoginByPhone 手机号登录/注册
-// 手机号即账号 ID，微信和抖音双平台通过手机号判断同一账号实现数据互通
-func (s *AuthService) LoginByPhone(ctx context.Context, phone string) (*LoginResult, error) {
-	// 验证手机号格式
-	if len(phone) != 11 {
-		return nil, errors.New("手机号格式不正确")
-	}
-	for _, c := range phone {
-		if c < '0' || c > '9' {
-			return nil, errors.New("手机号格式不正确")
-		}
-	}
-
-	// 查找是否已有该手机号的用户
-	var user model.User
-	err := database.DB.Where("phone = ?", phone).First(&user).Error
-	isNew := false
-
-	if errors.Is(err, gorm.ErrRecordNotFound) {
-		// 新用户：直接创建带手机号的账户
-		user = model.User{
-			Nickname: "用户" + phone[7:],
-			Phone:    &phone,
-		}
-		if err := database.DB.Create(&user).Error; err != nil {
-			return nil, fmt.Errorf("创建用户失败: %w", err)
-		}
-		isNew = true
-	} else if err != nil {
-		return nil, fmt.Errorf("查询用户失败: %w", err)
-	}
-
-	// 生成 JWT（手机号登录不绑定特定平台）
-	token, err := s.generateJWT(user.UID, "phone")
-	if err != nil {
-		return nil, fmt.Errorf("生成令牌失败: %w", err)
-	}
-
-	return &LoginResult{
-		Token:         token,
-		UID:           user.UID.String(),
-		Nickname:      user.Nickname,
-		Avatar:        user.Avatar,
-		IsNew:         isNew,
-		NeedBindPhone: false, // 手机号登录已绑定
-		Phone:         maskPhone(phone),
 	}, nil
 }
 
@@ -211,123 +162,85 @@ func (s *AuthService) mergeAccounts(sourceUID, targetUID uuid.UUID, phone string
 	}
 
 	// 将 sourceUser 名下的数据迁移到 targetUser
-	tx.Model(&model.Dish{}).Where("owner_id = ?", sourceUID).Update("owner_id", targetUID)
-	tx.Model(&model.Order{}).Where("creator_id = ?", sourceUID).Update("creator_id", targetUID)
-	tx.Model(&model.CalendarRecord{}).Where("user_id = ?", sourceUID).Update("user_id", targetUID)
-	tx.Model(&model.RecordComment{}).Where("user_id = ?", sourceUID).Update("user_id", targetUID)
-	tx.Model(&model.WishItem{}).Where("user_id = ?", sourceUID).Update("user_id", targetUID)
-	tx.Model(&model.Checkin{}).Where("user_id = ?", sourceUID).Update("user_id", targetUID)
-	tx.Model(&model.PointRecord{}).Where("user_id = ?", sourceUID).Update("user_id", targetUID)
-	tx.Model(&model.BudgetSetting{}).Where("user_id = ?", sourceUID).Update("user_id", targetUID)
-	tx.Model(&model.ShoppingBasket{}).Where("user_id = ?", sourceUID).Update("user_id", targetUID)
-	tx.Model(&model.OrderVote{}).Where("user_id = ?", sourceUID).Update("user_id", targetUID)
+	if err := tx.Model(&model.Dish{}).Where("owner_id = ?", sourceUID).Update("owner_id", targetUID).Error; err != nil {
+		tx.Rollback()
+		return fmt.Errorf("迁移菜品失败: %w", err)
+	}
+	if err := tx.Model(&model.Order{}).Where("creator_id = ?", sourceUID).Update("creator_id", targetUID).Error; err != nil {
+		tx.Rollback()
+		return fmt.Errorf("迁移订单失败: %w", err)
+	}
+	if err := tx.Model(&model.CalendarRecord{}).Where("user_id = ?", sourceUID).Update("user_id", targetUID).Error; err != nil {
+		tx.Rollback()
+		return fmt.Errorf("迁移日历记录失败: %w", err)
+	}
+	if err := tx.Model(&model.RecordComment{}).Where("user_id = ?", sourceUID).Update("user_id", targetUID).Error; err != nil {
+		tx.Rollback()
+		return fmt.Errorf("迁移留言失败: %w", err)
+	}
+	if err := tx.Model(&model.WishItem{}).Where("user_id = ?", sourceUID).Update("user_id", targetUID).Error; err != nil {
+		tx.Rollback()
+		return fmt.Errorf("迁移心愿失败: %w", err)
+	}
+	if err := tx.Model(&model.Checkin{}).Where("user_id = ?", sourceUID).Update("user_id", targetUID).Error; err != nil {
+		tx.Rollback()
+		return fmt.Errorf("迁移签到失败: %w", err)
+	}
+	if err := tx.Model(&model.PointRecord{}).Where("user_id = ?", sourceUID).Update("user_id", targetUID).Error; err != nil {
+		tx.Rollback()
+		return fmt.Errorf("迁移积分记录失败: %w", err)
+	}
+	if err := tx.Model(&model.BudgetSetting{}).Where("user_id = ?", sourceUID).Update("user_id", targetUID).Error; err != nil {
+		tx.Rollback()
+		return fmt.Errorf("迁移预算失败: %w", err)
+	}
+	if err := tx.Model(&model.ShoppingBasket{}).Where("user_id = ?", sourceUID).Update("user_id", targetUID).Error; err != nil {
+		tx.Rollback()
+		return fmt.Errorf("迁移菜篮子失败: %w", err)
+	}
+	if err := tx.Model(&model.OrderVote{}).Where("user_id = ?", sourceUID).Update("user_id", targetUID).Error; err != nil {
+		tx.Rollback()
+		return fmt.Errorf("迁移投票失败: %w", err)
+	}
 
 	// 情侣关系
-	tx.Model(&model.Couple{}).Where("user1_id = ?", sourceUID).Update("user1_id", targetUID)
-	tx.Model(&model.Couple{}).Where("user2_id = ?", sourceUID).Update("user2_id", targetUID)
+	if err := tx.Model(&model.Couple{}).Where("user1_id = ?", sourceUID).Update("user1_id", targetUID).Error; err != nil {
+		tx.Rollback()
+		return fmt.Errorf("迁移情侣关系失败: %w", err)
+	}
+	if err := tx.Model(&model.Couple{}).Where("user2_id = ?", sourceUID).Update("user2_id", targetUID).Error; err != nil {
+		tx.Rollback()
+		return fmt.Errorf("迁移情侣关系失败: %w", err)
+	}
 	// 饭搭子成员
-	tx.Model(&model.BuddyMember{}).Where("user_id = ?", sourceUID).Update("user_id", targetUID)
+	if err := tx.Model(&model.BuddyMember{}).Where("user_id = ?", sourceUID).Update("user_id", targetUID).Error; err != nil {
+		tx.Rollback()
+		return fmt.Errorf("迁移饭搭子成员失败: %w", err)
+	}
 	// 饭搭子群主
-	tx.Model(&model.BuddyGroup{}).Where("owner_id = ?", sourceUID).Update("owner_id", targetUID)
+	if err := tx.Model(&model.BuddyGroup{}).Where("owner_id = ?", sourceUID).Update("owner_id", targetUID).Error; err != nil {
+		tx.Rollback()
+		return fmt.Errorf("迁移饭搭子群主失败: %w", err)
+	}
 	// 邀请码
-	tx.Model(&model.CoupleInvite{}).Where("inviter_id = ?", sourceUID).Update("inviter_id", targetUID)
-	tx.Model(&model.BuddyInvite{}).Where("inviter_id = ?", sourceUID).Update("inviter_id", targetUID)
-	// 跨平台绑定
-	tx.Model(&model.CrossPlatformBind{}).Where("user_id = ?", sourceUID).Update("user_id", targetUID)
-
+	if err := tx.Model(&model.CoupleInvite{}).Where("inviter_id = ?", sourceUID).Update("inviter_id", targetUID).Error; err != nil {
+		tx.Rollback()
+		return fmt.Errorf("迁移情侣邀请码失败: %w", err)
+	}
+	if err := tx.Model(&model.BuddyInvite{}).Where("inviter_id = ?", sourceUID).Update("inviter_id", targetUID).Error; err != nil {
+		tx.Rollback()
+		return fmt.Errorf("迁移饭搭子邀请码失败: %w", err)
+	}
 	// 积分合并
-	tx.Model(&model.User{}).Where("uid = ?", targetUID).Update("points", targetUser.Points+sourceUser.Points)
+	if err := tx.Model(&model.User{}).Where("uid = ?", targetUID).Update("points", targetUser.Points+sourceUser.Points).Error; err != nil {
+		tx.Rollback()
+		return fmt.Errorf("合并积分失败: %w", err)
+	}
 
 	// 删除 sourceUser
 	if err := tx.Delete(&sourceUser).Error; err != nil {
 		tx.Rollback()
 		return fmt.Errorf("删除源用户失败: %w", err)
-	}
-
-	return tx.Commit().Error
-}
-
-// GenerateBindCode 生成跨平台绑定码
-func (s *AuthService) GenerateBindCode(ctx context.Context, uid interface{}) (map[string]interface{}, error) {
-	userID := uid.(uuid.UUID)
-
-	code := generateCode(6)
-
-	bind := model.CrossPlatformBind{
-		UserID:    userID,
-		BindCode:  code,
-		ExpiresAt: time.Now().Add(10 * time.Minute),
-	}
-
-	if err := database.DB.Create(&bind).Error; err != nil {
-		return nil, fmt.Errorf("生成绑定码失败: %w", err)
-	}
-
-	return map[string]interface{}{
-		"bind_code":  code,
-		"expires_at": bind.ExpiresAt,
-	}, nil
-}
-
-// BindPlatform 通过绑定码关联平台
-func (s *AuthService) BindPlatform(ctx context.Context, uid interface{}, bindCode string) error {
-	userID := uid.(uuid.UUID)
-
-	var bind model.CrossPlatformBind
-	if err := database.DB.Where("bind_code = ? AND is_used = false AND expires_at > ?", bindCode, time.Now()).First(&bind).Error; err != nil {
-		return errors.New("绑定码无效或已过期")
-	}
-
-	if bind.UserID == userID {
-		return errors.New("不能绑定自己的账户")
-	}
-
-	// 获取两个用户的 openid（在事务内，避免跨事务 Save 问题）
-	tx := database.DB.Begin()
-
-	var user1, user2 model.User
-	if err := tx.First(&user1, "uid = ?", bind.UserID).Error; err != nil {
-		tx.Rollback()
-		return errors.New("用户不存在")
-	}
-	if err := tx.First(&user2, "uid = ?", userID).Error; err != nil {
-		tx.Rollback()
-		return errors.New("用户不存在")
-	}
-
-	// 合并 openid：先清空 user2 的 openid（避免唯一约束冲突），再设到 user1
-	updates := map[string]interface{}{}
-	if user2.WxOpenID != nil && user1.WxOpenID == nil {
-		updates["wx_openid"] = *user2.WxOpenID
-		// 先清空 user2 的 wx_openid
-		if err := tx.Model(&model.User{}).Where("uid = ?", user2.UID).Update("wx_openid", nil).Error; err != nil {
-			tx.Rollback()
-			return fmt.Errorf("清空用户2 wx_openid失败: %w", err)
-		}
-	}
-	if user2.DyOpenID != nil && user1.DyOpenID == nil {
-		updates["dy_openid"] = *user2.DyOpenID
-		// 先清空 user2 的 dy_openid
-		if err := tx.Model(&model.User{}).Where("uid = ?", user2.UID).Update("dy_openid", nil).Error; err != nil {
-			tx.Rollback()
-			return fmt.Errorf("清空用户2 dy_openid失败: %w", err)
-		}
-	}
-	if len(updates) > 0 {
-		if err := tx.Model(&model.User{}).Where("uid = ?", user1.UID).Updates(updates).Error; err != nil {
-			tx.Rollback()
-			return fmt.Errorf("合并账户失败: %w", err)
-		}
-	}
-	if err := tx.Delete(&user2).Error; err != nil {
-		tx.Rollback()
-		return fmt.Errorf("删除旧账户失败: %w", err)
-	}
-
-	bind.IsUsed = true
-	if err := tx.Save(&bind).Error; err != nil {
-		tx.Rollback()
-		return fmt.Errorf("更新绑定码状态失败: %w", err)
 	}
 
 	return tx.Commit().Error
@@ -360,17 +273,17 @@ func (s *AuthService) GetProfile(ctx context.Context, uid interface{}) (map[stri
 	}
 
 	return map[string]interface{}{
-		"uid":            user.UID,
-		"nickname":       user.Nickname,
-		"avatar":         user.Avatar,
-		"points":         user.Points,
-		"has_wx":         user.WxOpenID != nil,
-		"has_dy":         user.DyOpenID != nil,
-		"phone":          phoneMasked,
-		"has_phone":      user.Phone != nil,
-		"couple":         coupleToMap(couple),
-		"buddy_groups":   buddyGroups,
-		"created_at":     user.CreatedAt,
+		"uid":          user.UID,
+		"nickname":     user.Nickname,
+		"avatar":       user.Avatar,
+		"points":       user.Points,
+		"has_wx":       user.WxOpenID != nil,
+		"has_dy":       user.DyOpenID != nil,
+		"phone":        phoneMasked,
+		"has_phone":    user.Phone != nil,
+		"couple":       coupleToMap(couple),
+		"buddy_groups": buddyGroups,
+		"created_at":   user.CreatedAt,
 	}, nil
 }
 
@@ -509,7 +422,10 @@ func (s *AuthService) CreateBuddyGroup(ctx context.Context, uid interface{}, nam
 // CreateBuddyInvite 生成饭搭子邀请码
 func (s *AuthService) CreateBuddyInvite(ctx context.Context, uid interface{}, groupID string) (map[string]interface{}, error) {
 	userID := uid.(uuid.UUID)
-	gID, _ := uuid.Parse(groupID)
+	gID, err := uuid.Parse(groupID)
+	if err != nil || gID == uuid.Nil {
+		return nil, errors.New("组合ID无效")
+	}
 
 	// 检查权限
 	var member model.BuddyMember
@@ -537,12 +453,19 @@ func (s *AuthService) CreateBuddyInvite(ctx context.Context, uid interface{}, gr
 }
 
 // JoinBuddyGroup 通过邀请码加入饭搭子
-func (s *AuthService) JoinBuddyGroup(ctx context.Context, uid interface{}, code string) error {
+func (s *AuthService) JoinBuddyGroup(ctx context.Context, uid interface{}, groupID string, code string) error {
 	userID := uid.(uuid.UUID)
+	gID, err := uuid.Parse(groupID)
+	if err != nil || gID == uuid.Nil {
+		return errors.New("组合ID无效")
+	}
 
 	var invite model.BuddyInvite
 	if err := database.DB.Where("code = ? AND is_used = false AND expires_at > ?", code, time.Now()).First(&invite).Error; err != nil {
 		return errors.New("邀请码无效或已过期")
+	}
+	if invite.GroupID != gID {
+		return errors.New("邀请码与组合不匹配")
 	}
 
 	// 检查已有组合数量
@@ -594,8 +517,14 @@ func (s *AuthService) JoinBuddyGroup(ctx context.Context, uid interface{}, code 
 // RemoveBuddyMember 移除饭搭子成员
 func (s *AuthService) RemoveBuddyMember(ctx context.Context, uid interface{}, groupID, targetUID string) error {
 	userID := uid.(uuid.UUID)
-	gID, _ := uuid.Parse(groupID)
-	tID, _ := uuid.Parse(targetUID)
+	gID, err := uuid.Parse(groupID)
+	if err != nil || gID == uuid.Nil {
+		return errors.New("组合ID无效")
+	}
+	tID, err := uuid.Parse(targetUID)
+	if err != nil || tID == uuid.Nil {
+		return errors.New("成员ID无效")
+	}
 
 	// 检查权限
 	var member model.BuddyMember

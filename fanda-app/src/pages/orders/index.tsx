@@ -1,4 +1,4 @@
-import { View, Text, ScrollView } from '@tarojs/components'
+import { View, Text, ScrollView, Image } from '@tarojs/components'
 import Taro, { useDidShow, useReachBottom, usePullDownRefresh } from '@tarojs/taro'
 import { useState, useCallback } from 'react'
 import { orderAPI } from '@/services/api'
@@ -30,6 +30,8 @@ const GROUP_TYPE_MAP: Record<string, string> = {
   couple: '情侣',
   buddy: '饭搭子',
 }
+
+const sticker = (name: string) => `/assets/stickers/${name}.png`
 
 const PAGE_SIZE = 10
 
@@ -216,11 +218,11 @@ export default function Orders() {
           setRefreshing(true)
           loadOrders(1, true).finally(() => setRefreshing(false))
         }}
-        refresherBackground='#F5F5F5'
+        refresherBackground='#FFF8F0'
       >
         {orders.length === 0 && !loading ? (
           <View className='empty-state'>
-            <Text className='empty-icon'>📋</Text>
+            <Image className='empty-icon' src={sticker('order')} mode='aspectFit' />
             <Text className='empty-text'>暂无订单</Text>
             <Text className='empty-hint'>点击下方按钮创建新的点单</Text>
           </View>
@@ -302,7 +304,7 @@ export default function Orders() {
         {/* 加载更多 */}
         {loading && (
           <View className='loading-more'>
-            <Text>加载中...</Text>
+            <Text>加载中…</Text>
           </View>
         )}
         {orders.length >= total && orders.length > 0 && (

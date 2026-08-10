@@ -77,19 +77,8 @@ type BuddyInvite struct {
 	CreatedAt time.Time `json:"created_at"`
 }
 
-// CrossPlatformBind 跨平台绑定表
-type CrossPlatformBind struct {
-	ID        uuid.UUID `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
-	UserID    uuid.UUID `gorm:"type:uuid;not null;index" json:"user_id"`
-	BindCode  string    `gorm:"type:varchar(10);not null;uniqueIndex" json:"bind_code"`
-	IsUsed    bool      `gorm:"default:false" json:"is_used"`
-	ExpiresAt time.Time `gorm:"not null" json:"expires_at"`
-	CreatedAt time.Time `json:"created_at"`
-}
-
-func (Couple) TableName() string           { return "couples" }
-func (CoupleInvite) TableName() string     { return "couple_invites" }
-func (BuddyGroup) TableName() string       { return "buddy_groups" }
-func (BuddyMember) TableName() string      { return "buddy_members" }
-func (BuddyInvite) TableName() string      { return "buddy_invites" }
-func (CrossPlatformBind) TableName() string { return "cross_platform_binds" }
+func (Couple) TableName() string       { return "couples" }
+func (CoupleInvite) TableName() string { return "couple_invites" }
+func (BuddyGroup) TableName() string   { return "buddy_groups" }
+func (BuddyMember) TableName() string  { return "buddy_members" }
+func (BuddyInvite) TableName() string  { return "buddy_invites" }

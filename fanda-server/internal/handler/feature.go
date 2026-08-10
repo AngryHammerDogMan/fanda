@@ -2,7 +2,6 @@ package handler
 
 import (
 	"net/http"
-	"strconv"
 
 	"fanda-server/internal/service"
 
@@ -45,8 +44,12 @@ func (h *FeatureHandler) CreateWish(c *gin.Context) {
 // ListWishes 获取心愿列表
 // GET /api/v1/wishes?group_type=couple&group_id=xxx&completed=false
 func (h *FeatureHandler) ListWishes(c *gin.Context) {
+	uid := c.MustGet("uid").(uuid.UUID)
 	groupType := c.Query("group_type")
-	groupID, _ := uuid.Parse(c.Query("group_id"))
+	groupID, ok := parseUUIDQuery(c, "group_id")
+	if !ok {
+		return
+	}
 
 	var completed *bool
 	if c.Query("completed") == "true" {
@@ -57,7 +60,7 @@ func (h *FeatureHandler) ListWishes(c *gin.Context) {
 		completed = &f
 	}
 
-	wishes, err := h.service.ListWishes(c.Request.Context(), groupType, groupID, completed)
+	wishes, err := h.service.ListWishes(c.Request.Context(), uid, groupType, groupID, completed)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": err.Error()})
 		return
@@ -70,7 +73,10 @@ func (h *FeatureHandler) ListWishes(c *gin.Context) {
 // POST /api/v1/wishes/:id/complete
 func (h *FeatureHandler) CompleteWish(c *gin.Context) {
 	uid := c.MustGet("uid").(uuid.UUID)
-	wishID, _ := uuid.Parse(c.Param("id"))
+	wishID, ok := parseUUIDParam(c, "id")
+	if !ok {
+		return
+	}
 
 	if err := h.service.CompleteWish(c.Request.Context(), uid, wishID); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": err.Error()})
@@ -84,7 +90,10 @@ func (h *FeatureHandler) CompleteWish(c *gin.Context) {
 // DELETE /api/v1/wishes/:id
 func (h *FeatureHandler) DeleteWish(c *gin.Context) {
 	uid := c.MustGet("uid").(uuid.UUID)
-	wishID, _ := uuid.Parse(c.Param("id"))
+	wishID, ok := parseUUIDParam(c, "id")
+	if !ok {
+		return
+	}
 
 	if err := h.service.DeleteWish(c.Request.Context(), uid, wishID); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": err.Error()})
@@ -149,10 +158,14 @@ func (h *FeatureHandler) AddToBasket(c *gin.Context) {
 // ListBasket 获取菜篮子
 // GET /api/v1/basket?group_type=couple&group_id=xxx
 func (h *FeatureHandler) ListBasket(c *gin.Context) {
+	uid := c.MustGet("uid").(uuid.UUID)
 	groupType := c.Query("group_type")
-	groupID, _ := uuid.Parse(c.Query("group_id"))
+	groupID, ok := parseUUIDQuery(c, "group_id")
+	if !ok {
+		return
+	}
 
-	items, err := h.service.ListBasket(c.Request.Context(), groupType, groupID)
+	items, err := h.service.ListBasket(c.Request.Context(), uid, groupType, groupID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": err.Error()})
 		return
@@ -165,7 +178,10 @@ func (h *FeatureHandler) ListBasket(c *gin.Context) {
 // POST /api/v1/basket/:id/toggle
 func (h *FeatureHandler) ToggleBasketPurchased(c *gin.Context) {
 	uid := c.MustGet("uid").(uuid.UUID)
-	itemID, _ := uuid.Parse(c.Param("id"))
+	itemID, ok := parseUUIDParam(c, "id")
+	if !ok {
+		return
+	}
 
 	if err := h.service.ToggleBasketPurchased(c.Request.Context(), uid, itemID); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": err.Error()})
@@ -179,7 +195,10 @@ func (h *FeatureHandler) ToggleBasketPurchased(c *gin.Context) {
 // DELETE /api/v1/basket/:id
 func (h *FeatureHandler) DeleteBasket(c *gin.Context) {
 	uid := c.MustGet("uid").(uuid.UUID)
-	itemID, _ := uuid.Parse(c.Param("id"))
+	itemID, ok := parseUUIDParam(c, "id")
+	if !ok {
+		return
+	}
 
 	if err := h.service.DeleteBasket(c.Request.Context(), uid, itemID); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": err.Error()})
@@ -214,11 +233,15 @@ func (h *FeatureHandler) SetBudget(c *gin.Context) {
 // GetBudget 获取预算
 // GET /api/v1/budget?group_type=couple&group_id=xxx&month=2026-08
 func (h *FeatureHandler) GetBudget(c *gin.Context) {
+	uid := c.MustGet("uid").(uuid.UUID)
 	groupType := c.Query("group_type")
-	groupID, _ := uuid.Parse(c.Query("group_id"))
+	groupID, ok := parseUUIDQuery(c, "group_id")
+	if !ok {
+		return
+	}
 	month := c.Query("month")
 
-	budget, err := h.service.GetBudget(c.Request.Context(), groupType, groupID, month)
+	budget, err := h.service.GetBudget(c.Request.Context(), uid, groupType, groupID, month)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"code": 404, "message": err.Error()})
 		return
@@ -233,8 +256,7 @@ func (h *FeatureHandler) GetBudget(c *gin.Context) {
 // GET /api/v1/points?page=1&page_size=20
 func (h *FeatureHandler) GetPointHistory(c *gin.Context) {
 	uid := c.MustGet("uid").(uuid.UUID)
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
-	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
+	page, pageSize := parsePagination(c)
 
 	records, total, err := h.service.GetPointHistory(c.Request.Context(), uid, page, pageSize)
 	if err != nil {

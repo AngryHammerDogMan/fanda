@@ -9,7 +9,7 @@ import './index.scss'
 const CURRENT_PLATFORM = process.env.TARO_ENV === 'weapp' ? 'wechat' : 'douyin'
 const PLATFORM_NAME = CURRENT_PLATFORM === 'wechat' ? '微信' : '抖音'
 const OTHER_PLATFORM_NAME = CURRENT_PLATFORM === 'wechat' ? '抖音' : '微信'
-const OTHER_PLATFORM_KEY = CURRENT_PLATFORM === 'wechat' ? 'has_dy' : 'has_wx'
+const sticker = (name: string) => `/assets/stickers/${name}.png`
 
 export default function Profile() {
   const [user, setUser] = useState<User | null>(null)
@@ -83,44 +83,6 @@ export default function Profile() {
     }
   }
 
-  const handleGenerateBindCode = async () => {
-    try {
-      const res = await authAPI.generateBindCode()
-      const code = res.data?.code || res.data
-      Taro.showModal({
-        title: '绑定码',
-        content: `您的绑定码为：${code}\n请在另一平台输入此码完成绑定`,
-        showCancel: false,
-        confirmText: '复制',
-        success: () => {
-          Taro.setClipboardData({ data: code })
-          Taro.showToast({ title: '已复制', icon: 'success' })
-        },
-      })
-    } catch (err: any) {
-      Taro.showToast({ title: err.message || '生成失败', icon: 'none' })
-    }
-  }
-
-  const handleBindPlatform = () => {
-    Taro.showModal({
-      title: '绑定其他平台',
-      editable: true,
-      placeholderText: '输入绑定码',
-      success: async (res) => {
-        if (res.confirm && res.content) {
-          try {
-            await authAPI.bindPlatform(res.content)
-            Taro.showToast({ title: '绑定成功', icon: 'success' })
-            loadAll()
-          } catch (err: any) {
-            Taro.showToast({ title: err.message || '绑定失败', icon: 'none' })
-          }
-        }
-      },
-    })
-  }
-
   const handleBindPhoneAction = () => {
     Taro.showModal({
       title: '绑定手机号',
@@ -165,13 +127,13 @@ export default function Profile() {
   return (
     <View className='page-profile'>
       {/* 头部个人信息 */}
-      <View className='profile-header'>
+      <View className='profile-header profile-hero'>
         <View className='header-bg' />
         <View className='header-content'>
           <View className='avatar-wrap' onClick={handleChooseAvatar}>
             <Image className='avatar' src={user?.avatar || ''} mode='aspectFill' />
             <View className='avatar-edit'>
-              <Text>📷</Text>
+              <Text>编辑</Text>
             </View>
           </View>
           <View className='user-info' onClick={handleEditProfile}>
@@ -199,17 +161,17 @@ export default function Profile() {
         </View>
       </View>
 
-      {/* 跨平台绑定 */}
+      {/* 账号绑定 */}
       <View className='section'>
         <View className='section-title'>账号绑定</View>
         <View className='bind-card'>
           {/* 手机号 */}
           <View className='bind-item'>
             <View className='bind-left'>
-              <Text className='bind-icon'>📱</Text>
+              <Image className='bind-icon' src={sticker('profile')} mode='aspectFit' />
               <View className='bind-text'>
                 <Text className='bind-label'>手机号</Text>
-                <Text className='bind-desc'>用于跨平台数据互通</Text>
+                <Text className='bind-desc'>手机号相同会自动互通{PLATFORM_NAME}和{OTHER_PLATFORM_NAME}数据</Text>
               </View>
             </View>
             <Text className={`bind-status ${user?.has_phone ? 'bound' : ''}`}>
@@ -220,7 +182,7 @@ export default function Profile() {
           {/* 微信 */}
           <View className='bind-item'>
             <View className='bind-left'>
-              <Text className='bind-icon'>💚</Text>
+              <Image className='bind-icon' src={sticker('home')} mode='aspectFit' />
               <View className='bind-text'>
                 <Text className='bind-label'>微信</Text>
               </View>
@@ -233,7 +195,7 @@ export default function Profile() {
           {/* 抖音 */}
           <View className='bind-item'>
             <View className='bind-left'>
-              <Text className='bind-icon'>🎵</Text>
+              <Image className='bind-icon' src={sticker('plaza')} mode='aspectFit' />
               <View className='bind-text'>
                 <Text className='bind-label'>抖音</Text>
               </View>
@@ -251,25 +213,15 @@ export default function Profile() {
               </View>
             </View>
           )}
-          {user?.has_phone && !user?.[OTHER_PLATFORM_KEY as keyof typeof user] && (
-            <View className='bind-actions'>
-              <View className='bind-btn primary' onClick={handleGenerateBindCode}>
-                <Text>生成绑定码</Text>
-              </View>
-              <View className='bind-btn' onClick={handleBindPlatform}>
-                <Text>输入绑定码</Text>
-              </View>
-            </View>
-          )}
-          {user?.has_phone && user?.[OTHER_PLATFORM_KEY as keyof typeof user] && (
+          {user?.has_phone && user?.has_wx && user?.has_dy && (
             <Text className='bind-all-done'>
-              ✅ 微信和抖音已绑定，数据实时同步
+                微信和抖音已绑定，数据实时同步
             </Text>
           )}
-          {user?.has_phone && !user?.[OTHER_PLATFORM_KEY as keyof typeof user] && (
+          {user?.has_phone && (!user?.has_wx || !user?.has_dy) && (
             <View className='bind-tip'>
               <Text className='bind-tip-text'>
-                💡 在{PLATFORM_NAME}生成绑定码，在{OTHER_PLATFORM_NAME}小程序中输入，即可实现数据互通
+                在{OTHER_PLATFORM_NAME}小程序登录后绑定同一个手机号，历史菜单、订单和日历会自动互通
               </Text>
             </View>
           )}
@@ -282,7 +234,7 @@ export default function Profile() {
         <View className='menu-list'>
           <View className='menu-item' onClick={() => handleNavigate('/pages/couple/index')}>
             <View className='menu-left'>
-              <Text className='menu-icon'>💑</Text>
+              <Image className='menu-icon' src={sticker('couple')} mode='aspectFit' />
               <View className='menu-text'>
                 <Text className='menu-name'>情侣管理</Text>
                 <Text className='menu-desc'>
@@ -294,7 +246,7 @@ export default function Profile() {
           </View>
           <View className='menu-item' onClick={() => handleNavigate('/pages/buddy/index')}>
             <View className='menu-left'>
-              <Text className='menu-icon'>👥</Text>
+              <Image className='menu-icon' src={sticker('buddy')} mode='aspectFit' />
               <View className='menu-text'>
                 <Text className='menu-name'>饭搭子管理</Text>
                 <Text className='menu-desc'>
@@ -313,7 +265,7 @@ export default function Profile() {
         <View className='menu-list'>
           <View className='menu-item' onClick={loadPointHistory}>
             <View className='menu-left'>
-              <Text className='menu-icon'>🎁</Text>
+              <Image className='menu-icon' src={sticker('checkin')} mode='aspectFit' />
               <View className='menu-text'>
                 <Text className='menu-name'>积分明细</Text>
                 <Text className='menu-desc'>查看积分获取记录</Text>
@@ -356,7 +308,7 @@ export default function Profile() {
         <View className='menu-list'>
           <View className='menu-item'>
             <View className='menu-left'>
-              <Text className='menu-icon'>⚙️</Text>
+              <Image className='menu-icon' src={sticker('profile')} mode='aspectFit' />
               <View className='menu-text'>
                 <Text className='menu-name'>通用设置</Text>
               </View>
@@ -365,7 +317,7 @@ export default function Profile() {
           </View>
           <View className='menu-item'>
             <View className='menu-left'>
-              <Text className='menu-icon'>❓</Text>
+              <Image className='menu-icon' src={sticker('wish')} mode='aspectFit' />
               <View className='menu-text'>
                 <Text className='menu-name'>关于我们</Text>
               </View>

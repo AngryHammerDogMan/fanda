@@ -17,7 +17,9 @@ export default defineConfig<'webpack5'>(async (merge, { command, mode }) => {
     plugins: [
       '@tarojs/plugin-framework-react',
     ],
-    defineConstants: {},
+    defineConstants: {
+      API_BASE_URL: JSON.stringify(process.env.API_BASE_URL || 'http://localhost:8080/api/v1'),
+    },
     copy: {
       patterns: [],
       options: {}

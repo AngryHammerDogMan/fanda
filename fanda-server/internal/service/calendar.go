@@ -21,6 +21,10 @@ func NewCalendarService() *CalendarService {
 
 // CreateRecord 创建日历记录
 func (s *CalendarService) CreateRecord(ctx context.Context, uid uuid.UUID, req CreateRecordReq) (*model.CalendarRecord, error) {
+	if err := CanAccessGroup(ctx, uid, req.GroupType, req.GroupID); err != nil {
+		return nil, err
+	}
+
 	recordDate, err := time.Parse("2006-01-02", req.RecordDate)
 	if err != nil {
 		return nil, errors.New("日期格式错误，应为 YYYY-MM-DD")
@@ -130,7 +134,11 @@ func (s *CalendarService) DeleteRecord(ctx context.Context, uid uuid.UUID, recor
 }
 
 // GetRecord 获取记录详情
-func (s *CalendarService) GetRecord(ctx context.Context, recordID uuid.UUID) (*model.CalendarRecord, error) {
+func (s *CalendarService) GetRecord(ctx context.Context, uid uuid.UUID, recordID uuid.UUID) (*model.CalendarRecord, error) {
+	if _, err := CanAccessRecord(ctx, uid, recordID); err != nil {
+		return nil, errors.New("记录不存在")
+	}
+
 	var record model.CalendarRecord
 	if err := database.DB.Preload("Photos").Preload("Comments").First(&record, "id = ?", recordID).Error; err != nil {
 		return nil, errors.New("记录不存在")
@@ -139,8 +147,11 @@ func (s *CalendarService) GetRecord(ctx context.Context, recordID uuid.UUID) (*m
 }
 
 // ListRecords 按月份获取日历记录
-func (s *CalendarService) ListRecords(ctx context.Context, groupType string, groupID uuid.UUID, year, month int) ([]model.CalendarRecord, error) {
+func (s *CalendarService) ListRecords(ctx context.Context, uid uuid.UUID, groupType string, groupID uuid.UUID, year, month int) ([]model.CalendarRecord, error) {
 	var records []model.CalendarRecord
+	if err := CanAccessGroup(ctx, uid, groupType, groupID); err != nil {
+		return nil, err
+	}
 
 	startDate := time.Date(year, time.Month(month), 1, 0, 0, 0, 0, time.Local)
 	endDate := startDate.AddDate(0, 1, 0)
@@ -156,8 +167,14 @@ func (s *CalendarService) ListRecords(ctx context.Context, groupType string, gro
 }
 
 // ListRecordsByDate 按日期获取记录
-func (s *CalendarService) ListRecordsByDate(ctx context.Context, groupType string, groupID uuid.UUID, date string) ([]model.CalendarRecord, error) {
-	recordDate, _ := time.Parse("2006-01-02", date)
+func (s *CalendarService) ListRecordsByDate(ctx context.Context, uid uuid.UUID, groupType string, groupID uuid.UUID, date string) ([]model.CalendarRecord, error) {
+	if err := CanAccessGroup(ctx, uid, groupType, groupID); err != nil {
+		return nil, err
+	}
+	recordDate, err := time.Parse("2006-01-02", date)
+	if err != nil {
+		return nil, errors.New("日期格式错误，应为 YYYY-MM-DD")
+	}
 
 	var records []model.CalendarRecord
 	if err := database.DB.Preload("Photos").Preload("Comments").
@@ -172,9 +189,7 @@ func (s *CalendarService) ListRecordsByDate(ctx context.Context, groupType strin
 
 // AddComment 添加留言
 func (s *CalendarService) AddComment(ctx context.Context, uid uuid.UUID, recordID uuid.UUID, content string) (*model.RecordComment, error) {
-	// 检查记录是否存在
-	var record model.CalendarRecord
-	if err := database.DB.First(&record, "id = ?", recordID).Error; err != nil {
+	if _, err := CanAccessRecord(ctx, uid, recordID); err != nil {
 		return nil, errors.New("记录不存在")
 	}
 
@@ -217,7 +232,11 @@ func (s *CalendarService) AddPhoto(ctx context.Context, uid uuid.UUID, recordID 
 }
 
 // GetMonthlyStats 获取月度统计
-func (s *CalendarService) GetMonthlyStats(ctx context.Context, groupType string, groupID uuid.UUID, year, month int) (map[string]interface{}, error) {
+func (s *CalendarService) GetMonthlyStats(ctx context.Context, uid uuid.UUID, groupType string, groupID uuid.UUID, year, month int) (map[string]interface{}, error) {
+	if err := CanAccessGroup(ctx, uid, groupType, groupID); err != nil {
+		return nil, err
+	}
+
 	startDate := time.Date(year, time.Month(month), 1, 0, 0, 0, 0, time.Local)
 	endDate := startDate.AddDate(0, 1, 0)
 
@@ -252,16 +271,16 @@ func (s *CalendarService) GetMonthlyStats(ctx context.Context, groupType string,
 // ---- 请求结构 ----
 
 type CreateRecordReq struct {
-	GroupType  string       `json:"group_type" binding:"required,oneof=couple buddy"`
-	GroupID    uuid.UUID    `json:"group_id" binding:"required"`
-	RecordDate string       `json:"record_date" binding:"required"` // YYYY-MM-DD
-	MealType   string       `json:"meal_type" binding:"required,oneof=cook takeout dineout"`
-	MealPeriod string       `json:"meal_period"` // breakfast / lunch / dinner / snack
-	DishIDs    []string     `json:"dish_ids"`
-	Restaurant string       `json:"restaurant"`
-	Amount     *float64     `json:"amount"`
-	Photos     []PhotoReq   `json:"photos"`
-	Content    string       `json:"content"`
+	GroupType  string     `json:"group_type" binding:"required,oneof=couple buddy"`
+	GroupID    uuid.UUID  `json:"group_id" binding:"required"`
+	RecordDate string     `json:"record_date" binding:"required"` // YYYY-MM-DD
+	MealType   string     `json:"meal_type" binding:"required,oneof=cook takeout dineout"`
+	MealPeriod string     `json:"meal_period"` // breakfast / lunch / dinner / snack
+	DishIDs    []string   `json:"dish_ids"`
+	Restaurant string     `json:"restaurant"`
+	Amount     *float64   `json:"amount"`
+	Photos     []PhotoReq `json:"photos"`
+	Content    string     `json:"content"`
 }
 
 type PhotoReq struct {

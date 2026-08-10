@@ -19,6 +19,8 @@ const DIFFICULTY_LABELS: Record<number, string> = {
   4: '大师',
 }
 
+const sticker = (name: string) => `/assets/stickers/${name}.png`
+
 export default function DishesIndex() {
   const [activeTab, setActiveTab] = useState('all')
   const [searchKeyword, setSearchKeyword] = useState('')
@@ -122,13 +124,21 @@ export default function DishesIndex() {
 
   return (
     <View className='page-dishes'>
+      <View className='dishes-hero'>
+        <View>
+          <Text className='fanda-title'>我们的菜单</Text>
+          <Text className='fanda-subtitle'>收藏会做的菜、外卖灵感和想去的餐厅</Text>
+        </View>
+        <Image className='hero-sticker' src={sticker('menu')} mode='aspectFit' />
+      </View>
+
       {/* 搜索栏 */}
       <View className='search-bar'>
         <View className='search-input-wrap'>
-          <Text className='search-icon'>🔍</Text>
+          <Text className='search-icon'>搜索</Text>
           <Input
             className='search-input'
-            placeholder='搜索菜品名称...'
+            placeholder='搜索菜品名称…'
             value={searchKeyword}
             onInput={(e) => setSearchKeyword(e.detail.value)}
             onConfirm={handleSearch}
@@ -141,7 +151,7 @@ export default function DishesIndex() {
       </View>
 
       {/* 分类标签栏 */}
-      <View className='tab-bar'>
+      <View className='tab-bar fanda-filter'>
         <ScrollView className='tab-scroll' scrollX scrollWithAnimation>
           <View className='tab-list'>
             {DISH_TYPES.map(item => (
@@ -182,7 +192,7 @@ export default function DishesIndex() {
                   />
                 ) : (
                   <View className='dish-image-placeholder'>
-                    <Text className='placeholder-icon'>🍽️</Text>
+                    <Image className='placeholder-icon' src={sticker('menu')} mode='aspectFit' />
                   </View>
                 )}
                 <View className='dish-type-badge'>
@@ -219,7 +229,7 @@ export default function DishesIndex() {
         {/* 加载状态 */}
         {loading && (
           <View className='loading-wrap'>
-            <Text className='loading-text'>加载中...</Text>
+            <Text className='loading-text'>加载中…</Text>
           </View>
         )}
         {!hasMore && dishes.length > 0 && (
@@ -229,7 +239,7 @@ export default function DishesIndex() {
         )}
         {!loading && dishes.length === 0 && (
           <View className='empty-wrap'>
-            <Text className='empty-icon'>📭</Text>
+            <Image className='sticker-icon' src={sticker('menu')} mode='aspectFit' />
             <Text className='empty-text'>暂无菜品</Text>
             <Text className='empty-hint'>点击右下角按钮添加菜品</Text>
           </View>
