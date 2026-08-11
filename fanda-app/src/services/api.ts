@@ -34,6 +34,7 @@ import type {
   PointRecord,
   RecordComment,
   RecordPhoto,
+  Table,
   User,
   WishItem,
 } from '@/types'
@@ -66,12 +67,39 @@ const h5User: User = {
   created_at: '2026-08-10T09:00:00Z',
 }
 
+const h5Tables: Table[] = [
+  {
+    id: 'h5-personal-table',
+    type: 'personal',
+    name: '我的餐桌',
+    owner_id: 'h5-preview-user',
+    status: 'active',
+    created_at: '2026-08-10T09:00:00Z',
+    updated_at: '2026-08-10T09:00:00Z',
+    members: [
+      { id: 'h5-personal-member', table_id: 'h5-personal-table', user_id: 'h5-preview-user', role: 'owner', status: 'active', joined_at: '2026-08-10T09:00:00Z' },
+    ],
+  },
+  {
+    id: 'h5-buddy-table',
+    type: 'buddy',
+    name: '周末饭搭局',
+    owner_id: 'h5-preview-user',
+    status: 'active',
+    created_at: '2026-08-10T09:00:00Z',
+    updated_at: '2026-08-10T09:00:00Z',
+    members: [
+      { id: 'h5-buddy-member-1', table_id: 'h5-buddy-table', user_id: 'h5-preview-user', role: 'owner', status: 'active', joined_at: '2026-08-10T09:00:00Z' },
+      { id: 'h5-buddy-member-2', table_id: 'h5-buddy-table', user_id: 'h5-partner', role: 'member', status: 'active', joined_at: '2026-08-10T09:00:00Z' },
+    ],
+  },
+]
+
 const h5Dishes: Dish[] = [
   {
     id: 'h5-dish-1',
     owner_id: 'h5-preview-user',
-    group_type: 'couple',
-    group_id: 'h5-couple',
+    table_id: 'h5-personal-table',
     dish_type: 'dish',
     name: '番茄牛腩煲',
     category: '家常菜',
@@ -92,8 +120,7 @@ const h5Dishes: Dish[] = [
   {
     id: 'h5-dish-2',
     owner_id: 'h5-preview-user',
-    group_type: 'couple',
-    group_id: 'h5-couple',
+    table_id: 'h5-buddy-table',
     dish_type: 'takeout',
     name: '牛油果鸡胸沙拉',
     category: '轻食',
@@ -124,6 +151,7 @@ const createH5PreviewResponse = <T>(options: Taro.request.Option): ApiResponse<T
 
   // 认证与个人中心相关 mock。
   if (url === '/auth/profile') return ok(h5User) as ApiResponse<T>
+  if (url === '/tables') return ok(h5Tables) as ApiResponse<T>
   if (url === '/checkin/status') return ok({ today_checked: false, month_count: 18, streak: 7 }) as ApiResponse<T>
   if (url === '/checkin') return ok({ today_checked: true, month_count: 19, streak: 8 }) as ApiResponse<T>
   // 菜品/广场 mock。
@@ -134,22 +162,22 @@ const createH5PreviewResponse = <T>(options: Taro.request.Option): ApiResponse<T
   // 订单 mock。
   if (url === '/orders') {
     return ok(list([
-      { id: 'h5-order-1', creator_id: 'h5-preview-user', group_type: 'couple', group_id: 'h5-couple', dine_mode: 'together', status: 'pending', total_amount: 58, order_items: [{ id: 'h5-order-item-1', order_id: 'h5-order-1', dish_id: 'h5-dish-1', quantity: 1, unit_price: 42 }], created_at: '2026-08-10T18:30:00Z' },
+      { id: 'h5-order-1', creator_id: 'h5-preview-user', table_id: 'h5-buddy-table', dine_mode: 'together', status: 'pending', total_amount: 58, order_items: [{ id: 'h5-order-item-1', order_id: 'h5-order-1', dish_id: 'h5-dish-1', quantity: 1, unit_price: 42 }], participants: [{ id: 'h5-order-participant-1', order_id: 'h5-order-1', user_id: 'h5-partner', status: 'invited', created_at: '2026-08-10T18:30:00Z', updated_at: '2026-08-10T18:30:00Z' }], created_at: '2026-08-10T18:30:00Z' },
     ])) as ApiResponse<T>
   }
   // 日历与统计 mock。
   if (url === '/calendar/records' || url === '/calendar/records/date') {
     return ok(list([
-      { id: 'h5-record-1', user_id: 'h5-preview-user', group_type: 'couple', group_id: 'h5-couple', record_date: today, meal_type: 'dineout', meal_period: 'dinner', dish_ids: [], restaurant: '烧鸟小馆', amount: 168, source: 'manual', photos: [], comments: [], created_at: '2026-08-10T19:30:00Z' },
+      { id: 'h5-record-1', user_id: 'h5-preview-user', table_id: 'h5-buddy-table', record_date: today, meal_type: 'dineout', meal_period: 'dinner', dish_ids: [], restaurant: '烧鸟小馆', amount: 168, source: 'manual', status: 'confirmed', photos: [], comments: [], created_at: '2026-08-10T19:30:00Z' },
     ])) as ApiResponse<T>
   }
   if (url === '/calendar/stats') {
     return ok({ total_amount: 680, meal_count: { cook: 8, takeout: 6, dineout: 4 }, total_records: 18, unrecorded_days: [], year: 2026, month: 8 }) as ApiResponse<T>
   }
   // 心愿、菜篮子、预算、积分和邀请 mock。
-  if (url === '/wishes') return ok(list([{ id: 'h5-wish-1', user_id: 'h5-preview-user', group_type: 'couple', group_id: 'h5-couple', name: '想去吃巴斯克蛋糕', note: '周末下午茶', dish_id: null, is_completed: false, created_at: '2026-08-10T09:00:00Z' }])) as ApiResponse<T>
-  if (url === '/basket') return ok(list([{ id: 'h5-basket-1', user_id: 'h5-preview-user', group_type: 'couple', group_id: 'h5-couple', name: '番茄', quantity: '3 个', is_purchased: false, created_at: '2026-08-10T09:00:00Z' }])) as ApiResponse<T>
-  if (url === '/budget') return ok({ id: 'h5-budget', user_id: 'h5-preview-user', group_type: 'couple', group_id: 'h5-couple', month: '2026-08', budget: 1200, spent: 680 }) as ApiResponse<T>
+  if (url === '/wishes') return ok(list([{ id: 'h5-wish-1', user_id: 'h5-preview-user', table_id: 'h5-buddy-table', name: '想去吃巴斯克蛋糕', note: '周末下午茶', dish_id: null, is_completed: false, created_at: '2026-08-10T09:00:00Z' }])) as ApiResponse<T>
+  if (url === '/basket') return ok(list([{ id: 'h5-basket-1', user_id: 'h5-preview-user', table_id: 'h5-personal-table', name: '番茄', quantity: '3 个', is_purchased: false, created_at: '2026-08-10T09:00:00Z' }])) as ApiResponse<T>
+  if (url === '/budget') return ok({ id: 'h5-budget', user_id: 'h5-preview-user', table_id: 'h5-personal-table', month: '2026-08', budget: 1200, spent: 680 }) as ApiResponse<T>
   if (url === '/points/history') return ok(list([{ id: 'h5-point-1', user_id: 'h5-preview-user', points: 10, reason: '每日签到', created_at: '2026-08-10T09:00:00Z' }])) as ApiResponse<T>
   if (url.includes('/invite')) return ok({ code: 'H5FANDA', expires_at: '2026-08-10T10:00:00Z' }) as ApiResponse<T>
 
@@ -243,6 +271,16 @@ export const authAPI = {
     request<EmptyData>({ url: `/buddy/groups/${groupId}/members/${uid}`, method: 'DELETE' }),
 }
 
+// ============ 餐桌 ============
+
+export const tableAPI = {
+  list: () =>
+    request<Table[]>({ url: '/tables', method: 'GET' }),
+
+  rename: (id: string, name: string) =>
+    request<Table>({ url: `/tables/${id}`, method: 'PUT', data: { name } }),
+}
+
 // ============ 菜品与学菜广场 ============
 
 export const dishAPI = {
@@ -261,8 +299,8 @@ export const dishAPI = {
   delete: (id: string) =>
     request<EmptyData>({ url: `/dishes/${id}`, method: 'DELETE' }),
 
-  importFromPlaza: (plazaId: string, groupType: string, groupId: string) =>
-    request<Dish>({ url: '/dishes/import', method: 'POST', data: { plaza_id: plazaId, group_type: groupType, group_id: groupId } }),
+  importFromPlaza: (plazaId: string, tableId: string) =>
+    request<Dish>({ url: '/dishes/import', method: 'POST', data: { plaza_id: plazaId, table_id: tableId } }),
 
   // 学菜广场：公开菜品搜索、分类与导入。
   searchPlaza: (params: PlazaSearchParams) =>
@@ -303,11 +341,11 @@ export const orderAPI = {
 // ============ 日历记录与统计 ============
 
 export const calendarAPI = {
-  listByMonth: (groupType: string, groupId: string, year: number, month: number) =>
-    request<MaybePaginatedData<CalendarRecord>>({ url: '/calendar/records', method: 'GET', data: { group_type: groupType, group_id: groupId, year, month } satisfies CalendarListParams }),
+  listByMonth: (tableId: string, year: number, month: number) =>
+    request<MaybePaginatedData<CalendarRecord>>({ url: '/calendar/records', method: 'GET', data: { table_id: tableId, year, month } satisfies CalendarListParams }),
 
-  listByDate: (groupType: string, groupId: string, date: string) =>
-    request<MaybePaginatedData<CalendarRecord>>({ url: '/calendar/records/date', method: 'GET', data: { group_type: groupType, group_id: groupId, date } satisfies CalendarListParams }),
+  listByDate: (tableId: string, date: string) =>
+    request<MaybePaginatedData<CalendarRecord>>({ url: '/calendar/records/date', method: 'GET', data: { table_id: tableId, date } satisfies CalendarListParams }),
 
   get: (id: string) =>
     request<CalendarRecord>({ url: `/calendar/records/${id}`, method: 'GET' }),
@@ -327,16 +365,16 @@ export const calendarAPI = {
   addPhoto: (id: string, url: string, type: string) =>
     request<RecordPhoto>({ url: `/calendar/records/${id}/photos`, method: 'POST', data: { url, type } satisfies PhotoPayload }),
 
-  getStats: (groupType: string, groupId: string, year: number, month: number) =>
-    request<MonthlyStats>({ url: '/calendar/stats', method: 'GET', data: { group_type: groupType, group_id: groupId, year, month } satisfies CalendarListParams }),
+  getStats: (tableId: string, year: number, month: number) =>
+    request<MonthlyStats>({ url: '/calendar/stats', method: 'GET', data: { table_id: tableId, year, month } satisfies CalendarListParams }),
 }
 
 // ============ 功能模块：心愿、签到、菜篮子、预算、积分 ============
 
 export const featureAPI = {
   // 心愿
-  listWishes: (groupType: string, groupId: string, completed?: boolean) =>
-    request<MaybePaginatedData<WishItem>>({ url: '/wishes', method: 'GET', data: { group_type: groupType, group_id: groupId, completed } }),
+  listWishes: (tableId: string, completed?: boolean) =>
+    request<MaybePaginatedData<WishItem>>({ url: '/wishes', method: 'GET', data: { table_id: tableId, completed } }),
 
   createWish: (data: CreateWishPayload) =>
     request<WishItem>({ url: '/wishes', method: 'POST', data }),
@@ -355,8 +393,8 @@ export const featureAPI = {
     request<CheckinStatus>({ url: '/checkin/status', method: 'GET' }),
 
   // 菜篮子
-  listBasket: (groupType: string, groupId: string) =>
-    request<MaybePaginatedData<BasketItem>>({ url: '/basket', method: 'GET', data: { group_type: groupType, group_id: groupId } }),
+  listBasket: (tableId: string) =>
+    request<MaybePaginatedData<BasketItem>>({ url: '/basket', method: 'GET', data: { table_id: tableId } }),
 
   addToBasket: (data: BasketPayload) =>
     request<BasketItem>({ url: '/basket', method: 'POST', data }),
@@ -368,8 +406,8 @@ export const featureAPI = {
     request<EmptyData>({ url: `/basket/${id}`, method: 'DELETE' }),
 
   // 预算
-  getBudget: (groupType: string, groupId: string, month: string) =>
-    request<BudgetSetting>({ url: '/budget', method: 'GET', data: { group_type: groupType, group_id: groupId, month } }),
+  getBudget: (tableId: string, month: string) =>
+    request<BudgetSetting>({ url: '/budget', method: 'GET', data: { table_id: tableId, month } }),
 
   setBudget: (data: BudgetPayload) =>
     request<BudgetSetting>({ url: '/budget', method: 'POST', data }),

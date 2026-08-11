@@ -52,7 +52,7 @@ export default function Wishes() {
     try {
       // “全部”不传 completed，让后端返回完整列表；其他筛选转换为布尔值。
       const completedParam = filter === '全部' ? undefined : filter === '已完成'
-      const res = await featureAPI.listWishes(groupType, groupId, completedParam)
+      const res = await featureAPI.listWishes(groupId, completedParam)
       setWishes(Array.isArray(res.data) ? res.data : res.data?.list || [])
     } catch (err) {
       console.error('加载心愿失败', err)
@@ -124,8 +124,7 @@ export default function Wishes() {
     }
     try {
       await featureAPI.createWish({
-        group_type: groupType,
-        group_id: groupId,
+        table_id: groupId,
         name: newName.trim(),
         note: newNote.trim(),
       })

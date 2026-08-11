@@ -84,7 +84,7 @@ export default function Plaza() {
       return
     }
     try {
-      await dishAPI.importFromPlaza(dish.id, groupType, groupId)
+      await dishAPI.importFromPlaza(dish.id, groupId)
       Taro.showToast({ title: '导入成功', icon: 'success' })
       // 更新导入计数
       setDishes(prev => prev.map(d =>

@@ -50,8 +50,8 @@ export default function Budget() {
     try {
       // 预算设置和日历统计独立返回，并发请求后在本页合并计算进度。
       const [budgetRes, statsRes] = await Promise.all([
-        featureAPI.getBudget(groupType, groupId, currentMonth),
-        calendarAPI.getStats(groupType, groupId, year, month),
+        featureAPI.getBudget(groupId, currentMonth),
+        calendarAPI.getStats(groupId, year, month),
       ])
       setBudget(budgetRes.data || null)
       setStats(statsRes.data || null)
@@ -113,8 +113,7 @@ export default function Budget() {
     }
     try {
       await featureAPI.setBudget({
-        group_type: groupType,
-        group_id: groupId,
+        table_id: groupId,
         month: currentMonth,
         budget: amount,
       })

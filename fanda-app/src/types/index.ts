@@ -49,12 +49,34 @@ export interface BuddyMember {
   joined_at: string
 }
 
+// 餐桌
+export type TableType = 'personal' | 'couple' | 'buddy'
+
+export interface TableMember {
+  id: string
+  table_id: string
+  user_id: string
+  role: 'owner' | 'admin' | 'member'
+  status: string
+  joined_at: string
+}
+
+export interface Table {
+  id: string
+  type: TableType
+  name: string
+  owner_id: string
+  status: string
+  created_at: string
+  updated_at: string
+  members: TableMember[]
+}
+
 // 菜品
 export interface Dish {
   id: string
   owner_id: string
-  group_type: string // couple / buddy
-  group_id: string
+  table_id: string
   dish_type: string // dish / takeout / dineout
   name: string
   category: string
@@ -102,12 +124,14 @@ export interface PlazaDish {
 export interface Order {
   id: string
   creator_id: string
-  group_type: string
-  group_id: string
+  table_id: string
   dine_mode: string // together / solo
   status: string // pending / confirmed / rejected / cancelled / voted
   total_amount: number | null
+  vote_deadline?: string | null
+  calendar_record_id?: string | null
   order_items: OrderItem[]
+  participants?: OrderParticipant[]
   created_at: string
 }
 
@@ -128,12 +152,20 @@ export interface OrderVote {
   created_at: string
 }
 
+export interface OrderParticipant {
+  id: string
+  order_id: string
+  user_id: string
+  status: 'invited' | 'accepted' | 'rejected' | 'skipped'
+  created_at: string
+  updated_at: string
+}
+
 // 日历记录
 export interface CalendarRecord {
   id: string
   user_id: string
-  group_type: string
-  group_id: string
+  table_id: string
   record_date: string
   meal_type: string // cook / takeout / dineout
   meal_period: string
@@ -141,6 +173,7 @@ export interface CalendarRecord {
   restaurant: string
   amount: number | null
   source: string
+  status: string
   photos: RecordPhoto[]
   comments: RecordComment[]
   created_at: string
@@ -175,8 +208,7 @@ export interface MonthlyStats {
 export interface WishItem {
   id: string
   user_id: string
-  group_type: string
-  group_id: string
+  table_id: string
   name: string
   note: string
   dish_id: string | null
@@ -188,8 +220,7 @@ export interface WishItem {
 export interface BasketItem {
   id: string
   user_id: string
-  group_type: string
-  group_id: string
+  table_id: string
   name: string
   quantity: string
   is_purchased: boolean
@@ -200,11 +231,12 @@ export interface BasketItem {
 export interface BudgetSetting {
   id: string
   user_id: string
-  group_type: string
-  group_id: string
+  table_id: string
   month: string
   budget: number
   spent?: number
+  created_at?: string
+  updated_at?: string
 }
 
 // 签到
@@ -252,6 +284,10 @@ export interface GroupQueryParams {
   group_id?: string
 }
 
+export interface TableQueryParams {
+  table_id: string
+}
+
 export interface InviteResult {
   code: string
   expires_at: string
@@ -262,15 +298,14 @@ export interface BuddyGroupSummary {
   name: string
 }
 
-export interface DishListParams extends ListQueryParams, GroupQueryParams {
+export interface DishListParams extends ListQueryParams, TableQueryParams {
   dish_type?: string
   category?: string
   keyword?: string
 }
 
 export interface DishPayload {
-  group_type?: string
-  group_id?: string
+  table_id: string
   dish_type: string
   name: string
   category?: string
@@ -296,7 +331,7 @@ export type PlazaCategoriesResponse = string[] & {
   categories?: string[]
 }
 
-export interface OrderListParams extends ListQueryParams, GroupQueryParams {
+export interface OrderListParams extends ListQueryParams, TableQueryParams {
   status?: string
 }
 
@@ -307,9 +342,9 @@ export interface OrderItemPayload {
 }
 
 export interface CreateOrderPayload {
-  group_type: string
-  group_id: string
-  dine_mode: string
+  table_id: string
+  dine_mode: 'solo' | 'together'
+  participant_ids?: string[]
   order_items: OrderItemPayload[]
 }
 
@@ -320,15 +355,14 @@ export interface OrderVotes {
   total: number
 }
 
-export interface CalendarListParams extends GroupQueryParams {
+export interface CalendarListParams extends TableQueryParams {
   year?: number
   month?: number
   date?: string
 }
 
 export interface CalendarRecordPayload {
-  group_type: string
-  group_id: string
+  table_id: string
   record_date: string
   meal_type: string
   meal_period?: string
@@ -351,24 +385,18 @@ export interface PhotoPayload {
   type: string
 }
 
-export interface CreateWishPayload extends GroupQueryParams {
-  group_type: string
-  group_id: string
+export interface CreateWishPayload extends TableQueryParams {
   name: string
   note?: string
   dish_id?: string | null
 }
 
-export interface BasketPayload extends GroupQueryParams {
-  group_type: string
-  group_id: string
+export interface BasketPayload extends TableQueryParams {
   name: string
   quantity?: string
 }
 
-export interface BudgetPayload extends GroupQueryParams {
-  group_type: string
-  group_id: string
+export interface BudgetPayload extends TableQueryParams {
   month: string
   budget: number
 }

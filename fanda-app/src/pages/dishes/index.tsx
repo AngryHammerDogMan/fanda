@@ -21,6 +21,7 @@ const DIFFICULTY_LABELS: Record<number, string> = {
 }
 
 const sticker = (name: string) => `/assets/stickers/${name}.png`
+const DEFAULT_TABLE_ID = 'h5-personal-table'
 
 export default function DishesIndex() {
   // activeTab/searchKeyword/page/hasMore 共同描述当前列表查询条件与分页游标。
@@ -39,6 +40,7 @@ export default function DishesIndex() {
 
     try {
       const params: DishListParams = {
+        table_id: Taro.getStorageSync('last-order-table-id') || DEFAULT_TABLE_ID,
         page: pageNum,
         page_size: pageSize,
       }

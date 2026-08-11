@@ -94,7 +94,7 @@ export default function Calendar() {
   const loadMonthRecords = async () => {
     if (!groupId) return
     try {
-      const res = await calendarAPI.listByMonth(groupType, groupId, currentYear, currentMonth)
+      const res = await calendarAPI.listByMonth(groupId, currentYear, currentMonth)
       const records: CalendarRecord[] = Array.isArray(res.data) ? res.data : res.data?.list || []
       const map: Record<string, CalendarRecord[]> = {}
       // 按日期聚合记录，供日历格子快速判断当天有哪些 meal_type 圆点。
@@ -114,7 +114,7 @@ export default function Calendar() {
   const loadStats = async () => {
     if (!groupId) return
     try {
-      const res = await calendarAPI.getStats(groupType, groupId, currentYear, currentMonth)
+      const res = await calendarAPI.getStats(groupId, currentYear, currentMonth)
       setMonthlyStats(res.data)
     } catch (err) {
       console.error('加载统计失败', err)
@@ -124,7 +124,7 @@ export default function Calendar() {
   const loadDateRecords = async (date: string) => {
     if (!groupId) return
     try {
-      const res = await calendarAPI.listByDate(groupType, groupId, date)
+      const res = await calendarAPI.listByDate(groupId, date)
       setSelectedDateRecords(Array.isArray(res.data) ? res.data : res.data?.list || [])
     } catch (err) {
       console.error('加载日期记录失败', err)

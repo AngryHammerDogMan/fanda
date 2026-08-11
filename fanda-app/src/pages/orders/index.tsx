@@ -28,12 +28,8 @@ const DINE_MODE_MAP: Record<string, string> = {
   solo: '个人记录',
 }
 
-const GROUP_TYPE_MAP: Record<string, string> = {
-  couple: '情侣',
-  buddy: '饭搭子',
-}
-
 const sticker = (name: string) => `/assets/stickers/${name}.png`
+const DEFAULT_TABLE_ID = 'h5-personal-table'
 
 const PAGE_SIZE = 10
 
@@ -69,6 +65,7 @@ export default function Orders() {
     setLoading(true)
     try {
       const params: OrderListParams = {
+        table_id: Taro.getStorageSync('last-order-table-id') || DEFAULT_TABLE_ID,
         page: pageNum,
         page_size: PAGE_SIZE,
       }
@@ -103,6 +100,7 @@ export default function Orders() {
     setLoading(true)
     try {
       const params: OrderListParams = {
+        table_id: Taro.getStorageSync('last-order-table-id') || DEFAULT_TABLE_ID,
         page: 1,
         page_size: PAGE_SIZE,
       }
@@ -222,7 +220,7 @@ export default function Orders() {
               <View className='order-header'>
                 <View className='order-meta'>
                   <Text className='order-type'>
-                    {GROUP_TYPE_MAP[order.group_type] || order.group_type}
+                    {order.table_id}
                   </Text>
                   <Text className='order-dine-mode'>
                     {DINE_MODE_MAP[order.dine_mode] || order.dine_mode}

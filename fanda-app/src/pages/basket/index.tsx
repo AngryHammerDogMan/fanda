@@ -48,7 +48,7 @@ export default function Basket() {
     if (!groupType || !groupId) return
     setLoading(true)
     try {
-      const res = await featureAPI.listBasket(groupType, groupId)
+      const res = await featureAPI.listBasket(groupId)
       setItems(Array.isArray(res.data) ? res.data : res.data?.list || [])
     } catch (err) {
       console.error('加载菜篮子失败', err)
@@ -111,8 +111,7 @@ export default function Basket() {
     }
     try {
       await featureAPI.addToBasket({
-        group_type: groupType,
-        group_id: groupId,
+        table_id: groupId,
         name: newName.trim(),
         quantity: newQuantity.trim() || '1',
       })

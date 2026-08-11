@@ -11,6 +11,8 @@ interface SelectedDish {
   quantity: number
 }
 
+type DineMode = 'solo' | 'together'
+
 const sticker = (name: string) => `/assets/stickers/${name}.png`
 
 export default function CreateOrder() {
@@ -18,7 +20,7 @@ export default function CreateOrder() {
   const [groupType, setGroupType] = useState<string>('')
   const [groups, setGroups] = useState<(BuddyGroup | CoupleInfo)[]>([])
   const [groupId, setGroupId] = useState('')
-  const [dineMode, setDineMode] = useState<string>('')
+  const [dineMode, setDineMode] = useState<DineMode | ''>('')
   const [dishes, setDishes] = useState<Dish[]>([])
   const [selectedDishes, setSelectedDishes] = useState<SelectedDish[]>([])
   const [loadingDishes, setLoadingDishes] = useState(false)
@@ -64,8 +66,7 @@ export default function CreateOrder() {
     setLoadingDishes(true)
     try {
       const res = await dishAPI.list({
-        group_type: groupType,
-        group_id: groupId,
+        table_id: groupId,
         page: 1,
         page_size: 200,
       })
@@ -139,8 +140,7 @@ export default function CreateOrder() {
       }))
 
       await orderAPI.create({
-        group_type: groupType,
-        group_id: groupId,
+        table_id: groupId,
         dine_mode: dineMode,
         order_items: orderItems,
       })

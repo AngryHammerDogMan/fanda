@@ -29,6 +29,7 @@ const GROUP_TYPES = [
   { key: 'couple', label: '情侣' },
   { key: 'buddy', label: '饭搭子' },
 ]
+const DEFAULT_TABLE_ID = 'h5-personal-table'
 
 const getPickerIndex = (event: PickerChangeEvent): number => {
   const { value } = event.detail
@@ -84,8 +85,7 @@ export default function DishCreate() {
       setRestaurant(dish.restaurant || '')
       setRestaurantNote(dish.restaurant_note || '')
       setPhotos(dish.photos || [])
-      setGroupType(dish.group_type || 'couple')
-      setGroupId(dish.group_id || '')
+      setGroupId(dish.table_id || '')
     } catch (err) {
       console.error('加载菜品失败', err)
       Taro.showToast({ title: '加载失败', icon: 'none' })
@@ -197,8 +197,7 @@ export default function DishCreate() {
       restaurant,
       restaurant_note: restaurantNote,
       photos,
-      group_type: groupType,
-      group_id: groupId || undefined,
+      table_id: groupId || Taro.getStorageSync('last-order-table-id') || DEFAULT_TABLE_ID,
     }
 
     try {
