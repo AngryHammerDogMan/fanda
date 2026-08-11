@@ -43,3 +43,17 @@ test('page files avoid any-typed catches and any-valued query records', () => {
 
   assert.deepEqual(offenders, [])
 })
+
+test('ordering page uses table flow instead of group selector steps', () => {
+  const ordersCreateContent = fs.readFileSync(
+    path.join(process.cwd(), 'fanda-app/src/pages/orders/create.tsx'),
+    'utf8'
+  )
+
+  assert(!ordersCreateContent.includes('群组类型'), 'orders/create must not show group type step')
+  assert(!ordersCreateContent.includes('选择群组'), 'orders/create must not show group picker step')
+  assert(
+    ordersCreateContent.includes('last-order-table-id') || ordersCreateContent.includes('LAST_ORDER_TABLE_KEY'),
+    'orders/create must remember last table'
+  )
+})

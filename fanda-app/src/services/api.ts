@@ -52,7 +52,7 @@ const isH5PreviewRequest = (token: string) => {
   return process.env.TARO_ENV === 'h5' && token === 'h5-preview-token'
 }
 
-// H5 预览用户：覆盖账号绑定、情侣、饭搭子等核心关系字段，保证主要页面可直接演示。
+// H5 预览用户：覆盖账号绑定、伴侣、饭搭成员等核心关系字段，保证主要页面可直接演示。
 const h5User: User = {
   uid: 'h5-preview-user',
   nickname: '饭搭预览用户',
@@ -235,7 +235,7 @@ const request = async <T>(options: Taro.request.Option): Promise<ApiResponse<T>>
   }
 }
 
-// ============ 认证与关系 ============
+// ============ 认证与成员关系 ============
 
 export const authAPI = {
   login: (code: string, platform: string) =>
@@ -250,7 +250,7 @@ export const authAPI = {
   bindPhone: (phone: string) =>
     request<EmptyData>({ url: '/auth/bind-phone', method: 'POST', data: { phone } }),
 
-  // 情侣关系：邀请与加入绑定。
+  // 伴侣关系：邀请与加入绑定。
   createCoupleInvite: () =>
     request<InviteResult>({ url: '/couple/invite', method: 'POST' }),
 

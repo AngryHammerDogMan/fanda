@@ -303,10 +303,10 @@ export default function Orders() {
         )}
       </ScrollView>
 
-      {/* 新建按钮 */}
+      {/* 点单按钮 */}
       <View className='create-btn-wrapper safe-bottom'>
         <View className='create-btn' onClick={navigateToCreate}>
-          <Text className='create-btn-text'>+ 新建点单</Text>
+          <Text className='create-btn-text'>+ 开始点单</Text>
         </View>
       </View>
     </View>

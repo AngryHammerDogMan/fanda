@@ -279,11 +279,6 @@ export interface ListQueryParams {
   page_size?: number
 }
 
-export interface GroupQueryParams {
-  group_type?: string
-  group_id?: string
-}
-
 export interface TableQueryParams {
   table_id: string
 }

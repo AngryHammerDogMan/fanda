@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from 'react'
 import { dishAPI, orderAPI, tableAPI } from '@/services/api'
 import type { Dish, Table, TableMember } from '@/types'
 import { getErrorMessage } from '@/utils/error'
-import { getStoredTableId, rememberTableId } from '@/utils/table'
+import { LAST_ORDER_TABLE_KEY } from '@/utils/table'
 import './create.scss'
 
 interface SelectedDish {
@@ -70,7 +70,12 @@ export default function CreateOrder() {
   }, 0)
 
   const chooseInitialTable = (list: Table[]): string => {
-    return getStoredTableId(list)
+    const lastTableId = Taro.getStorageSync(LAST_ORDER_TABLE_KEY)
+    if (typeof lastTableId === 'string' && list.some(table => table.id === lastTableId)) {
+      return lastTableId
+    }
+    const primary = list.find(table => table.type === 'personal' || table.type === 'couple')
+    return primary?.id || list[0]?.id || ''
   }
 
   const loadTables = async () => {
@@ -80,7 +85,7 @@ export default function CreateOrder() {
       setTables(list)
       const nextTableId = chooseInitialTable(list)
       setActiveTableId(nextTableId)
-      rememberTableId(nextTableId)
+      if (nextTableId) Taro.setStorageSync(LAST_ORDER_TABLE_KEY, nextTableId)
     } catch (err: unknown) {
       Taro.showToast({ title: getErrorMessage(err, '加载餐桌失败'), icon: 'none' })
     }
@@ -113,7 +118,7 @@ export default function CreateOrder() {
     setKeyword('')
     setActiveCategory('全部')
     setShowTableSheet(false)
-    rememberTableId(tableId)
+    Taro.setStorageSync(LAST_ORDER_TABLE_KEY, tableId)
     Taro.showToast({ title: '已切换餐桌，购物车已清空', icon: 'none' })
   }
 
