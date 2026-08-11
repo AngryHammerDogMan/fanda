@@ -28,6 +28,7 @@ func Setup(cfg *config.Config) *gin.Engine {
 	orderHandler := handler.NewOrderHandler()
 	calendarHandler := handler.NewCalendarHandler()
 	featureHandler := handler.NewFeatureHandler()
+	tableHandler := handler.NewTableHandler()
 	adminHandler := handler.NewAdminHandler(cfg)
 
 	// 首页
@@ -89,6 +90,13 @@ func Setup(cfg *config.Config) *gin.Engine {
 				buddy.POST("/groups/:id/invite", authHandler.CreateBuddyInvite)
 				buddy.POST("/groups/:id/join", authHandler.JoinBuddyGroup)
 				buddy.DELETE("/groups/:id/members/:uid", authHandler.RemoveBuddyMember)
+			}
+
+			// 餐桌
+			tables := protected.Group("/tables")
+			{
+				tables.GET("", tableHandler.ListTables)
+				tables.PUT("/:id", tableHandler.RenameTable)
 			}
 
 			// 菜品管理
