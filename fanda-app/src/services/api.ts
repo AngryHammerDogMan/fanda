@@ -1,5 +1,42 @@
 import Taro from '@tarojs/taro'
-import type { ApiResponse } from '@/types'
+import type {
+  ApiResponse,
+  BasketItem,
+  BasketPayload,
+  BuddyGroupSummary,
+  BudgetPayload,
+  BudgetSetting,
+  CalendarListParams,
+  CalendarRecord,
+  CalendarRecordPayload,
+  CalendarRecordUpdatePayload,
+  CheckinResult,
+  CheckinStatus,
+  CreateOrderPayload,
+  CreateWishPayload,
+  Dish,
+  DishListParams,
+  DishPayload,
+  DishUpdatePayload,
+  EmptyData,
+  InviteResult,
+  LoginResult,
+  MaybePaginatedData,
+  MonthlyStats,
+  Order,
+  OrderListParams,
+  OrderVotes,
+  PaginatedData,
+  PhotoPayload,
+  PlazaCategoriesResponse,
+  PlazaDish,
+  PlazaSearchParams,
+  PointRecord,
+  RecordComment,
+  RecordPhoto,
+  User,
+  WishItem,
+} from '@/types'
 
 declare const API_BASE_URL: string
 
@@ -15,7 +52,7 @@ const isH5PreviewRequest = (token: string) => {
 }
 
 // H5 预览用户：覆盖账号绑定、情侣、饭搭子等核心关系字段，保证主要页面可直接演示。
-const h5User = {
+const h5User: User = {
   uid: 'h5-preview-user',
   nickname: '饭搭预览用户',
   avatar: '',
@@ -29,7 +66,7 @@ const h5User = {
   created_at: '2026-08-10T09:00:00Z',
 }
 
-const h5Dishes = [
+const h5Dishes: Dish[] = [
   {
     id: 'h5-dish-1',
     owner_id: 'h5-preview-user',
@@ -78,7 +115,7 @@ const h5Dishes = [
 
 const ok = <T>(data: T): ApiResponse<T> => ({ code: 0, message: 'ok', data })
 
-const list = <T>(items: T[]) => ({ list: items, total: items.length, page: 1, page_size: 20 })
+const list = <T>(items: T[]): PaginatedData<T> => ({ list: items, total: items.length, page: 1, page_size: 20 })
 
 // H5 mock 响应路由：按真实接口 path 返回轻量数据，避免浏览器预览依赖小程序登录和后端服务。
 const createH5PreviewResponse = <T>(options: Taro.request.Option): ApiResponse<T> => {
@@ -161,9 +198,9 @@ const request = async <T>(options: Taro.request.Option): Promise<ApiResponse<T>>
       throw new Error(data.message)
     }
     return data
-  } catch (err: any) {
+  } catch (err: unknown) {
     // 401 已经处理了跳转，不再显示 toast，直接抛出
-    if (err.message === '未登录') {
+    if (err instanceof Error && err.message === '未登录') {
       throw err
     }
     throw err
@@ -174,124 +211,124 @@ const request = async <T>(options: Taro.request.Option): Promise<ApiResponse<T>>
 
 export const authAPI = {
   login: (code: string, platform: string) =>
-    request<any>({ url: '/auth/login', method: 'POST', data: { code, platform } }),
+    request<LoginResult>({ url: '/auth/login', method: 'POST', data: { code, platform } }),
 
   getProfile: () =>
-    request<any>({ url: '/auth/profile', method: 'GET' }),
+    request<User>({ url: '/auth/profile', method: 'GET' }),
 
   updateProfile: (nickname: string, avatar: string) =>
-    request<any>({ url: '/auth/profile', method: 'PUT', data: { nickname, avatar } }),
+    request<EmptyData>({ url: '/auth/profile', method: 'PUT', data: { nickname, avatar } }),
 
   bindPhone: (phone: string) =>
-    request<any>({ url: '/auth/bind-phone', method: 'POST', data: { phone } }),
+    request<EmptyData>({ url: '/auth/bind-phone', method: 'POST', data: { phone } }),
 
   // 情侣关系：邀请与加入绑定。
   createCoupleInvite: () =>
-    request<any>({ url: '/couple/invite', method: 'POST' }),
+    request<InviteResult>({ url: '/couple/invite', method: 'POST' }),
 
   joinCouple: (code: string) =>
-    request<any>({ url: '/couple/join', method: 'POST', data: { code } }),
+    request<EmptyData>({ url: '/couple/join', method: 'POST', data: { code } }),
 
   // 饭搭子关系：群组、邀请、加入与成员移除。
   createBuddyGroup: (name: string) =>
-    request<any>({ url: '/buddy/groups', method: 'POST', data: { name } }),
+    request<BuddyGroupSummary>({ url: '/buddy/groups', method: 'POST', data: { name } }),
 
   createBuddyInvite: (groupId: string) =>
-    request<any>({ url: `/buddy/groups/${groupId}/invite`, method: 'POST' }),
+    request<InviteResult>({ url: `/buddy/groups/${groupId}/invite`, method: 'POST' }),
 
   joinBuddyGroup: (groupId: string, code: string) =>
-    request<any>({ url: `/buddy/groups/${groupId}/join`, method: 'POST', data: { code } }),
+    request<EmptyData>({ url: `/buddy/groups/${groupId}/join`, method: 'POST', data: { code } }),
 
   removeBuddyMember: (groupId: string, uid: string) =>
-    request<any>({ url: `/buddy/groups/${groupId}/members/${uid}`, method: 'DELETE' }),
+    request<EmptyData>({ url: `/buddy/groups/${groupId}/members/${uid}`, method: 'DELETE' }),
 }
 
 // ============ 菜品与学菜广场 ============
 
 export const dishAPI = {
-  list: (params: Record<string, any>) =>
-    request<any>({ url: '/dishes', method: 'GET', data: params }),
+  list: (params: DishListParams) =>
+    request<PaginatedData<Dish>>({ url: '/dishes', method: 'GET', data: params }),
 
   get: (id: string) =>
-    request<any>({ url: `/dishes/${id}`, method: 'GET' }),
+    request<Dish>({ url: `/dishes/${id}`, method: 'GET' }),
 
-  create: (data: Record<string, any>) =>
-    request<any>({ url: '/dishes', method: 'POST', data }),
+  create: (data: DishPayload) =>
+    request<Dish>({ url: '/dishes', method: 'POST', data }),
 
-  update: (id: string, data: Record<string, any>) =>
-    request<any>({ url: `/dishes/${id}`, method: 'PUT', data }),
+  update: (id: string, data: DishUpdatePayload) =>
+    request<EmptyData>({ url: `/dishes/${id}`, method: 'PUT', data }),
 
   delete: (id: string) =>
-    request<any>({ url: `/dishes/${id}`, method: 'DELETE' }),
+    request<EmptyData>({ url: `/dishes/${id}`, method: 'DELETE' }),
 
   importFromPlaza: (plazaId: string, groupType: string, groupId: string) =>
-    request<any>({ url: '/dishes/import', method: 'POST', data: { plaza_id: plazaId, group_type: groupType, group_id: groupId } }),
+    request<Dish>({ url: '/dishes/import', method: 'POST', data: { plaza_id: plazaId, group_type: groupType, group_id: groupId } }),
 
   // 学菜广场：公开菜品搜索、分类与导入。
-  searchPlaza: (params: Record<string, any>) =>
-    request<any>({ url: '/plaza', method: 'GET', data: params }),
+  searchPlaza: (params: PlazaSearchParams) =>
+    request<PaginatedData<PlazaDish>>({ url: '/plaza', method: 'GET', data: params }),
 
   getPlazaCategories: () =>
-    request<any>({ url: '/plaza/categories', method: 'GET' }),
+    request<PlazaCategoriesResponse>({ url: '/plaza/categories', method: 'GET' }),
 }
 
 // ============ 订单 ============
 
 export const orderAPI = {
-  list: (params: Record<string, any>) =>
-    request<any>({ url: '/orders', method: 'GET', data: params }),
+  list: (params: OrderListParams) =>
+    request<PaginatedData<Order>>({ url: '/orders', method: 'GET', data: params }),
 
   get: (id: string) =>
-    request<any>({ url: `/orders/${id}`, method: 'GET' }),
+    request<Order>({ url: `/orders/${id}`, method: 'GET' }),
 
-  create: (data: Record<string, any>) =>
-    request<any>({ url: '/orders', method: 'POST', data }),
+  create: (data: CreateOrderPayload) =>
+    request<Order>({ url: '/orders', method: 'POST', data }),
 
   confirm: (id: string) =>
-    request<any>({ url: `/orders/${id}/confirm`, method: 'POST' }),
+    request<EmptyData>({ url: `/orders/${id}/confirm`, method: 'POST' }),
 
   reject: (id: string) =>
-    request<any>({ url: `/orders/${id}/reject`, method: 'POST' }),
+    request<EmptyData>({ url: `/orders/${id}/reject`, method: 'POST' }),
 
   cancel: (id: string) =>
-    request<any>({ url: `/orders/${id}/cancel`, method: 'POST' }),
+    request<EmptyData>({ url: `/orders/${id}/cancel`, method: 'POST' }),
 
   vote: (id: string, vote: string) =>
-    request<any>({ url: `/orders/${id}/vote`, method: 'POST', data: { vote } }),
+    request<EmptyData>({ url: `/orders/${id}/vote`, method: 'POST', data: { vote } }),
 
   getVotes: (id: string) =>
-    request<any>({ url: `/orders/${id}/votes`, method: 'GET' }),
+    request<OrderVotes>({ url: `/orders/${id}/votes`, method: 'GET' }),
 }
 
 // ============ 日历记录与统计 ============
 
 export const calendarAPI = {
   listByMonth: (groupType: string, groupId: string, year: number, month: number) =>
-    request<any>({ url: '/calendar/records', method: 'GET', data: { group_type: groupType, group_id: groupId, year, month } }),
+    request<MaybePaginatedData<CalendarRecord>>({ url: '/calendar/records', method: 'GET', data: { group_type: groupType, group_id: groupId, year, month } satisfies CalendarListParams }),
 
   listByDate: (groupType: string, groupId: string, date: string) =>
-    request<any>({ url: '/calendar/records/date', method: 'GET', data: { group_type: groupType, group_id: groupId, date } }),
+    request<MaybePaginatedData<CalendarRecord>>({ url: '/calendar/records/date', method: 'GET', data: { group_type: groupType, group_id: groupId, date } satisfies CalendarListParams }),
 
   get: (id: string) =>
-    request<any>({ url: `/calendar/records/${id}`, method: 'GET' }),
+    request<CalendarRecord>({ url: `/calendar/records/${id}`, method: 'GET' }),
 
-  create: (data: Record<string, any>) =>
-    request<any>({ url: '/calendar/records', method: 'POST', data }),
+  create: (data: CalendarRecordPayload) =>
+    request<CalendarRecord>({ url: '/calendar/records', method: 'POST', data }),
 
-  update: (id: string, data: Record<string, any>) =>
-    request<any>({ url: `/calendar/records/${id}`, method: 'PUT', data }),
+  update: (id: string, data: CalendarRecordUpdatePayload) =>
+    request<EmptyData>({ url: `/calendar/records/${id}`, method: 'PUT', data }),
 
   delete: (id: string) =>
-    request<any>({ url: `/calendar/records/${id}`, method: 'DELETE' }),
+    request<EmptyData>({ url: `/calendar/records/${id}`, method: 'DELETE' }),
 
   addComment: (id: string, content: string) =>
-    request<any>({ url: `/calendar/records/${id}/comments`, method: 'POST', data: { content } }),
+    request<RecordComment>({ url: `/calendar/records/${id}/comments`, method: 'POST', data: { content } }),
 
   addPhoto: (id: string, url: string, type: string) =>
-    request<any>({ url: `/calendar/records/${id}/photos`, method: 'POST', data: { url, type } }),
+    request<RecordPhoto>({ url: `/calendar/records/${id}/photos`, method: 'POST', data: { url, type } satisfies PhotoPayload }),
 
   getStats: (groupType: string, groupId: string, year: number, month: number) =>
-    request<any>({ url: '/calendar/stats', method: 'GET', data: { group_type: groupType, group_id: groupId, year, month } }),
+    request<MonthlyStats>({ url: '/calendar/stats', method: 'GET', data: { group_type: groupType, group_id: groupId, year, month } satisfies CalendarListParams }),
 }
 
 // ============ 功能模块：心愿、签到、菜篮子、预算、积分 ============
@@ -299,45 +336,45 @@ export const calendarAPI = {
 export const featureAPI = {
   // 心愿
   listWishes: (groupType: string, groupId: string, completed?: boolean) =>
-    request<any>({ url: '/wishes', method: 'GET', data: { group_type: groupType, group_id: groupId, completed } }),
+    request<MaybePaginatedData<WishItem>>({ url: '/wishes', method: 'GET', data: { group_type: groupType, group_id: groupId, completed } }),
 
-  createWish: (data: Record<string, any>) =>
-    request<any>({ url: '/wishes', method: 'POST', data }),
+  createWish: (data: CreateWishPayload) =>
+    request<WishItem>({ url: '/wishes', method: 'POST', data }),
 
   completeWish: (id: string) =>
-    request<any>({ url: `/wishes/${id}/complete`, method: 'POST' }),
+    request<EmptyData>({ url: `/wishes/${id}/complete`, method: 'POST' }),
 
   deleteWish: (id: string) =>
-    request<any>({ url: `/wishes/${id}`, method: 'DELETE' }),
+    request<EmptyData>({ url: `/wishes/${id}`, method: 'DELETE' }),
 
   // 签到
   checkin: () =>
-    request<any>({ url: '/checkin', method: 'POST' }),
+    request<CheckinResult>({ url: '/checkin', method: 'POST' }),
 
   getCheckinStatus: () =>
-    request<any>({ url: '/checkin/status', method: 'GET' }),
+    request<CheckinStatus>({ url: '/checkin/status', method: 'GET' }),
 
   // 菜篮子
   listBasket: (groupType: string, groupId: string) =>
-    request<any>({ url: '/basket', method: 'GET', data: { group_type: groupType, group_id: groupId } }),
+    request<MaybePaginatedData<BasketItem>>({ url: '/basket', method: 'GET', data: { group_type: groupType, group_id: groupId } }),
 
-  addToBasket: (data: Record<string, any>) =>
-    request<any>({ url: '/basket', method: 'POST', data }),
+  addToBasket: (data: BasketPayload) =>
+    request<BasketItem>({ url: '/basket', method: 'POST', data }),
 
   toggleBasket: (id: string) =>
-    request<any>({ url: `/basket/${id}/toggle`, method: 'POST' }),
+    request<EmptyData>({ url: `/basket/${id}/toggle`, method: 'POST' }),
 
   deleteBasket: (id: string) =>
-    request<any>({ url: `/basket/${id}`, method: 'DELETE' }),
+    request<EmptyData>({ url: `/basket/${id}`, method: 'DELETE' }),
 
   // 预算
   getBudget: (groupType: string, groupId: string, month: string) =>
-    request<any>({ url: '/budget', method: 'GET', data: { group_type: groupType, group_id: groupId, month } }),
+    request<BudgetSetting>({ url: '/budget', method: 'GET', data: { group_type: groupType, group_id: groupId, month } }),
 
-  setBudget: (data: Record<string, any>) =>
-    request<any>({ url: '/budget', method: 'POST', data }),
+  setBudget: (data: BudgetPayload) =>
+    request<BudgetSetting>({ url: '/budget', method: 'POST', data }),
 
   // 积分
   getPointHistory: (page: number, pageSize: number) =>
-    request<any>({ url: '/points', method: 'GET', data: { page, page_size: pageSize } }),
+    request<PaginatedData<PointRecord>>({ url: '/points', method: 'GET', data: { page, page_size: pageSize } }),
 }

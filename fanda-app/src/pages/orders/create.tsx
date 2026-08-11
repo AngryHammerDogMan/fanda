@@ -1,8 +1,9 @@
-import { View, Text, ScrollView, Input, Image } from '@tarojs/components'
+import { View, Text, ScrollView, Image } from '@tarojs/components'
 import Taro from '@tarojs/taro'
 import { useState, useEffect } from 'react'
 import { authAPI, dishAPI, orderAPI } from '@/services/api'
 import type { User, Dish, BuddyGroup, CoupleInfo } from '@/types'
+import { getErrorMessage } from '@/utils/error'
 import './create.scss'
 
 interface SelectedDish {
@@ -148,8 +149,8 @@ export default function CreateOrder() {
       setTimeout(() => {
         Taro.navigateBack()
       }, 1500)
-    } catch (err: any) {
-      Taro.showToast({ title: err.message || '创建失败', icon: 'none' })
+    } catch (err: unknown) {
+      Taro.showToast({ title: getErrorMessage(err, '创建失败'), icon: 'none' })
     } finally {
       setSubmitting(false)
     }

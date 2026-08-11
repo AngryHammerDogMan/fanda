@@ -21,7 +21,13 @@ export default defineConfig<'webpack5'>(async (merge, { command, mode }) => {
       API_BASE_URL: JSON.stringify(process.env.API_BASE_URL || 'http://localhost:8080/api/v1'),
     },
     copy: {
-      patterns: [],
+      patterns: [
+        {
+          from: 'src/assets',
+          to: 'dist/assets',
+          ignore: ['**/.DS_Store']
+        }
+      ],
       options: {}
     },
     framework: 'react',
@@ -60,6 +66,13 @@ export default defineConfig<'webpack5'>(async (merge, { command, mode }) => {
         chunkFilename: 'css/[name].[chunkhash].css'
       },
       postcss: {
+        pxtransform: {
+          enable: true,
+          config: {
+            minRootSize: 12,
+            maxRootSize: 12
+          }
+        },
         autoprefixer: {
           enable: true,
           config: {}

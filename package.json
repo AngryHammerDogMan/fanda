@@ -1,0 +1,18 @@
+{
+  "name": "fanda-workspace",
+  "version": "1.0.0",
+  "private": true,
+  "description": "饭搭项目根目录启动入口",
+  "scripts": {
+    "postinstall": "node scripts/install-deps.js",
+    "start": "node scripts/start.js",
+    "test": "node --test scripts/*.test.js",
+    "dev:h5": "npm --prefix fanda-app run dev:h5",
+    "dev:server": "go -C fanda-server run cmd/server/main.go",
+    "db:start": "node scripts/start.js postgres",
+    "db:migrate": "node scripts/start.js migrate"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

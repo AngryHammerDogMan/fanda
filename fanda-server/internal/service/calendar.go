@@ -102,27 +102,43 @@ func (s *CalendarService) UpdateRecord(ctx context.Context, uid uuid.UUID, recor
 		return errors.New("记录不存在")
 	}
 
-	updates := map[string]interface{}{}
+	tx := database.DB.Begin()
+	updated := false
 	if req.MealType != "" {
-		updates["meal_type"] = req.MealType
-	}
-	if req.MealPeriod != "" {
-		updates["meal_period"] = req.MealPeriod
-	}
-	if req.Restaurant != "" {
-		updates["restaurant"] = req.Restaurant
-	}
-	if req.Amount != nil {
-		updates["amount"] = *req.Amount
-	}
-
-	if len(updates) > 0 {
-		if err := database.DB.Model(&record).Updates(updates).Error; err != nil {
+		if err := tx.Model(&record).Update("meal_type", req.MealType).Error; err != nil {
+			tx.Rollback()
 			return err
 		}
+		updated = true
+	}
+	if req.MealPeriod != "" {
+		if err := tx.Model(&record).Update("meal_period", req.MealPeriod).Error; err != nil {
+			tx.Rollback()
+			return err
+		}
+		updated = true
+	}
+	if req.Restaurant != "" {
+		if err := tx.Model(&record).Update("restaurant", req.Restaurant).Error; err != nil {
+			tx.Rollback()
+			return err
+		}
+		updated = true
+	}
+	if req.Amount != nil {
+		if err := tx.Model(&record).Update("amount", *req.Amount).Error; err != nil {
+			tx.Rollback()
+			return err
+		}
+		updated = true
 	}
 
-	return nil
+	if !updated {
+		tx.Rollback()
+		return nil
+	}
+
+	return tx.Commit().Error
 }
 
 // DeleteRecord 删除日历记录
@@ -232,8 +248,17 @@ func (s *CalendarService) AddPhoto(ctx context.Context, uid uuid.UUID, recordID 
 	return &photo, nil
 }
 
+type MonthlyStatsResult struct {
+	TotalAmount    float64        `json:"total_amount"`
+	MealCount      map[string]int `json:"meal_count"`
+	TotalRecords   int            `json:"total_records"`
+	UnrecordedDays []string       `json:"unrecorded_days"`
+	Year           int            `json:"year"`
+	Month          int            `json:"month"`
+}
+
 // GetMonthlyStats 获取月度统计：按月份聚合消费金额、餐型次数和缺少金额的日期。
-func (s *CalendarService) GetMonthlyStats(ctx context.Context, uid uuid.UUID, groupType string, groupID uuid.UUID, year, month int) (map[string]interface{}, error) {
+func (s *CalendarService) GetMonthlyStats(ctx context.Context, uid uuid.UUID, groupType string, groupID uuid.UUID, year, month int) (*MonthlyStatsResult, error) {
 	if err := CanAccessGroup(ctx, uid, groupType, groupID); err != nil {
 		return nil, err
 	}
@@ -259,13 +284,13 @@ func (s *CalendarService) GetMonthlyStats(ctx context.Context, uid uuid.UUID, gr
 		recordedDays[r.RecordDate.Format("2006-01-02")] = true
 	}
 
-	return map[string]interface{}{
-		"total_amount":    totalAmount,
-		"meal_count":      mealCount,
-		"total_records":   len(records),
-		"unrecorded_days": unrecordedDays,
-		"year":            year,
-		"month":           month,
+	return &MonthlyStatsResult{
+		TotalAmount:    totalAmount,
+		MealCount:      mealCount,
+		TotalRecords:   len(records),
+		UnrecordedDays: unrecordedDays,
+		Year:           year,
+		Month:          month,
 	}, nil
 }
 

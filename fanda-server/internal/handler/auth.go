@@ -7,6 +7,7 @@ import (
 	"fanda-server/internal/service"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 )
 
 type AuthHandler struct {
@@ -51,7 +52,7 @@ func (h *AuthHandler) Login(c *gin.Context) {
 // GetProfile 获取当前用户资料：uid 来自鉴权中间件，返回账号绑定状态和关系信息。
 // GET /api/v1/auth/profile
 func (h *AuthHandler) GetProfile(c *gin.Context) {
-	uid := c.MustGet("uid")
+	uid := c.MustGet("uid").(uuid.UUID)
 
 	result, err := h.service.GetProfile(c.Request.Context(), uid)
 	if err != nil {
@@ -69,7 +70,7 @@ func (h *AuthHandler) GetProfile(c *gin.Context) {
 // UpdateProfile 更新用户昵称/头像；空请求由 service 作为业务错误返回。
 // PUT /api/v1/auth/profile
 func (h *AuthHandler) UpdateProfile(c *gin.Context) {
-	uid := c.MustGet("uid")
+	uid := c.MustGet("uid").(uuid.UUID)
 
 	var req struct {
 		Nickname string `json:"nickname"`
@@ -92,7 +93,7 @@ func (h *AuthHandler) UpdateProfile(c *gin.Context) {
 // BindPhone 绑定手机号；手机号已存在时会自动合并账号，实现跨平台数据互通
 // POST /api/v1/auth/bind-phone
 func (h *AuthHandler) BindPhone(c *gin.Context) {
-	uid := c.MustGet("uid")
+	uid := c.MustGet("uid").(uuid.UUID)
 
 	var req struct {
 		Phone string `json:"phone" binding:"required"`
@@ -114,7 +115,7 @@ func (h *AuthHandler) BindPhone(c *gin.Context) {
 // CreateCoupleInvite 生成情侣邀请码；请求无需 body，当前登录用户作为邀请人。
 // POST /api/v1/couple/invite
 func (h *AuthHandler) CreateCoupleInvite(c *gin.Context) {
-	uid := c.MustGet("uid")
+	uid := c.MustGet("uid").(uuid.UUID)
 
 	result, err := h.service.CreateCoupleInvite(c.Request.Context(), uid)
 	if err != nil {
@@ -128,7 +129,7 @@ func (h *AuthHandler) CreateCoupleInvite(c *gin.Context) {
 // JoinCouple 通过 6 位邀请码绑定情侣关系，邀请码校验和“一人一个伴侣”规则在 service 中完成。
 // POST /api/v1/couple/join
 func (h *AuthHandler) JoinCouple(c *gin.Context) {
-	uid := c.MustGet("uid")
+	uid := c.MustGet("uid").(uuid.UUID)
 
 	var req struct {
 		Code string `json:"code" binding:"required,len=6"`
@@ -150,7 +151,7 @@ func (h *AuthHandler) JoinCouple(c *gin.Context) {
 // CreateBuddyGroup 创建饭搭子组合；请求只提交组合名称，创建者自动成为 owner。
 // POST /api/v1/buddy/groups
 func (h *AuthHandler) CreateBuddyGroup(c *gin.Context) {
-	uid := c.MustGet("uid")
+	uid := c.MustGet("uid").(uuid.UUID)
 
 	var req struct {
 		Name string `json:"name" binding:"required,max=50"`
@@ -173,7 +174,7 @@ func (h *AuthHandler) CreateBuddyGroup(c *gin.Context) {
 // CreateBuddyInvite 为指定饭搭子组合生成邀请码，组合管理员/群主权限由 service 校验。
 // POST /api/v1/buddy/groups/:id/invite
 func (h *AuthHandler) CreateBuddyInvite(c *gin.Context) {
-	uid := c.MustGet("uid")
+	uid := c.MustGet("uid").(uuid.UUID)
 	groupID := c.Param("id")
 
 	result, err := h.service.CreateBuddyInvite(c.Request.Context(), uid, groupID)
@@ -188,7 +189,7 @@ func (h *AuthHandler) CreateBuddyInvite(c *gin.Context) {
 // JoinBuddyGroup 通过邀请码加入饭搭子组合，同时校验 group_id 与邀请码是否匹配。
 // POST /api/v1/buddy/groups/:id/join
 func (h *AuthHandler) JoinBuddyGroup(c *gin.Context) {
-	uid := c.MustGet("uid")
+	uid := c.MustGet("uid").(uuid.UUID)
 	groupID := c.Param("id")
 
 	var req struct {
@@ -211,7 +212,7 @@ func (h *AuthHandler) JoinBuddyGroup(c *gin.Context) {
 // RemoveBuddyMember 移除饭搭子成员；路径中的 :id 是组合，:uid 是被移除成员。
 // DELETE /api/v1/buddy/groups/:id/members/:uid
 func (h *AuthHandler) RemoveBuddyMember(c *gin.Context) {
-	uid := c.MustGet("uid")
+	uid := c.MustGet("uid").(uuid.UUID)
 	groupID := c.Param("id")
 	targetUID := c.Param("uid")
 

@@ -3,6 +3,7 @@ import Taro, { useDidShow } from '@tarojs/taro'
 import { useState, useEffect } from 'react'
 import { authAPI, featureAPI } from '@/services/api'
 import type { User, BasketItem, BuddyGroup } from '@/types'
+import { getErrorMessage } from '@/utils/error'
 import './index.scss'
 
 // 菜篮子页：按情侣/饭搭子分组维护采购清单，并支持添加、勾选已购与删除。
@@ -48,7 +49,7 @@ export default function Basket() {
     setLoading(true)
     try {
       const res = await featureAPI.listBasket(groupType, groupId)
-      setItems(res.data?.list || res.data || [])
+      setItems(Array.isArray(res.data) ? res.data : res.data?.list || [])
     } catch (err) {
       console.error('加载菜篮子失败', err)
     } finally {
@@ -83,8 +84,8 @@ export default function Basket() {
       setItems(prev => prev.map(i =>
         i.id === item.id ? { ...i, is_purchased: !i.is_purchased } : i
       ))
-    } catch (err: any) {
-      Taro.showToast({ title: err.message || '操作失败', icon: 'none' })
+    } catch (err: unknown) {
+      Taro.showToast({ title: getErrorMessage(err, '操作失败'), icon: 'none' })
     }
   }
 
@@ -98,8 +99,8 @@ export default function Basket() {
       await featureAPI.deleteBasket(id)
       setItems(prev => prev.filter(i => i.id !== id))
       Taro.showToast({ title: '已删除', icon: 'success' })
-    } catch (err: any) {
-      Taro.showToast({ title: err.message || '删除失败', icon: 'none' })
+    } catch (err: unknown) {
+      Taro.showToast({ title: getErrorMessage(err, '删除失败'), icon: 'none' })
     }
   }
 
@@ -120,8 +121,8 @@ export default function Basket() {
       setNewQuantity('')
       setShowAddForm(false)
       loadItems()
-    } catch (err: any) {
-      Taro.showToast({ title: err.message || '添加失败', icon: 'none' })
+    } catch (err: unknown) {
+      Taro.showToast({ title: getErrorMessage(err, '添加失败'), icon: 'none' })
     }
   }
 

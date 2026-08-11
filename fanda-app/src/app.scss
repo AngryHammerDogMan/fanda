@@ -1,4 +1,6 @@
-page {
+:root,
+page,
+taro-page {
   --color-primary: #FF6B35;
   --color-primary-light: #FF9A5F;
   --color-primary-dark: #D94D22;
@@ -41,6 +43,63 @@ page {
     radial-gradient(circle at 10% 0%, rgba(255, 107, 53, 0.12), transparent 320px),
     linear-gradient(180deg, var(--color-paper) 0%, var(--color-cream) 100%);
   box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+  min-height: 100%;
+  margin: 0;
+  background:
+    radial-gradient(circle at 10% 0%, rgba(255, 107, 53, 0.12), transparent 320px),
+    linear-gradient(180deg, var(--color-paper) 0%, var(--color-cream) 100%);
+}
+
+body > #app,
+body > #container.taro-tabbar__container {
+  width: 100%;
+  max-width: 430px;
+  margin: 0 auto;
+  background:
+    radial-gradient(circle at 10% 0%, rgba(255, 107, 53, 0.12), transparent 320px),
+    linear-gradient(180deg, var(--color-paper) 0%, var(--color-cream) 100%);
+  box-shadow: 0 0 36px rgba(58, 33, 23, 0.08);
+}
+
+body > #app {
+  min-height: 100vh;
+}
+
+body > #container.taro-tabbar__container {
+  height: 100vh;
+  min-height: 100vh;
+  overflow: hidden;
+}
+
+body > #container.taro-tabbar__container > .taro-tabbar__panel {
+  width: 100%;
+  min-height: 0;
+}
+
+body > #container.taro-tabbar__container > .taro-tabbar__panel > #app {
+  width: 100%;
+  min-height: 100%;
+}
+
+body > #container.taro-tabbar__container > taro-tabbar {
+  display: block;
+  flex: 0 0 50px;
+  width: 100%;
+  position: relative;
+  z-index: 500;
+}
+
+@media (max-width: 430px) {
+  body > #app,
+  body > #container.taro-tabbar__container {
+    max-width: none;
+    box-shadow: none;
+  }
 }
 
 // ========== 微信原生组件重置 ==========

@@ -71,49 +71,95 @@ func (s *DishService) UpdateDish(ctx context.Context, uid uuid.UUID, dishID uuid
 		return errors.New("菜品不存在")
 	}
 
-	updates := map[string]interface{}{}
+	tx := database.DB.Begin()
+	updated := false
 	if req.Name != "" {
-		updates["name"] = req.Name
+		if err := tx.Model(&dish).Update("name", req.Name).Error; err != nil {
+			tx.Rollback()
+			return err
+		}
+		updated = true
 	}
 	if req.Category != "" {
-		updates["category"] = req.Category
+		if err := tx.Model(&dish).Update("category", req.Category).Error; err != nil {
+			tx.Rollback()
+			return err
+		}
+		updated = true
 	}
 	if req.Difficulty != nil {
-		updates["difficulty"] = *req.Difficulty
+		if err := tx.Model(&dish).Update("difficulty", *req.Difficulty).Error; err != nil {
+			tx.Rollback()
+			return err
+		}
+		updated = true
 	}
 	if req.Duration > 0 {
-		updates["duration"] = req.Duration
+		if err := tx.Model(&dish).Update("duration", req.Duration).Error; err != nil {
+			tx.Rollback()
+			return err
+		}
+		updated = true
 	}
 	if req.Price != nil {
-		updates["price"] = *req.Price
+		if err := tx.Model(&dish).Update("price", *req.Price).Error; err != nil {
+			tx.Rollback()
+			return err
+		}
+		updated = true
 	}
 	if req.Ingredients != nil {
 		b, _ := json.Marshal(req.Ingredients)
-		updates["ingredients"] = string(b)
+		if err := tx.Model(&dish).Update("ingredients", string(b)).Error; err != nil {
+			tx.Rollback()
+			return err
+		}
+		updated = true
 	}
 	if req.Steps != nil {
 		b, _ := json.Marshal(req.Steps)
-		updates["steps"] = string(b)
+		if err := tx.Model(&dish).Update("steps", string(b)).Error; err != nil {
+			tx.Rollback()
+			return err
+		}
+		updated = true
 	}
 	if req.Photos != nil {
 		b, _ := json.Marshal(req.Photos)
-		updates["photos"] = string(b)
+		if err := tx.Model(&dish).Update("photos", string(b)).Error; err != nil {
+			tx.Rollback()
+			return err
+		}
+		updated = true
 	}
 	if req.Tags != nil {
-		updates["tags"] = pq.StringArray(req.Tags)
+		if err := tx.Model(&dish).Update("tags", pq.StringArray(req.Tags)).Error; err != nil {
+			tx.Rollback()
+			return err
+		}
+		updated = true
 	}
 	if req.Restaurant != "" {
-		updates["restaurant"] = req.Restaurant
+		if err := tx.Model(&dish).Update("restaurant", req.Restaurant).Error; err != nil {
+			tx.Rollback()
+			return err
+		}
+		updated = true
 	}
 	if req.RestaurantNote != "" {
-		updates["restaurant_note"] = req.RestaurantNote
+		if err := tx.Model(&dish).Update("restaurant_note", req.RestaurantNote).Error; err != nil {
+			tx.Rollback()
+			return err
+		}
+		updated = true
 	}
 
-	if len(updates) == 0 {
+	if !updated {
+		tx.Rollback()
 		return errors.New("没有需要更新的字段")
 	}
 
-	return database.DB.Model(&dish).Updates(updates).Error
+	return tx.Commit().Error
 }
 
 // DeleteDish 软删除菜品：保留历史订单/记录引用，仅把 is_deleted 置为 true。
@@ -243,33 +289,44 @@ func (s *DishService) GetPlazaCategories(ctx context.Context) ([]string, error) 
 
 // ---- 请求结构：字段标签同时服务于 Gin 参数绑定和接口文档阅读 ----
 
+type IngredientReq struct {
+	Name   string `json:"name"`
+	Amount string `json:"amount"`
+}
+
+type StepReq struct {
+	Order       int    `json:"order"`
+	Description string `json:"description"`
+	Image       string `json:"image,omitempty"`
+}
+
 type CreateDishReq struct {
-	GroupType      string      `json:"group_type" binding:"required,oneof=couple buddy"`
-	GroupID        uuid.UUID   `json:"group_id" binding:"required"`
-	DishType       string      `json:"dish_type" binding:"required,oneof=dish takeout dineout"`
-	Name           string      `json:"name" binding:"required,max=100"`
-	Category       string      `json:"category"`
-	Difficulty     *int        `json:"difficulty"`
-	Duration       int         `json:"duration"`
-	Price          *float64    `json:"price"`
-	Ingredients    interface{} `json:"ingredients"`
-	Steps          interface{} `json:"steps"`
-	Photos         interface{} `json:"photos"`
-	Tags           []string    `json:"tags"`
-	Restaurant     string      `json:"restaurant"`
-	RestaurantNote string      `json:"restaurant_note"`
+	GroupType      string          `json:"group_type" binding:"required,oneof=couple buddy"`
+	GroupID        uuid.UUID       `json:"group_id" binding:"required"`
+	DishType       string          `json:"dish_type" binding:"required,oneof=dish takeout dineout"`
+	Name           string          `json:"name" binding:"required,max=100"`
+	Category       string          `json:"category"`
+	Difficulty     *int            `json:"difficulty"`
+	Duration       int             `json:"duration"`
+	Price          *float64        `json:"price"`
+	Ingredients    []IngredientReq `json:"ingredients"`
+	Steps          []StepReq       `json:"steps"`
+	Photos         []string        `json:"photos"`
+	Tags           []string        `json:"tags"`
+	Restaurant     string          `json:"restaurant"`
+	RestaurantNote string          `json:"restaurant_note"`
 }
 
 type UpdateDishReq struct {
-	Name           string      `json:"name"`
-	Category       string      `json:"category"`
-	Difficulty     *int        `json:"difficulty"`
-	Duration       int         `json:"duration"`
-	Price          *float64    `json:"price"`
-	Ingredients    interface{} `json:"ingredients"`
-	Steps          interface{} `json:"steps"`
-	Photos         interface{} `json:"photos"`
-	Tags           []string    `json:"tags"`
-	Restaurant     string      `json:"restaurant"`
-	RestaurantNote string      `json:"restaurant_note"`
+	Name           string          `json:"name"`
+	Category       string          `json:"category"`
+	Difficulty     *int            `json:"difficulty"`
+	Duration       int             `json:"duration"`
+	Price          *float64        `json:"price"`
+	Ingredients    []IngredientReq `json:"ingredients"`
+	Steps          []StepReq       `json:"steps"`
+	Photos         []string        `json:"photos"`
+	Tags           []string        `json:"tags"`
+	Restaurant     string          `json:"restaurant"`
+	RestaurantNote string          `json:"restaurant_note"`
 }

@@ -1,8 +1,9 @@
 import { View, Text, Input, ScrollView, Image } from '@tarojs/components'
 import Taro, { useDidShow } from '@tarojs/taro'
-import { useState, useCallback } from 'react'
+import { useState } from 'react'
 import { dishAPI } from '@/services/api'
-import type { PlazaDish } from '@/types'
+import type { PlazaDish, PlazaSearchParams } from '@/types'
+import { getErrorMessage } from '@/utils/error'
 import './index.scss'
 
 // 学菜广场页：浏览公开菜品模板，并将目标菜品导入到选中的情侣/饭搭子分组。
@@ -40,7 +41,7 @@ export default function Plaza() {
     setLoading(true)
     const currentPage = reset ? 1 : page
     try {
-      const params: Record<string, any> = { page: currentPage, page_size: 20 }
+      const params: PlazaSearchParams = { page: currentPage, page_size: 20 }
       // “全部”与空关键词不传给后端，避免误筛选公开菜品。
       if (activeCategory !== '全部') params.category = activeCategory
       if (keyword) params.keyword = keyword
@@ -89,8 +90,8 @@ export default function Plaza() {
       setDishes(prev => prev.map(d =>
         d.id === dish.id ? { ...d, import_count: d.import_count + 1 } : d
       ))
-    } catch (err: any) {
-      Taro.showToast({ title: err.message || '导入失败', icon: 'none' })
+    } catch (err: unknown) {
+      Taro.showToast({ title: getErrorMessage(err, '导入失败'), icon: 'none' })
     }
   }
 

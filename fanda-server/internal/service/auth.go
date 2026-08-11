@@ -38,6 +38,37 @@ type LoginResult struct {
 	Phone         string `json:"phone,omitempty"`
 }
 
+type CoupleProfile struct {
+	ID      uuid.UUID `json:"id"`
+	User1ID uuid.UUID `json:"user1_id"`
+	User2ID uuid.UUID `json:"user2_id"`
+	Status  string    `json:"status"`
+}
+
+type ProfileResult struct {
+	UID         uuid.UUID          `json:"uid"`
+	Nickname    string             `json:"nickname"`
+	Avatar      string             `json:"avatar"`
+	Points      int                `json:"points"`
+	HasWx       bool               `json:"has_wx"`
+	HasDy       bool               `json:"has_dy"`
+	Phone       string             `json:"phone"`
+	HasPhone    bool               `json:"has_phone"`
+	Couple      *CoupleProfile     `json:"couple"`
+	BuddyGroups []model.BuddyGroup `json:"buddy_groups"`
+	CreatedAt   time.Time          `json:"created_at"`
+}
+
+type InviteResult struct {
+	Code      string    `json:"code"`
+	ExpiresAt time.Time `json:"expires_at"`
+}
+
+type BuddyGroupSummary struct {
+	ID   uuid.UUID `json:"id"`
+	Name string    `json:"name"`
+}
+
 // Login 平台登录：用平台 code 换取 openid，按 openid 查找/创建用户并签发 JWT。
 func (s *AuthService) Login(ctx context.Context, platform, code string) (*LoginResult, error) {
 	// 通过平台 code 换取 openid（开发阶段用模拟数据，上线后替换为真实 API 调用）
@@ -96,9 +127,7 @@ func (s *AuthService) Login(ctx context.Context, platform, code string) (*LoginR
 }
 
 // BindPhone 绑定手机号；手机号已存在时把当前平台账号合并到已有手机号账号。
-func (s *AuthService) BindPhone(ctx context.Context, uid interface{}, phone string) error {
-	userID := uid.(uuid.UUID)
-
+func (s *AuthService) BindPhone(ctx context.Context, userID uuid.UUID, phone string) error {
 	// 验证手机号格式（简单校验）
 	if len(phone) != 11 {
 		return errors.New("手机号格式不正确")
@@ -114,7 +143,7 @@ func (s *AuthService) BindPhone(ctx context.Context, uid interface{}, phone stri
 	err := database.DB.Where("phone = ? AND uid != ?", phone, userID).First(&existingUser).Error
 	if err == nil {
 		// 手机号已被其他用户绑定，执行账户合并
-		return s.mergeAccounts(userID, existingUser.UID, phone)
+		return s.mergeAccounts(userID, existingUser.UID)
 	} else if !errors.Is(err, gorm.ErrRecordNotFound) {
 		return fmt.Errorf("查询手机号失败: %w", err)
 	}
@@ -125,7 +154,7 @@ func (s *AuthService) BindPhone(ctx context.Context, uid interface{}, phone stri
 
 // mergeAccounts 在单个事务内合并两个账户：迁移 sourceUser 数据到 targetUser，
 // 先处理唯一 openid 冲突，再迁移业务数据、关系和邀请记录，最后删除源账号。
-func (s *AuthService) mergeAccounts(sourceUID, targetUID uuid.UUID, phone string) error {
+func (s *AuthService) mergeAccounts(sourceUID, targetUID uuid.UUID) error {
 	tx := database.DB.Begin()
 
 	// 在事务内查询两个用户
@@ -140,27 +169,26 @@ func (s *AuthService) mergeAccounts(sourceUID, targetUID uuid.UUID, phone string
 	}
 
 	// 合并 openid：先清空 sourceUser 的 openid（避免唯一约束冲突），再设到 targetUser
-	updates := map[string]interface{}{}
 	if sourceUser.WxOpenID != nil && targetUser.WxOpenID == nil {
-		updates["wx_openid"] = *sourceUser.WxOpenID
 		// 先清空源用户的 wx_openid
 		if err := tx.Model(&model.User{}).Where("uid = ?", sourceUID).Update("wx_openid", nil).Error; err != nil {
 			tx.Rollback()
 			return fmt.Errorf("清空源用户wx_openid失败: %w", err)
 		}
+		if err := tx.Model(&model.User{}).Where("uid = ?", targetUID).Update("wx_openid", *sourceUser.WxOpenID).Error; err != nil {
+			tx.Rollback()
+			return fmt.Errorf("合并wx_openid失败: %w", err)
+		}
 	}
 	if sourceUser.DyOpenID != nil && targetUser.DyOpenID == nil {
-		updates["dy_openid"] = *sourceUser.DyOpenID
 		// 先清空源用户的 dy_openid
 		if err := tx.Model(&model.User{}).Where("uid = ?", sourceUID).Update("dy_openid", nil).Error; err != nil {
 			tx.Rollback()
 			return fmt.Errorf("清空源用户dy_openid失败: %w", err)
 		}
-	}
-	if len(updates) > 0 {
-		if err := tx.Model(&model.User{}).Where("uid = ?", targetUID).Updates(updates).Error; err != nil {
+		if err := tx.Model(&model.User{}).Where("uid = ?", targetUID).Update("dy_openid", *sourceUser.DyOpenID).Error; err != nil {
 			tx.Rollback()
-			return fmt.Errorf("合并openid失败: %w", err)
+			return fmt.Errorf("合并dy_openid失败: %w", err)
 		}
 	}
 
@@ -250,9 +278,7 @@ func (s *AuthService) mergeAccounts(sourceUID, targetUID uuid.UUID, phone string
 }
 
 // GetProfile 获取用户信息，并附带当前活跃情侣关系与饭搭子组合概览。
-func (s *AuthService) GetProfile(ctx context.Context, uid interface{}) (map[string]interface{}, error) {
-	userID := uid.(uuid.UUID)
-
+func (s *AuthService) GetProfile(ctx context.Context, userID uuid.UUID) (*ProfileResult, error) {
 	var user model.User
 	if err := database.DB.First(&user, "uid = ?", userID).Error; err != nil {
 		return nil, errors.New("用户不存在")
@@ -275,44 +301,46 @@ func (s *AuthService) GetProfile(ctx context.Context, uid interface{}) (map[stri
 		phoneMasked = maskPhone(*user.Phone)
 	}
 
-	return map[string]interface{}{
-		"uid":          user.UID,
-		"nickname":     user.Nickname,
-		"avatar":       user.Avatar,
-		"points":       user.Points,
-		"has_wx":       user.WxOpenID != nil,
-		"has_dy":       user.DyOpenID != nil,
-		"phone":        phoneMasked,
-		"has_phone":    user.Phone != nil,
-		"couple":       coupleToMap(couple),
-		"buddy_groups": buddyGroups,
-		"created_at":   user.CreatedAt,
+	return &ProfileResult{
+		UID:         user.UID,
+		Nickname:    user.Nickname,
+		Avatar:      user.Avatar,
+		Points:      user.Points,
+		HasWx:       user.WxOpenID != nil,
+		HasDy:       user.DyOpenID != nil,
+		Phone:       phoneMasked,
+		HasPhone:    user.Phone != nil,
+		Couple:      coupleToProfile(couple),
+		BuddyGroups: buddyGroups,
+		CreatedAt:   user.CreatedAt,
 	}, nil
 }
 
 // UpdateProfile 更新用户信息
-func (s *AuthService) UpdateProfile(ctx context.Context, uid interface{}, nickname, avatar string) error {
-	userID := uid.(uuid.UUID)
-
-	updates := map[string]interface{}{}
+func (s *AuthService) UpdateProfile(ctx context.Context, userID uuid.UUID, nickname, avatar string) error {
+	updated := false
 	if nickname != "" {
-		updates["nickname"] = nickname
+		if err := database.DB.Model(&model.User{}).Where("uid = ?", userID).Update("nickname", nickname).Error; err != nil {
+			return err
+		}
+		updated = true
 	}
 	if avatar != "" {
-		updates["avatar"] = avatar
+		if err := database.DB.Model(&model.User{}).Where("uid = ?", userID).Update("avatar", avatar).Error; err != nil {
+			return err
+		}
+		updated = true
 	}
 
-	if len(updates) == 0 {
+	if !updated {
 		return errors.New("没有需要更新的字段")
 	}
 
-	return database.DB.Model(&model.User{}).Where("uid = ?", userID).Updates(updates).Error
+	return nil
 }
 
 // CreateCoupleInvite 生成 30 分钟有效的情侣邀请码，已有伴侣时拒绝生成。
-func (s *AuthService) CreateCoupleInvite(ctx context.Context, uid interface{}) (map[string]interface{}, error) {
-	userID := uid.(uuid.UUID)
-
+func (s *AuthService) CreateCoupleInvite(ctx context.Context, userID uuid.UUID) (*InviteResult, error) {
 	// 检查是否已有伴侣
 	var couple model.Couple
 	if err := database.DB.Where("(user1_id = ? OR user2_id = ?) AND status = 'active'", userID, userID).First(&couple).Error; err == nil {
@@ -331,16 +359,14 @@ func (s *AuthService) CreateCoupleInvite(ctx context.Context, uid interface{}) (
 		return nil, fmt.Errorf("生成邀请码失败: %w", err)
 	}
 
-	return map[string]interface{}{
-		"code":       code,
-		"expires_at": invite.ExpiresAt,
+	return &InviteResult{
+		Code:      code,
+		ExpiresAt: invite.ExpiresAt,
 	}, nil
 }
 
 // JoinCouple 通过邀请码绑定情侣；创建关系和标记邀请码已用必须在同一事务内完成。
-func (s *AuthService) JoinCouple(ctx context.Context, uid interface{}, code string) error {
-	userID := uid.(uuid.UUID)
-
+func (s *AuthService) JoinCouple(ctx context.Context, userID uuid.UUID, code string) error {
 	var invite model.CoupleInvite
 	if err := database.DB.Where("code = ? AND is_used = false AND expires_at > ?", code, time.Now()).First(&invite).Error; err != nil {
 		return errors.New("邀请码无效或已过期")
@@ -381,9 +407,7 @@ func (s *AuthService) JoinCouple(ctx context.Context, uid interface{}, code stri
 }
 
 // CreateBuddyGroup 创建饭搭子组合，并同步把创建人写为 owner 成员。
-func (s *AuthService) CreateBuddyGroup(ctx context.Context, uid interface{}, name string) (map[string]interface{}, error) {
-	userID := uid.(uuid.UUID)
-
+func (s *AuthService) CreateBuddyGroup(ctx context.Context, userID uuid.UUID, name string) (*BuddyGroupSummary, error) {
 	// 检查已有组合数量（上限 3 个）
 	var count int64
 	database.DB.Model(&model.BuddyMember{}).Where("user_id = ?", userID).Count(&count)
@@ -416,15 +440,14 @@ func (s *AuthService) CreateBuddyGroup(ctx context.Context, uid interface{}, nam
 		return nil, err
 	}
 
-	return map[string]interface{}{
-		"id":   group.ID,
-		"name": group.Name,
+	return &BuddyGroupSummary{
+		ID:   group.ID,
+		Name: group.Name,
 	}, nil
 }
 
 // CreateBuddyInvite 生成饭搭子邀请码，仅 owner/admin 可以邀请新成员。
-func (s *AuthService) CreateBuddyInvite(ctx context.Context, uid interface{}, groupID string) (map[string]interface{}, error) {
-	userID := uid.(uuid.UUID)
+func (s *AuthService) CreateBuddyInvite(ctx context.Context, userID uuid.UUID, groupID string) (*InviteResult, error) {
 	gID, err := uuid.Parse(groupID)
 	if err != nil || gID == uuid.Nil {
 		return nil, errors.New("组合ID无效")
@@ -449,15 +472,14 @@ func (s *AuthService) CreateBuddyInvite(ctx context.Context, uid interface{}, gr
 		return nil, fmt.Errorf("生成邀请码失败: %w", err)
 	}
 
-	return map[string]interface{}{
-		"code":       code,
-		"expires_at": invite.ExpiresAt,
+	return &InviteResult{
+		Code:      code,
+		ExpiresAt: invite.ExpiresAt,
 	}, nil
 }
 
 // JoinBuddyGroup 通过邀请码加入饭搭子，依次校验邀请码、成员上限和重复加入。
-func (s *AuthService) JoinBuddyGroup(ctx context.Context, uid interface{}, groupID string, code string) error {
-	userID := uid.(uuid.UUID)
+func (s *AuthService) JoinBuddyGroup(ctx context.Context, userID uuid.UUID, groupID string, code string) error {
 	gID, err := uuid.Parse(groupID)
 	if err != nil || gID == uuid.Nil {
 		return errors.New("组合ID无效")
@@ -518,8 +540,7 @@ func (s *AuthService) JoinBuddyGroup(ctx context.Context, uid interface{}, group
 }
 
 // RemoveBuddyMember 移除饭搭子成员，仅 owner/admin 可操作且不能移除自己。
-func (s *AuthService) RemoveBuddyMember(ctx context.Context, uid interface{}, groupID, targetUID string) error {
-	userID := uid.(uuid.UUID)
+func (s *AuthService) RemoveBuddyMember(ctx context.Context, userID uuid.UUID, groupID, targetUID string) error {
 	gID, err := uuid.Parse(groupID)
 	if err != nil || gID == uuid.Nil {
 		return errors.New("组合ID无效")
@@ -582,15 +603,15 @@ func (s *AuthService) getOpenIDField(platform string) string {
 	}
 }
 
-func coupleToMap(c *model.Couple) map[string]interface{} {
+func coupleToProfile(c *model.Couple) *CoupleProfile {
 	if c == nil {
 		return nil
 	}
-	return map[string]interface{}{
-		"id":       c.ID,
-		"user1_id": c.User1ID,
-		"user2_id": c.User2ID,
-		"status":   c.Status,
+	return &CoupleProfile{
+		ID:      c.ID,
+		User1ID: c.User1ID,
+		User2ID: c.User2ID,
+		Status:  c.Status,
 	}
 }
 

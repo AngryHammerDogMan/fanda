@@ -1,5 +1,5 @@
 import { View, Text, ScrollView, Image } from '@tarojs/components'
-import Taro, { useDidShow, useRouter } from '@tarojs/taro'
+import Taro, { useDidShow } from '@tarojs/taro'
 import { useState, useMemo } from 'react'
 import { calendarAPI, authAPI } from '@/services/api'
 import type { CalendarRecord, MonthlyStats, User } from '@/types'
@@ -25,7 +25,6 @@ export default function Calendar() {
   const [dateRecordsMap, setDateRecordsMap] = useState<Record<string, CalendarRecord[]>>({})
   const [selectedDateRecords, setSelectedDateRecords] = useState<CalendarRecord[]>([])
   const [monthlyStats, setMonthlyStats] = useState<MonthlyStats | null>(null)
-  const [loading, setLoading] = useState(false)
 
   // 日历网格数据：补齐上月尾部和下月开头，保证 UI 始终按完整周渲染。
   const calendarGrid = useMemo(() => {
@@ -94,10 +93,9 @@ export default function Calendar() {
 
   const loadMonthRecords = async () => {
     if (!groupId) return
-    setLoading(true)
     try {
       const res = await calendarAPI.listByMonth(groupType, groupId, currentYear, currentMonth)
-      const records: CalendarRecord[] = res.data?.list || res.data || []
+      const records: CalendarRecord[] = Array.isArray(res.data) ? res.data : res.data?.list || []
       const map: Record<string, CalendarRecord[]> = {}
       // 按日期聚合记录，供日历格子快速判断当天有哪些 meal_type 圆点。
       records.forEach((r: CalendarRecord) => {
@@ -110,8 +108,6 @@ export default function Calendar() {
       setDateRecordsMap(map)
     } catch (err) {
       console.error('加载日历记录失败', err)
-    } finally {
-      setLoading(false)
     }
   }
 
@@ -129,7 +125,7 @@ export default function Calendar() {
     if (!groupId) return
     try {
       const res = await calendarAPI.listByDate(groupType, groupId, date)
-      setSelectedDateRecords(res.data?.list || res.data || [])
+      setSelectedDateRecords(Array.isArray(res.data) ? res.data : res.data?.list || [])
     } catch (err) {
       console.error('加载日期记录失败', err)
       setSelectedDateRecords([])

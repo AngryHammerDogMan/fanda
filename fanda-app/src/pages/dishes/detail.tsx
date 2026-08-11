@@ -1,4 +1,4 @@
-import { View, Text, Image, Button } from '@tarojs/components'
+import { View, Text, Image } from '@tarojs/components'
 import Taro, { useRouter, useDidShow } from '@tarojs/taro'
 import { useState } from 'react'
 import { dishAPI } from '@/services/api'

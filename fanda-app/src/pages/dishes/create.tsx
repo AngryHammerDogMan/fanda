@@ -1,8 +1,8 @@
-import { View, Text, Input, Button, Image, ScrollView, Picker } from '@tarojs/components'
+import { View, Text, Input, Image, ScrollView, Picker } from '@tarojs/components'
 import Taro, { useRouter, useDidShow } from '@tarojs/taro'
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { dishAPI, authAPI } from '@/services/api'
-import type { Dish, Ingredient, Step, BuddyGroup } from '@/types'
+import type { Dish, Ingredient, Step, BuddyGroup, DishPayload, PickerChangeEvent } from '@/types'
 import './create.scss'
 
 const DISH_TYPES = [
@@ -29,6 +29,12 @@ const GROUP_TYPES = [
   { key: 'couple', label: '情侣' },
   { key: 'buddy', label: '饭搭子' },
 ]
+
+const getPickerIndex = (event: PickerChangeEvent): number => {
+  const { value } = event.detail
+  const rawValue = Array.isArray(value) ? value[0] : value
+  return Number(rawValue)
+}
 
 export default function DishCreate() {
   const router = useRouter()
@@ -178,7 +184,7 @@ export default function DishCreate() {
 
     setSubmitting(true)
 
-    const data: Record<string, any> = {
+    const data: DishPayload = {
       dish_type: dishType,
       name: name.trim(),
       category,
@@ -213,22 +219,23 @@ export default function DishCreate() {
     }
   }
 
-  const handleCategoryChange = (e: any) => {
-    setCategory(CATEGORIES[e.detail.value])
+  const handleCategoryChange = (e: PickerChangeEvent) => {
+    setCategory(CATEGORIES[getPickerIndex(e)])
   }
 
-  const handleDifficultyChange = (e: any) => {
-    setDifficulty(DIFFICULTIES[e.detail.value].value)
+  const handleDifficultyChange = (e: PickerChangeEvent) => {
+    setDifficulty(DIFFICULTIES[getPickerIndex(e)].value)
   }
 
-  const handleGroupTypeChange = (e: any) => {
-    setGroupType(GROUP_TYPES[e.detail.value].key)
+  const handleGroupTypeChange = (e: PickerChangeEvent) => {
+    setGroupType(GROUP_TYPES[getPickerIndex(e)].key)
     setGroupId('')
   }
 
-  const handleBuddyGroupChange = (e: any) => {
-    if (buddyGroups[e.detail.value]) {
-      setGroupId(buddyGroups[e.detail.value].id)
+  const handleBuddyGroupChange = (e: PickerChangeEvent) => {
+    const index = getPickerIndex(e)
+    if (buddyGroups[index]) {
+      setGroupId(buddyGroups[index].id)
     }
   }
 

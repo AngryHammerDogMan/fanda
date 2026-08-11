@@ -2,6 +2,7 @@ import { View, Text, Button, Input, Image } from '@tarojs/components'
 import Taro, { useDidShow } from '@tarojs/taro'
 import { useState } from 'react'
 import { authAPI } from '@/services/api'
+import { getErrorMessage } from '@/utils/error'
 import './index.scss'
 
 // 登录页：承接平台授权、首次昵称设置、手机号绑定与 H5 预览登录入口。
@@ -9,7 +10,6 @@ import './index.scss'
 const IS_H5_PREVIEW = process.env.TARO_ENV === 'h5'
 const CURRENT_PLATFORM = process.env.TARO_ENV === 'weapp' ? 'wechat' : 'douyin'
 const PLATFORM_NAME = IS_H5_PREVIEW ? '浏览器预览' : CURRENT_PLATFORM === 'wechat' ? '微信' : '抖音'
-const OTHER_PLATFORM_NAME = CURRENT_PLATFORM === 'wechat' ? '抖音' : '微信'
 const sticker = (name: string) => `/assets/stickers/${name}.png`
 
 export default function Login() {
@@ -79,8 +79,8 @@ export default function Login() {
           Taro.switchTab({ url: '/pages/index/index' })
         }, 800)
       }
-    } catch (err: any) {
-      Taro.showToast({ title: err.message || '登录失败', icon: 'none' })
+    } catch (err: unknown) {
+      Taro.showToast({ title: getErrorMessage(err, '登录失败'), icon: 'none' })
       setStep('choose')
     } finally {
       setLoading(false)
@@ -98,8 +98,8 @@ export default function Login() {
       Taro.showToast({ title: '设置成功', icon: 'success' })
       // 下一步：必须绑定手机号
       setStep('bind_phone')
-    } catch (err: any) {
-      Taro.showToast({ title: err.message || '保存失败', icon: 'none' })
+    } catch (err: unknown) {
+      Taro.showToast({ title: getErrorMessage(err, '保存失败'), icon: 'none' })
     }
   }
 
@@ -116,8 +116,8 @@ export default function Login() {
       setTimeout(() => {
         Taro.switchTab({ url: '/pages/index/index' })
       }, 1000)
-    } catch (err: any) {
-      Taro.showToast({ title: err.message || '绑定失败', icon: 'none' })
+    } catch (err: unknown) {
+      Taro.showToast({ title: getErrorMessage(err, '绑定失败'), icon: 'none' })
     } finally {
       setLoading(false)
     }

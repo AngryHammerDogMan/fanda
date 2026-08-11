@@ -115,6 +115,7 @@ export interface OrderItem {
   id: string
   order_id: string
   dish_id: string
+  dish_name?: string
   quantity: number
   unit_price: number | null
 }
@@ -203,6 +204,7 @@ export interface BudgetSetting {
   group_id: string
   month: string
   budget: number
+  spent?: number
 }
 
 // 签到
@@ -222,7 +224,7 @@ export interface PointRecord {
 }
 
 // 通用响应
-export interface ApiResponse<T = any> {
+export interface ApiResponse<T = unknown> {
   code: number
   message: string
   data: T
@@ -234,4 +236,153 @@ export interface PaginatedData<T> {
   total: number
   page: number
   page_size: number
+}
+
+export type MaybePaginatedData<T> = PaginatedData<T> | T[]
+
+export type EmptyData = void
+
+export interface ListQueryParams {
+  page?: number
+  page_size?: number
+}
+
+export interface GroupQueryParams {
+  group_type?: string
+  group_id?: string
+}
+
+export interface InviteResult {
+  code: string
+  expires_at: string
+}
+
+export interface BuddyGroupSummary {
+  id: string
+  name: string
+}
+
+export interface DishListParams extends ListQueryParams, GroupQueryParams {
+  dish_type?: string
+  category?: string
+  keyword?: string
+}
+
+export interface DishPayload {
+  group_type?: string
+  group_id?: string
+  dish_type: string
+  name: string
+  category?: string
+  difficulty?: number | null
+  duration?: number
+  price?: number | null
+  ingredients?: Ingredient[]
+  steps?: Step[]
+  photos?: string[]
+  tags?: string[]
+  restaurant?: string
+  restaurant_note?: string
+}
+
+export type DishUpdatePayload = Partial<DishPayload>
+
+export interface PlazaSearchParams extends ListQueryParams {
+  category?: string
+  keyword?: string
+}
+
+export type PlazaCategoriesResponse = string[] & {
+  categories?: string[]
+}
+
+export interface OrderListParams extends ListQueryParams, GroupQueryParams {
+  status?: string
+}
+
+export interface OrderItemPayload {
+  dish_id: string
+  quantity: number
+  unit_price: number | null
+}
+
+export interface CreateOrderPayload {
+  group_type: string
+  group_id: string
+  dine_mode: string
+  order_items: OrderItemPayload[]
+}
+
+export interface OrderVotes {
+  approve: number
+  reject: number
+  skip: number
+  total: number
+}
+
+export interface CalendarListParams extends GroupQueryParams {
+  year?: number
+  month?: number
+  date?: string
+}
+
+export interface CalendarRecordPayload {
+  group_type: string
+  group_id: string
+  record_date: string
+  meal_type: string
+  meal_period?: string
+  dish_ids?: string[]
+  restaurant?: string
+  amount?: number | null
+  photos?: PhotoPayload[]
+  content?: string
+}
+
+export interface CalendarRecordUpdatePayload {
+  meal_type?: string
+  meal_period?: string
+  restaurant?: string
+  amount?: number | null
+}
+
+export interface PhotoPayload {
+  url: string
+  type: string
+}
+
+export interface CreateWishPayload extends GroupQueryParams {
+  group_type: string
+  group_id: string
+  name: string
+  note?: string
+  dish_id?: string | null
+}
+
+export interface BasketPayload extends GroupQueryParams {
+  group_type: string
+  group_id: string
+  name: string
+  quantity?: string
+}
+
+export interface BudgetPayload extends GroupQueryParams {
+  group_type: string
+  group_id: string
+  month: string
+  budget: number
+}
+
+export interface CheckinResult {
+  points?: number
+  checkin_date?: string
+  today_checked?: boolean
+  month_count?: number
+  streak?: number
+}
+
+export interface PickerChangeEvent<T extends number | string | number[] | string[] = number | string | number[] | string[]> {
+  detail: {
+    value: T
+  }
 }

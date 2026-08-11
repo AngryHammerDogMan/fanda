@@ -3,6 +3,7 @@ import Taro, { useDidShow } from '@tarojs/taro'
 import { useState, useEffect } from 'react'
 import { authAPI, featureAPI } from '@/services/api'
 import type { User, WishItem, BuddyGroup } from '@/types'
+import { getErrorMessage } from '@/utils/error'
 import './index.scss'
 
 // 心愿页：按关系分组维护想吃/想去清单，支持完成、删除与状态筛选。
@@ -52,7 +53,7 @@ export default function Wishes() {
       // “全部”不传 completed，让后端返回完整列表；其他筛选转换为布尔值。
       const completedParam = filter === '全部' ? undefined : filter === '已完成'
       const res = await featureAPI.listWishes(groupType, groupId, completedParam)
-      setWishes(res.data?.list || res.data || [])
+      setWishes(Array.isArray(res.data) ? res.data : res.data?.list || [])
     } catch (err) {
       console.error('加载心愿失败', err)
     } finally {
@@ -96,8 +97,8 @@ export default function Wishes() {
         w.id === wish.id ? { ...w, is_completed: true } : w
       ))
       Taro.showToast({ title: '心愿已完成', icon: 'success' })
-    } catch (err: any) {
-      Taro.showToast({ title: err.message || '操作失败', icon: 'none' })
+    } catch (err: unknown) {
+      Taro.showToast({ title: getErrorMessage(err, '操作失败'), icon: 'none' })
     }
   }
 
@@ -111,8 +112,8 @@ export default function Wishes() {
       await featureAPI.deleteWish(id)
       setWishes(prev => prev.filter(w => w.id !== id))
       Taro.showToast({ title: '已删除', icon: 'success' })
-    } catch (err: any) {
-      Taro.showToast({ title: err.message || '删除失败', icon: 'none' })
+    } catch (err: unknown) {
+      Taro.showToast({ title: getErrorMessage(err, '删除失败'), icon: 'none' })
     }
   }
 
@@ -133,8 +134,8 @@ export default function Wishes() {
       setNewNote('')
       setShowAddForm(false)
       loadWishes()
-    } catch (err: any) {
-      Taro.showToast({ title: err.message || '创建失败', icon: 'none' })
+    } catch (err: unknown) {
+      Taro.showToast({ title: getErrorMessage(err, '创建失败'), icon: 'none' })
     }
   }
 

@@ -1,8 +1,9 @@
-import { View, Text, Image, ScrollView } from '@tarojs/components'
+import { View, Text, Image } from '@tarojs/components'
 import Taro, { useDidShow } from '@tarojs/taro'
 import { useState } from 'react'
 import { authAPI, featureAPI } from '@/services/api'
 import type { User, CheckinStatus, PointRecord } from '@/types'
+import { getErrorMessage } from '@/utils/error'
 import './index.scss'
 
 // 个人中心页：展示资料、账号绑定、关系入口、积分明细与退出登录。
@@ -12,13 +13,26 @@ const PLATFORM_NAME = CURRENT_PLATFORM === 'wechat' ? '微信' : '抖音'
 const OTHER_PLATFORM_NAME = CURRENT_PLATFORM === 'wechat' ? '抖音' : '微信'
 const sticker = (name: string) => `/assets/stickers/${name}.png`
 
+type EditableModalResult = Taro.showModal.SuccessCallbackResult & {
+  content?: string
+}
+
+type EditableModalOption = Omit<Taro.showModal.Option, 'success'> & {
+  editable?: boolean
+  placeholderText?: string
+  success?: (res: EditableModalResult) => void
+}
+
+const showEditableModal = (option: EditableModalOption) => {
+  return Taro.showModal(option as unknown as Taro.showModal.Option)
+}
+
 export default function Profile() {
   // user/checkinStatus 支撑顶部概览；pointHistory 只在用户主动展开时加载。
   const [user, setUser] = useState<User | null>(null)
   const [checkinStatus, setCheckinStatus] = useState<CheckinStatus | null>(null)
   const [pointHistory, setPointHistory] = useState<PointRecord[]>([])
   const [showPointHistory, setShowPointHistory] = useState(false)
-  const [loading, setLoading] = useState(false)
 
   useDidShow(() => {
     loadAll()
@@ -39,7 +53,6 @@ export default function Profile() {
   }
 
   const loadPointHistory = async () => {
-    setLoading(true)
     try {
       // 积分记录不是首屏必需数据，点击“积分明细”后再取第一页。
       const res = await featureAPI.getPointHistory(1, 20)
@@ -47,13 +60,11 @@ export default function Profile() {
       setShowPointHistory(true)
     } catch (err) {
       console.error('加载积分历史失败', err)
-    } finally {
-      setLoading(false)
     }
   }
 
   const handleEditProfile = () => {
-    Taro.showModal({
+    showEditableModal({
       title: '修改昵称',
       editable: true,
       placeholderText: user?.nickname || '',
@@ -63,8 +74,8 @@ export default function Profile() {
             await authAPI.updateProfile(res.content, user?.avatar || '')
             Taro.showToast({ title: '修改成功', icon: 'success' })
             loadAll()
-          } catch (err: any) {
-            Taro.showToast({ title: err.message || '修改失败', icon: 'none' })
+          } catch (err: unknown) {
+            Taro.showToast({ title: getErrorMessage(err, '修改失败'), icon: 'none' })
           }
         }
       },
@@ -73,13 +84,12 @@ export default function Profile() {
 
   const handleChooseAvatar = async () => {
     try {
-      const res = await Taro.chooseImage({
+      await Taro.chooseImage({
         count: 1,
         sizeType: ['compressed'],
         sourceType: ['album', 'camera'],
       })
-      const tempPath = res.tempFilePaths[0]
-      // 当前仅走本地选图流程；后续接入云存储时再把 tempPath 上传并回写头像 URL。
+      // 当前仅走本地选图流程；后续接入云存储时再上传并回写头像 URL。
       Taro.showToast({ title: '头像上传成功', icon: 'success' })
       loadAll()
     } catch (err) {
@@ -88,7 +98,7 @@ export default function Profile() {
   }
 
   const handleBindPhoneAction = () => {
-    Taro.showModal({
+    showEditableModal({
       title: '绑定手机号',
       editable: true,
       placeholderText: '请输入手机号',
@@ -103,8 +113,8 @@ export default function Profile() {
             await authAPI.bindPhone(phone)
             Taro.showToast({ title: '绑定成功', icon: 'success' })
             loadAll()
-          } catch (err: any) {
-            Taro.showToast({ title: err.message || '绑定失败', icon: 'none' })
+          } catch (err: unknown) {
+            Taro.showToast({ title: getErrorMessage(err, '绑定失败'), icon: 'none' })
           }
         }
       },

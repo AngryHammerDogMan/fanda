@@ -3,21 +3,20 @@ import Taro, { useDidShow } from '@tarojs/taro'
 import { useState } from 'react'
 import { authAPI } from '@/services/api'
 import type { User, BuddyGroup, BuddyMember } from '@/types'
+import { getErrorMessage } from '@/utils/error'
 import './index.scss'
 
 // 饭搭子管理页：维护用户的饭搭子群组、邀请加入流程与成员管理入口。
 const sticker = (name: string) => `/assets/stickers/${name}.png`
 
 export default function Buddy() {
-  // selectedGroup 驱动右侧/下方详情区；inviteCode/joinCode 分别承载邀请与加入流程。
+  // selectedGroup 驱动右侧/下方详情区；joinCode 承载加入流程。
   const [user, setUser] = useState<User | null>(null)
   const [groups, setGroups] = useState<BuddyGroup[]>([])
   const [members, setMembers] = useState<BuddyMember[]>([])
   const [selectedGroup, setSelectedGroup] = useState<BuddyGroup | null>(null)
   const [showCreateForm, setShowCreateForm] = useState(false)
   const [newGroupName, setNewGroupName] = useState('')
-  const [showInvite, setShowInvite] = useState(false)
-  const [inviteCode, setInviteCode] = useState('')
   const [showJoinInput, setShowJoinInput] = useState(false)
   const [joinCode, setJoinCode] = useState('')
   const [loading, setLoading] = useState(false)
@@ -44,10 +43,10 @@ export default function Buddy() {
 
   const handleSelectGroup = (group: BuddyGroup) => {
     setSelectedGroup(group)
-    loadMembers(group.id)
+    loadMembers()
   }
 
-  const loadMembers = async (groupId: string) => {
+  const loadMembers = async () => {
     // 成员列表通过 getProfile 中的 buddy_groups 获取，这里简化处理。
     setLoading(true)
     try {
@@ -77,8 +76,8 @@ export default function Buddy() {
       setNewGroupName('')
       setShowCreateForm(false)
       loadUser()
-    } catch (err: any) {
-      Taro.showToast({ title: err.message || '创建失败', icon: 'none' })
+    } catch (err: unknown) {
+      Taro.showToast({ title: getErrorMessage(err, '创建失败'), icon: 'none' })
     } finally {
       setLoading(false)
     }
@@ -89,10 +88,7 @@ export default function Buddy() {
     setLoading(true)
     try {
       const res = await authAPI.createBuddyInvite(selectedGroup.id)
-      // 邀请接口可能返回对象或字符串，统一提取为展示/复制用的邀请码。
-      const code = res.data?.code || res.data
-      setInviteCode(code)
-      setShowInvite(true)
+      const { code } = res.data
       Taro.showModal({
         title: '邀请码已生成',
         content: `邀请码：${code}\n将此码分享给好友加入群组`,
@@ -103,8 +99,8 @@ export default function Buddy() {
           Taro.showToast({ title: '已复制', icon: 'success' })
         },
       })
-    } catch (err: any) {
-      Taro.showToast({ title: err.message || '生成失败', icon: 'none' })
+    } catch (err: unknown) {
+      Taro.showToast({ title: getErrorMessage(err, '生成失败'), icon: 'none' })
     } finally {
       setLoading(false)
     }
@@ -124,8 +120,8 @@ export default function Buddy() {
       setJoinCode('')
       setShowJoinInput(false)
       loadUser()
-    } catch (err: any) {
-      Taro.showToast({ title: err.message || '加入失败', icon: 'none' })
+    } catch (err: unknown) {
+      Taro.showToast({ title: getErrorMessage(err, '加入失败'), icon: 'none' })
     } finally {
       setLoading(false)
     }
@@ -141,9 +137,9 @@ export default function Buddy() {
     try {
       await authAPI.removeBuddyMember(selectedGroup.id, uid)
       Taro.showToast({ title: '已移除', icon: 'success' })
-      loadMembers(selectedGroup.id)
-    } catch (err: any) {
-      Taro.showToast({ title: err.message || '移除失败', icon: 'none' })
+      loadMembers()
+    } catch (err: unknown) {
+      Taro.showToast({ title: getErrorMessage(err, '移除失败'), icon: 'none' })
     }
   }
 

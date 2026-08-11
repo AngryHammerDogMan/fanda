@@ -81,8 +81,19 @@ func (s *FeatureService) DeleteWish(ctx context.Context, uid uuid.UUID, wishID u
 
 // ---- 签到 ----
 
+type CheckinResult struct {
+	Points      int    `json:"points"`
+	CheckinDate string `json:"checkin_date"`
+}
+
+type CheckinStatusResult struct {
+	TodayChecked bool  `json:"today_checked"`
+	MonthCount   int64 `json:"month_count"`
+	Streak       int   `json:"streak"`
+}
+
 // Checkin 签到：同一天只允许一次，连续签到在事务中同时写签到、积分和流水。
-func (s *FeatureService) Checkin(ctx context.Context, uid uuid.UUID) (map[string]interface{}, error) {
+func (s *FeatureService) Checkin(ctx context.Context, uid uuid.UUID) (*CheckinResult, error) {
 	today := time.Now().Format("2006-01-02")
 	todayDate, _ := time.Parse("2006-01-02", today)
 
@@ -133,14 +144,14 @@ func (s *FeatureService) Checkin(ctx context.Context, uid uuid.UUID) (map[string
 		return nil, err
 	}
 
-	return map[string]interface{}{
-		"points":       points,
-		"checkin_date": today,
+	return &CheckinResult{
+		Points:      points,
+		CheckinDate: today,
 	}, nil
 }
 
 // GetCheckinStatus 获取签到状态：计算今日是否签到、本月次数和从今天/昨天回溯的连续天数。
-func (s *FeatureService) GetCheckinStatus(ctx context.Context, uid uuid.UUID) (map[string]interface{}, error) {
+func (s *FeatureService) GetCheckinStatus(ctx context.Context, uid uuid.UUID) (*CheckinStatusResult, error) {
 	today := time.Now().Format("2006-01-02")
 	todayDate, _ := time.Parse("2006-01-02", today)
 
@@ -171,10 +182,10 @@ func (s *FeatureService) GetCheckinStatus(ctx context.Context, uid uuid.UUID) (m
 		checkDate = checkDate.AddDate(0, 0, -1)
 	}
 
-	return map[string]interface{}{
-		"today_checked": todayChecked,
-		"month_count":   monthCount,
-		"streak":        streak,
+	return &CheckinStatusResult{
+		TodayChecked: todayChecked,
+		MonthCount:   monthCount,
+		Streak:       streak,
 	}, nil
 }
 

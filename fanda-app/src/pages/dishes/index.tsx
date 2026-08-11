@@ -2,7 +2,7 @@ import { View, Text, Image, Input, ScrollView } from '@tarojs/components'
 import Taro, { useDidShow, useReachBottom } from '@tarojs/taro'
 import { useState, useCallback } from 'react'
 import { dishAPI } from '@/services/api'
-import type { Dish, PaginatedData } from '@/types'
+import type { Dish, DishListParams } from '@/types'
 import './index.scss'
 
 // 菜品列表页：按类型与关键词浏览自建菜品，并承接下拉/滚动分页与新增入口。
@@ -28,7 +28,6 @@ export default function DishesIndex() {
   const [searchKeyword, setSearchKeyword] = useState('')
   const [dishes, setDishes] = useState<Dish[]>([])
   const [page, setPage] = useState(1)
-  const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(false)
   const [hasMore, setHasMore] = useState(true)
 
@@ -39,7 +38,7 @@ export default function DishesIndex() {
     setLoading(true)
 
     try {
-      const params: Record<string, any> = {
+      const params: DishListParams = {
         page: pageNum,
         page_size: pageSize,
       }
@@ -54,7 +53,7 @@ export default function DishesIndex() {
       }
 
       const res = await dishAPI.list(params)
-      const data = res.data as PaginatedData<Dish>
+      const data = res.data
 
       if (append) {
         setDishes(prev => [...prev, ...data.list])
@@ -62,7 +61,6 @@ export default function DishesIndex() {
         setDishes(data.list)
       }
 
-      setTotal(data.total)
       setPage(pageNum)
       setHasMore(pageNum * pageSize < data.total)
     } catch (err) {

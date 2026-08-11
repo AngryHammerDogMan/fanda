@@ -2,7 +2,8 @@ import { View, Text, Input, Picker } from '@tarojs/components'
 import Taro, { useDidShow } from '@tarojs/taro'
 import { useState, useEffect } from 'react'
 import { authAPI, featureAPI, calendarAPI } from '@/services/api'
-import type { User, BudgetSetting, MonthlyStats, BuddyGroup } from '@/types'
+import type { User, BudgetSetting, MonthlyStats, BuddyGroup, PickerChangeEvent } from '@/types'
+import { getErrorMessage } from '@/utils/error'
 import './index.scss'
 
 // 预算页：按关系分组与月份展示餐饮预算、实际支出、剩余额度和月度餐食统计。
@@ -14,7 +15,6 @@ export default function Budget() {
   const [groups, setGroups] = useState<BuddyGroup[]>([])
   const [budget, setBudget] = useState<BudgetSetting | null>(null)
   const [stats, setStats] = useState<MonthlyStats | null>(null)
-  const [loading, setLoading] = useState(false)
   const [showSetForm, setShowSetForm] = useState(false)
   const [budgetAmount, setBudgetAmount] = useState('')
   const [year, setYear] = useState(new Date().getFullYear())
@@ -47,7 +47,6 @@ export default function Budget() {
 
   const loadData = async () => {
     if (!groupType || !groupId) return
-    setLoading(true)
     try {
       // 预算设置和日历统计独立返回，并发请求后在本页合并计算进度。
       const [budgetRes, statsRes] = await Promise.all([
@@ -58,8 +57,6 @@ export default function Budget() {
       setStats(statsRes.data || null)
     } catch (err) {
       console.error('加载预算数据失败', err)
-    } finally {
-      setLoading(false)
     }
   }
 
@@ -83,7 +80,7 @@ export default function Budget() {
     setGroupId(gid)
   }
 
-  const handleMonthChange = (e: any) => {
+  const handleMonthChange = (e: PickerChangeEvent<string>) => {
     const val = e.detail.value // 'YYYY-MM'
     const [y, m] = val.split('-')
     setYear(parseInt(y))
@@ -125,8 +122,8 @@ export default function Budget() {
       setBudgetAmount('')
       setShowSetForm(false)
       loadData()
-    } catch (err: any) {
-      Taro.showToast({ title: err.message || '设置失败', icon: 'none' })
+    } catch (err: unknown) {
+      Taro.showToast({ title: getErrorMessage(err, '设置失败'), icon: 'none' })
     }
   }
 

@@ -3,6 +3,7 @@ import Taro, { useDidShow } from '@tarojs/taro'
 import { useState } from 'react'
 import { authAPI, featureAPI } from '@/services/api'
 import type { User, CheckinStatus } from '@/types'
+import { getErrorMessage, isAuthError } from '@/utils/error'
 import './index.scss'
 
 // 首页：展示用户积分/签到概览，并汇总进入点单、菜篮子、心愿、预算等核心模块的快捷入口。
@@ -29,8 +30,8 @@ export default function Index() {
     try {
       const res = await authAPI.getProfile()
       setUser(res.data)
-    } catch (err: any) {
-      if (err.message === '未登录') return
+    } catch (err: unknown) {
+      if (isAuthError(err)) return
       console.error('加载用户信息失败', err)
     }
   }
@@ -39,8 +40,8 @@ export default function Index() {
     try {
       const res = await featureAPI.getCheckinStatus()
       setCheckinStatus(res.data)
-    } catch (err: any) {
-      if (err.message === '未登录') return
+    } catch (err: unknown) {
+      if (isAuthError(err)) return
       // 签到卡片是首页辅助信息，接口异常时保持空态，不阻塞首页主内容。
     }
   }
@@ -51,8 +52,8 @@ export default function Index() {
       Taro.showToast({ title: `签到成功！+${res.data.points}积分`, icon: 'success' })
       // 签到成功后只刷新签到摘要，避免重复拉取用户资料。
       loadCheckinStatus()
-    } catch (err: any) {
-      Taro.showToast({ title: err.message || '签到失败', icon: 'none' })
+    } catch (err: unknown) {
+      Taro.showToast({ title: getErrorMessage(err, '签到失败'), icon: 'none' })
     }
   }
 

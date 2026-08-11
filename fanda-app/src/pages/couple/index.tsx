@@ -2,17 +2,16 @@ import { View, Text, Input, Image } from '@tarojs/components'
 import Taro, { useDidShow } from '@tarojs/taro'
 import { useState } from 'react'
 import { authAPI } from '@/services/api'
-import type { User, CoupleInfo } from '@/types'
+import type { CoupleInfo } from '@/types'
+import { getErrorMessage } from '@/utils/error'
 import './index.scss'
 
 // 情侣关系页：展示当前情侣绑定状态，并支持生成邀请码或输入邀请码完成绑定。
 const sticker = (name: string) => `/assets/stickers/${name}.png`
 
 export default function Couple() {
-  // couple 来自 profile；inviteCode/joinCode 分别服务创建邀请和加入绑定两条流程。
-  const [user, setUser] = useState<User | null>(null)
+  // couple 来自 profile；joinCode 服务加入绑定流程。
   const [couple, setCouple] = useState<CoupleInfo | null>(null)
-  const [inviteCode, setInviteCode] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [showJoinInput, setShowJoinInput] = useState(false)
   const [joinCode, setJoinCode] = useState('')
@@ -24,9 +23,7 @@ export default function Couple() {
   const loadUser = async () => {
     try {
       const res = await authAPI.getProfile()
-      const u: User = res.data
-      setUser(u)
-      setCouple(u.couple || null)
+      setCouple(res.data.couple || null)
     } catch (err) {
       console.error('加载用户信息失败', err)
     }
@@ -36,9 +33,7 @@ export default function Couple() {
     setLoading(true)
     try {
       const res = await authAPI.createCoupleInvite()
-      // 兼容后端返回 { code } 或直接返回字符串两种格式。
-      const code = res.data?.code || res.data
-      setInviteCode(code)
+      const { code } = res.data
       Taro.showModal({
         title: '邀请码已生成',
         content: `邀请码：${code}\n将此码分享给对方，对方在TA的账号中输入此码即可绑定`,
@@ -49,8 +44,8 @@ export default function Couple() {
           Taro.showToast({ title: '已复制', icon: 'success' })
         },
       })
-    } catch (err: any) {
-      Taro.showToast({ title: err.message || '生成失败', icon: 'none' })
+    } catch (err: unknown) {
+      Taro.showToast({ title: getErrorMessage(err, '生成失败'), icon: 'none' })
     } finally {
       setLoading(false)
     }
@@ -68,8 +63,8 @@ export default function Couple() {
       setJoinCode('')
       setShowJoinInput(false)
       loadUser()
-    } catch (err: any) {
-      Taro.showToast({ title: err.message || '绑定失败', icon: 'none' })
+    } catch (err: unknown) {
+      Taro.showToast({ title: getErrorMessage(err, '绑定失败'), icon: 'none' })
     } finally {
       setLoading(false)
     }

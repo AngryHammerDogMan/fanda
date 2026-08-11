@@ -2,7 +2,8 @@ import { View, Text, ScrollView, Image } from '@tarojs/components'
 import Taro, { useDidShow, useReachBottom, usePullDownRefresh } from '@tarojs/taro'
 import { useState, useCallback } from 'react'
 import { orderAPI } from '@/services/api'
-import type { Order, PaginatedData } from '@/types'
+import type { Order, OrderListParams } from '@/types'
+import { getErrorMessage } from '@/utils/error'
 import './index.scss'
 
 // 订单列表页：按状态筛选点单记录，并提供确认、拒绝、投票和取消等订单操作。
@@ -67,7 +68,7 @@ export default function Orders() {
     if (loading) return
     setLoading(true)
     try {
-      const params: Record<string, any> = {
+      const params: OrderListParams = {
         page: pageNum,
         page_size: PAGE_SIZE,
       }
@@ -76,7 +77,7 @@ export default function Orders() {
         params.status = activeTab
       }
       const res = await orderAPI.list(params)
-      const data = res.data as PaginatedData<Order>
+      const data = res.data
       if (reset) {
         setOrders(data.list || [])
         setPage(1)
@@ -92,23 +93,6 @@ export default function Orders() {
     }
   }, [activeTab, loading])
 
-  const handleTabChange = (key: string) => {
-    setActiveTab(key)
-    // 需要在状态更新后重新加载，这里用 setTimeout 确保状态已更新
-    setTimeout(() => {
-      loadOrders(1, true)
-    }, 0)
-  }
-
-  // 当 activeTab 变化时重新加载
-  const handleTabClick = (key: string) => {
-    if (key === activeTab) return
-    setActiveTab(key)
-    // 由于 setState 是异步的，我们在下一个 tick 用新状态加载
-  }
-
-  // 使用 useEffect 监听 activeTab 变化
-  // 由于 Taro 的限制，我们使用 didShow 和手动触发
   const switchTab = async (key: string) => {
     if (key === activeTab) return
     setActiveTab(key)
@@ -118,7 +102,7 @@ export default function Orders() {
     setTotal(0)
     setLoading(true)
     try {
-      const params: Record<string, any> = {
+      const params: OrderListParams = {
         page: 1,
         page_size: PAGE_SIZE,
       }
@@ -127,7 +111,7 @@ export default function Orders() {
         params.status = key
       }
       const res = await orderAPI.list(params)
-      const data = res.data as PaginatedData<Order>
+      const data = res.data
       setOrders(data.list || [])
       setTotal(data.total || 0)
     } catch (err) {
@@ -142,8 +126,8 @@ export default function Orders() {
       await orderAPI.confirm(id)
       Taro.showToast({ title: '已确认', icon: 'success' })
       loadOrders(1, true)
-    } catch (err: any) {
-      Taro.showToast({ title: err.message || '操作失败', icon: 'none' })
+    } catch (err: unknown) {
+      Taro.showToast({ title: getErrorMessage(err, '操作失败'), icon: 'none' })
     }
   }
 
@@ -152,8 +136,8 @@ export default function Orders() {
       await orderAPI.reject(id)
       Taro.showToast({ title: '已拒绝', icon: 'success' })
       loadOrders(1, true)
-    } catch (err: any) {
-      Taro.showToast({ title: err.message || '操作失败', icon: 'none' })
+    } catch (err: unknown) {
+      Taro.showToast({ title: getErrorMessage(err, '操作失败'), icon: 'none' })
     }
   }
 
@@ -162,8 +146,8 @@ export default function Orders() {
       await orderAPI.vote(id, vote)
       Taro.showToast({ title: '投票成功', icon: 'success' })
       loadOrders(1, true)
-    } catch (err: any) {
-      Taro.showToast({ title: err.message || '投票失败', icon: 'none' })
+    } catch (err: unknown) {
+      Taro.showToast({ title: getErrorMessage(err, '投票失败'), icon: 'none' })
     }
   }
 
@@ -177,8 +161,8 @@ export default function Orders() {
       await orderAPI.cancel(id)
       Taro.showToast({ title: '已取消', icon: 'success' })
       loadOrders(1, true)
-    } catch (err: any) {
-      Taro.showToast({ title: err.message || '操作失败', icon: 'none' })
+    } catch (err: unknown) {
+      Taro.showToast({ title: getErrorMessage(err, '操作失败'), icon: 'none' })
     }
   }
 
@@ -253,7 +237,7 @@ export default function Orders() {
               <View className='order-dishes'>
                 {order.order_items?.map(item => (
                   <View key={item.id} className='dish-item'>
-                    <Text className='dish-name'>{(item as any).dish_name || `菜品`}</Text>
+                    <Text className='dish-name'>{item.dish_name || `菜品`}</Text>
                     <Text className='dish-quantity'>x{item.quantity}</Text>
                     {item.unit_price != null && (
                       <Text className='dish-price'>¥{(item.unit_price / 100).toFixed(2)}</Text>

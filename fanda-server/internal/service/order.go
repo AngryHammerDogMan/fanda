@@ -204,8 +204,16 @@ func (s *OrderService) VoteOrder(ctx context.Context, uid uuid.UUID, orderID uui
 	return nil
 }
 
+type OrderVotesResult struct {
+	Approve int               `json:"approve"`
+	Reject  int               `json:"reject"`
+	Skip    int               `json:"skip"`
+	Total   int               `json:"total"`
+	Votes   []model.OrderVote `json:"votes"`
+}
+
 // GetOrderVotes 获取订单投票结果：读取投票明细后在内存中聚合 approve/reject/skip。
-func (s *OrderService) GetOrderVotes(ctx context.Context, uid uuid.UUID, orderID uuid.UUID) (map[string]interface{}, error) {
+func (s *OrderService) GetOrderVotes(ctx context.Context, uid uuid.UUID, orderID uuid.UUID) (*OrderVotesResult, error) {
 	if _, err := CanAccessOrder(ctx, uid, orderID); err != nil {
 		return nil, errors.New("订单不存在")
 	}
@@ -225,12 +233,12 @@ func (s *OrderService) GetOrderVotes(ctx context.Context, uid uuid.UUID, orderID
 		}
 	}
 
-	return map[string]interface{}{
-		"approve": approve,
-		"reject":  reject,
-		"skip":    skip,
-		"total":   len(votes),
-		"votes":   votes,
+	return &OrderVotesResult{
+		Approve: approve,
+		Reject:  reject,
+		Skip:    skip,
+		Total:   len(votes),
+		Votes:   votes,
 	}, nil
 }
 
