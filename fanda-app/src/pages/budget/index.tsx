@@ -1,18 +1,17 @@
 import { View, Text, Input, Picker } from '@tarojs/components'
 import Taro, { useDidShow } from '@tarojs/taro'
 import { useState, useEffect } from 'react'
-import { authAPI, featureAPI, calendarAPI } from '@/services/api'
-import type { User, BudgetSetting, MonthlyStats, BuddyGroup, PickerChangeEvent } from '@/types'
+import { featureAPI, calendarAPI, tableAPI } from '@/services/api'
+import type { BudgetSetting, MonthlyStats, PickerChangeEvent, Table } from '@/types'
 import { getErrorMessage } from '@/utils/error'
+import { getStoredTableId, getTableDisplayName, rememberTableId } from '@/utils/table'
 import './index.scss'
 
-// 预算页：按关系分组与月份展示餐饮预算、实际支出、剩余额度和月度餐食统计。
+// 预算页：按餐桌与月份展示餐饮预算、实际支出、剩余额度和月度餐食统计。
 export default function Budget() {
-  // groupType/groupId/month 共同组成预算与统计查询维度。
-  const [user, setUser] = useState<User | null>(null)
-  const [groupType, setGroupType] = useState('couple')
-  const [groupId, setGroupId] = useState('')
-  const [groups, setGroups] = useState<BuddyGroup[]>([])
+  // activeTableId/month 共同组成预算与统计查询维度。
+  const [tables, setTables] = useState<Table[]>([])
+  const [activeTableId, setActiveTableId] = useState('')
   const [budget, setBudget] = useState<BudgetSetting | null>(null)
   const [stats, setStats] = useState<MonthlyStats | null>(null)
   const [showSetForm, setShowSetForm] = useState(false)
@@ -21,37 +20,31 @@ export default function Budget() {
   const [month, setMonth] = useState(new Date().getMonth() + 1)
 
   useDidShow(() => {
-    loadUser()
+    loadTables()
   })
 
   const currentMonth = `${year}-${String(month).padStart(2, '0')}`
 
-  const loadUser = async () => {
+  const loadTables = async () => {
     try {
-      const res = await authAPI.getProfile()
-      const u: User = res.data
-      setUser(u)
-      setGroups(u.buddy_groups || [])
-      // 关系默认选择逻辑与菜篮子/心愿保持一致：情侣优先，饭搭子兜底。
-      if (u.couple) {
-        setGroupType('couple')
-        setGroupId(u.couple.id)
-      } else if (u.buddy_groups && u.buddy_groups.length > 0) {
-        setGroupType('buddy')
-        setGroupId(u.buddy_groups[0].id)
-      }
-    } catch (err) {
-      console.error('加载用户信息失败', err)
+      const res = await tableAPI.list()
+      const list = res.data || []
+      setTables(list)
+      const nextTableId = activeTableId || getStoredTableId(list)
+      setActiveTableId(nextTableId)
+      rememberTableId(nextTableId)
+    } catch {
+      Taro.showToast({ title: '加载餐桌失败', icon: 'none' })
     }
   }
 
   const loadData = async () => {
-    if (!groupType || !groupId) return
+    if (!activeTableId) return
     try {
       // 预算设置和日历统计独立返回，并发请求后在本页合并计算进度。
       const [budgetRes, statsRes] = await Promise.all([
-        featureAPI.getBudget(groupId, currentMonth),
-        calendarAPI.getStats(groupId, year, month),
+        featureAPI.getBudget(activeTableId, currentMonth),
+        calendarAPI.getStats(activeTableId, year, month),
       ])
       setBudget(budgetRes.data || null)
       setStats(statsRes.data || null)
@@ -61,23 +54,14 @@ export default function Budget() {
   }
 
   useEffect(() => {
-    if (groupType && groupId) {
+    if (activeTableId) {
       loadData()
     }
-  }, [groupType, groupId, year, month])
+  }, [activeTableId, year, month])
 
-  const handleGroupTypeChange = (type: string) => {
-    setGroupType(type)
-    // 切换到饭搭子时清空目标群组，避免继续使用情侣 groupId 查询预算。
-    if (type === 'couple' && user?.couple) {
-      setGroupId(user.couple.id)
-    } else {
-      setGroupId('')
-    }
-  }
-
-  const handleGroupChange = (gid: string) => {
-    setGroupId(gid)
+  const handleTableChange = (tableId: string) => {
+    setActiveTableId(tableId)
+    rememberTableId(tableId)
   }
 
   const handleMonthChange = (e: PickerChangeEvent<string>) => {
@@ -113,7 +97,7 @@ export default function Budget() {
     }
     try {
       await featureAPI.setBudget({
-        table_id: groupId,
+        table_id: activeTableId,
         month: currentMonth,
         budget: amount,
       })
@@ -146,37 +130,19 @@ export default function Budget() {
 
   return (
     <View className='page-budget'>
-      {/* 分组选择 */}
+      {/* 餐桌选择 */}
       <View className='group-bar'>
         <View className='group-type-tabs'>
-          <View
-            className={`group-type-tab ${groupType === 'couple' ? 'active' : ''}`}
-            onClick={() => handleGroupTypeChange('couple')}
-          >
-            <Text>情侣</Text>
-          </View>
-          <View
-            className={`group-type-tab ${groupType === 'buddy' ? 'active' : ''}`}
-            onClick={() => handleGroupTypeChange('buddy')}
-          >
-            <Text>饭搭子</Text>
-          </View>
-        </View>
-        {groupType === 'buddy' && groups.length > 0 && (
-          <View className='group-select'>
-            <View className='group-select-inner'>
-              {groups.map(g => (
-                <View
-                  key={g.id}
-                  className={`group-select-item ${groupId === g.id ? 'active' : ''}`}
-                  onClick={() => handleGroupChange(g.id)}
-                >
-                  <Text>{g.name}</Text>
-                </View>
-              ))}
+          {tables.map(table => (
+            <View
+              key={table.id}
+              className={`group-type-tab ${activeTableId === table.id ? 'active' : ''}`}
+              onClick={() => handleTableChange(table.id)}
+            >
+              <Text>{getTableDisplayName(table)}</Text>
             </View>
-          </View>
-        )}
+          ))}
+        </View>
       </View>
 
       {/* 月份选择器 */}

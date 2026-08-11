@@ -1,20 +1,19 @@
 import { View, Text, Input, Image } from '@tarojs/components'
 import Taro, { useDidShow } from '@tarojs/taro'
 import { useState, useEffect } from 'react'
-import { authAPI, featureAPI } from '@/services/api'
-import type { User, BasketItem, BuddyGroup } from '@/types'
+import { featureAPI, tableAPI } from '@/services/api'
+import type { BasketItem, Table } from '@/types'
 import { getErrorMessage } from '@/utils/error'
+import { getStoredTableId, getTableDisplayName, rememberTableId } from '@/utils/table'
 import './index.scss'
 
-// 菜篮子页：按情侣/饭搭子分组维护采购清单，并支持添加、勾选已购与删除。
+// 菜篮子页：按餐桌维护采购清单，并支持添加、勾选已购与删除。
 const sticker = (name: string) => `/assets/stickers/${name}.png`
 
 export default function Basket() {
-  // groupType/groupId 锁定当前清单归属；groups 仅在饭搭子模式下用于切换具体群组。
-  const [user, setUser] = useState<User | null>(null)
-  const [groupType, setGroupType] = useState('couple')
-  const [groupId, setGroupId] = useState('')
-  const [groups, setGroups] = useState<BuddyGroup[]>([])
+  // activeTableId 锁定当前清单归属。
+  const [tables, setTables] = useState<Table[]>([])
+  const [activeTableId, setActiveTableId] = useState('')
   const [items, setItems] = useState<BasketItem[]>([])
   const [loading, setLoading] = useState(false)
   const [showAddForm, setShowAddForm] = useState(false)
@@ -22,33 +21,27 @@ export default function Basket() {
   const [newQuantity, setNewQuantity] = useState('')
 
   useDidShow(() => {
-    loadUser()
+    loadTables()
   })
 
-  const loadUser = async () => {
+  const loadTables = async () => {
     try {
-      const res = await authAPI.getProfile()
-      const u: User = res.data
-      setUser(u)
-      setGroups(u.buddy_groups || [])
-      // 默认选择情侣；没有情侣关系时回退到第一个饭搭子群组，保证页面尽量有可加载目标。
-      if (u.couple) {
-        setGroupType('couple')
-        setGroupId(u.couple.id)
-      } else if (u.buddy_groups && u.buddy_groups.length > 0) {
-        setGroupType('buddy')
-        setGroupId(u.buddy_groups[0].id)
-      }
-    } catch (err) {
-      console.error('加载用户信息失败', err)
+      const res = await tableAPI.list()
+      const list = res.data || []
+      setTables(list)
+      const nextTableId = activeTableId || getStoredTableId(list)
+      setActiveTableId(nextTableId)
+      rememberTableId(nextTableId)
+    } catch {
+      Taro.showToast({ title: '加载餐桌失败', icon: 'none' })
     }
   }
 
   const loadItems = async () => {
-    if (!groupType || !groupId) return
+    if (!activeTableId) return
     setLoading(true)
     try {
-      const res = await featureAPI.listBasket(groupId)
+      const res = await featureAPI.listBasket(activeTableId)
       setItems(Array.isArray(res.data) ? res.data : res.data?.list || [])
     } catch (err) {
       console.error('加载菜篮子失败', err)
@@ -58,23 +51,14 @@ export default function Basket() {
   }
 
   useEffect(() => {
-    if (groupType && groupId) {
+    if (activeTableId) {
       loadItems()
     }
-  }, [groupType, groupId])
+  }, [activeTableId])
 
-  const handleGroupTypeChange = (type: string) => {
-    setGroupType(type)
-    // 切到情侣时可直接使用用户资料中的 couple；切到饭搭子需等待用户点选具体群组。
-    if (type === 'couple' && user?.couple) {
-      setGroupId(user.couple.id)
-    } else {
-      setGroupId('')
-    }
-  }
-
-  const handleGroupChange = (gid: string) => {
-    setGroupId(gid)
+  const handleTableChange = (tableId: string) => {
+    setActiveTableId(tableId)
+    rememberTableId(tableId)
   }
 
   const handleTogglePurchased = async (item: BasketItem) => {
@@ -111,7 +95,7 @@ export default function Basket() {
     }
     try {
       await featureAPI.addToBasket({
-        table_id: groupId,
+        table_id: activeTableId,
         name: newName.trim(),
         quantity: newQuantity.trim() || '1',
       })
@@ -130,37 +114,19 @@ export default function Basket() {
 
   return (
     <View className='page-basket'>
-      {/* 分组选择 */}
+      {/* 餐桌选择 */}
       <View className='group-bar'>
         <View className='group-type-tabs'>
-          <View
-            className={`group-type-tab ${groupType === 'couple' ? 'active' : ''}`}
-            onClick={() => handleGroupTypeChange('couple')}
-          >
-            <Text>情侣</Text>
-          </View>
-          <View
-            className={`group-type-tab ${groupType === 'buddy' ? 'active' : ''}`}
-            onClick={() => handleGroupTypeChange('buddy')}
-          >
-            <Text>饭搭子</Text>
-          </View>
-        </View>
-        {groupType === 'buddy' && groups.length > 0 && (
-          <View className='group-select'>
-            <View className='group-select-inner'>
-              {groups.map(g => (
-                <View
-                  key={g.id}
-                  className={`group-select-item ${groupId === g.id ? 'active' : ''}`}
-                  onClick={() => handleGroupChange(g.id)}
-                >
-                  <Text>{g.name}</Text>
-                </View>
-              ))}
+          {tables.map(table => (
+            <View
+              key={table.id}
+              className={`group-type-tab ${activeTableId === table.id ? 'active' : ''}`}
+              onClick={() => handleTableChange(table.id)}
+            >
+              <Text>{getTableDisplayName(table)}</Text>
             </View>
-          </View>
-        )}
+          ))}
+        </View>
       </View>
 
       {/* 统计摘要 */}

@@ -1,11 +1,12 @@
 import { View, Text, ScrollView, Image } from '@tarojs/components'
 import Taro, { useDidShow } from '@tarojs/taro'
-import { useState, useMemo } from 'react'
-import { calendarAPI, authAPI } from '@/services/api'
-import type { CalendarRecord, MonthlyStats, User } from '@/types'
+import { useState, useMemo, useEffect } from 'react'
+import { calendarAPI, tableAPI } from '@/services/api'
+import type { CalendarRecord, MonthlyStats, Table } from '@/types'
+import { getStoredTableId, getTableDisplayName, rememberTableId } from '@/utils/table'
 import './index.scss'
 
-// 美食日历页：按情侣/饭搭子关系展示月视图、单日餐食记录与月度金额统计。
+// 美食日历页：按餐桌展示月视图、单日餐食记录与月度金额统计。
 const WEEK_DAYS = ['日', '一', '二', '三', '四', '五', '六']
 const MEAL_LABELS: Record<string, string> = { cook: '做饭', takeout: '外卖', dineout: '外出' }
 const MEAL_COLORS: Record<string, string> = { cook: '#52C41A', takeout: '#FF6B35', dineout: '#1890FF' }
@@ -17,11 +18,9 @@ export default function Calendar() {
   const [currentYear, setCurrentYear] = useState(now.getFullYear())
   const [currentMonth, setCurrentMonth] = useState(now.getMonth() + 1)
   const [selectedDate, setSelectedDate] = useState<string>('')
-  // groupType/groupId 决定日历数据归属，默认优先使用情侣关系。
-  const [groupType, setGroupType] = useState<string>('couple')
-  const [groupId, setGroupId] = useState<string>('')
-
-  const [user, setUser] = useState<User | null>(null)
+  // activeTableId 决定日历数据归属。
+  const [tables, setTables] = useState<Table[]>([])
+  const [activeTableId, setActiveTableId] = useState('')
   const [dateRecordsMap, setDateRecordsMap] = useState<Record<string, CalendarRecord[]>>({})
   const [selectedDateRecords, setSelectedDateRecords] = useState<CalendarRecord[]>([])
   const [monthlyStats, setMonthlyStats] = useState<MonthlyStats | null>(null)
@@ -61,40 +60,34 @@ export default function Calendar() {
   }, [currentYear, currentMonth])
 
   useDidShow(() => {
-    loadUserAndInit()
+    loadTables()
   })
 
-  const loadUserAndInit = async () => {
+  const loadTables = async () => {
     try {
-      const res = await authAPI.getProfile()
-      const u: User = res.data
-      setUser(u)
-
-      // 初始化时优先选情侣；没有情侣关系时回退到第一个饭搭子群组。
-      if (groupType === 'couple' && u.couple) {
-        setGroupId(u.couple.id)
-      } else if (groupType === 'buddy' && u.buddy_groups.length > 0) {
-        setGroupId(u.buddy_groups[0].id)
-      } else {
-        setGroupId('')
-      }
-    } catch (err) {
-      console.error('加载用户信息失败', err)
+      const res = await tableAPI.list()
+      const list = res.data || []
+      setTables(list)
+      const nextTableId = activeTableId || getStoredTableId(list)
+      setActiveTableId(nextTableId)
+      rememberTableId(nextTableId)
+    } catch {
+      Taro.showToast({ title: '加载餐桌失败', icon: 'none' })
     }
   }
 
-  // 当 groupType 或 groupId 变化时加载数据
-  useDidShow(() => {
-    if (groupId) {
+  // 当餐桌或月份变化时加载数据
+  useEffect(() => {
+    if (activeTableId) {
       loadMonthRecords()
       loadStats()
     }
-  })
+  }, [activeTableId, currentYear, currentMonth])
 
   const loadMonthRecords = async () => {
-    if (!groupId) return
+    if (!activeTableId) return
     try {
-      const res = await calendarAPI.listByMonth(groupId, currentYear, currentMonth)
+      const res = await calendarAPI.listByMonth(activeTableId, currentYear, currentMonth)
       const records: CalendarRecord[] = Array.isArray(res.data) ? res.data : res.data?.list || []
       const map: Record<string, CalendarRecord[]> = {}
       // 按日期聚合记录，供日历格子快速判断当天有哪些 meal_type 圆点。
@@ -112,9 +105,9 @@ export default function Calendar() {
   }
 
   const loadStats = async () => {
-    if (!groupId) return
+    if (!activeTableId) return
     try {
-      const res = await calendarAPI.getStats(groupId, currentYear, currentMonth)
+      const res = await calendarAPI.getStats(activeTableId, currentYear, currentMonth)
       setMonthlyStats(res.data)
     } catch (err) {
       console.error('加载统计失败', err)
@@ -122,9 +115,9 @@ export default function Calendar() {
   }
 
   const loadDateRecords = async (date: string) => {
-    if (!groupId) return
+    if (!activeTableId) return
     try {
-      const res = await calendarAPI.listByDate(groupId, date)
+      const res = await calendarAPI.listByDate(activeTableId, date)
       setSelectedDateRecords(Array.isArray(res.data) ? res.data : res.data?.list || [])
     } catch (err) {
       console.error('加载日期记录失败', err)
@@ -160,17 +153,11 @@ export default function Calendar() {
     loadDateRecords(cell.date)
   }
 
-  const handleGroupTypeChange = (type: string) => {
-    setGroupType(type)
+  const handleTableChange = (tableId: string) => {
+    setActiveTableId(tableId)
+    rememberTableId(tableId)
     setSelectedDate('')
     setSelectedDateRecords([])
-    if (type === 'couple' && user?.couple) {
-      setGroupId(user.couple.id)
-    } else if (type === 'buddy' && user?.buddy_groups?.length) {
-      setGroupId(user.buddy_groups[0].id)
-    } else {
-      setGroupId('')
-    }
   }
 
   const handleAddRecord = () => {
@@ -223,25 +210,22 @@ export default function Calendar() {
         <View className='budget-copy'>
           <Text className='budget-title'>本月餐桌</Text>
           <Text className='budget-desc'>
-            {monthlyStats ? `已记录 ${monthlyStats.total_records} 餐 · 合计 ¥${monthlyStats.total_amount}` : '选择关系后查看本月餐桌记录'}
+            {monthlyStats ? `已记录 ${monthlyStats.total_records} 餐 · 合计 ¥${monthlyStats.total_amount}` : '切换餐桌后查看本月记录'}
           </Text>
         </View>
       </View>
 
-      {/* 分组选择器 */}
+      {/* 餐桌选择器 */}
       <View className='group-selector'>
-        <View
-          className={`group-tab ${groupType === 'couple' ? 'active' : ''}`}
-          onClick={() => handleGroupTypeChange('couple')}
-        >
-          情侣
-        </View>
-        <View
-          className={`group-tab ${groupType === 'buddy' ? 'active' : ''}`}
-          onClick={() => handleGroupTypeChange('buddy')}
-        >
-          饭搭子
-        </View>
+        {tables.map(table => (
+          <View
+            key={table.id}
+            className={`group-tab ${activeTableId === table.id ? 'active' : ''}`}
+            onClick={() => handleTableChange(table.id)}
+          >
+            {getTableDisplayName(table)}
+          </View>
+        ))}
       </View>
 
       {/* 月份导航 */}

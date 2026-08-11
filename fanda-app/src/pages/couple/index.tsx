@@ -6,7 +6,7 @@ import type { CoupleInfo } from '@/types'
 import { getErrorMessage } from '@/utils/error'
 import './index.scss'
 
-// 情侣关系页：展示当前情侣绑定状态，并支持生成邀请码或输入邀请码完成绑定。
+// 情侣餐桌页：展示当前餐桌绑定状态，并支持生成邀请码或输入邀请码完成绑定。
 const sticker = (name: string) => `/assets/stickers/${name}.png`
 
 export default function Couple() {
@@ -90,7 +90,7 @@ export default function Couple() {
         <View className='status-header'>
           <Image className='status-icon' src={sticker('couple')} mode='aspectFit' />
           <Text className='status-title'>
-            {couple ? '已绑定情侣' : '未绑定情侣'}
+            {couple ? '已绑定情侣餐桌' : '未绑定情侣餐桌'}
           </Text>
         </View>
         {couple ? (
@@ -109,8 +109,8 @@ export default function Couple() {
           </View>
         ) : (
           <View className='empty-couple'>
-            <Text className='empty-text'>你还未绑定情侣</Text>
-            <Text className='empty-hint'>创建或加入情侣组，一起分享美食吧</Text>
+            <Text className='empty-text'>你还未绑定情侣餐桌</Text>
+            <Text className='empty-hint'>创建或加入情侣餐桌，一起分享美食吧</Text>
           </View>
         )}
       </View>
@@ -133,7 +133,7 @@ export default function Couple() {
             <View className='action-card'>
               <View className='action-header'>
                 <Image className='action-icon' src={sticker('couple-muted')} mode='aspectFit' />
-                <Text className='action-title'>加入情侣</Text>
+                <Text className='action-title'>加入情侣餐桌</Text>
               </View>
               <Text className='action-desc'>输入对方分享的邀请码完成绑定</Text>
               {showJoinInput ? (
@@ -165,7 +165,7 @@ export default function Couple() {
           <View className='action-card'>
             <View className='action-header'>
               <Image className='action-icon' src={sticker('couple')} mode='aspectFit' />
-              <Text className='action-title'>情侣功能</Text>
+              <Text className='action-title'>情侣餐桌</Text>
             </View>
             <Text className='action-desc'>你们可以共享菜品、点单和日历记录</Text>
             <View className='action-btn outline danger' onClick={handleUnbind}>

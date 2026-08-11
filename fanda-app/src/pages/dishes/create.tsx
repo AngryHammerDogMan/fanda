@@ -1,8 +1,9 @@
 import { View, Text, Input, Image, ScrollView, Picker } from '@tarojs/components'
 import Taro, { useRouter, useDidShow } from '@tarojs/taro'
 import { useState } from 'react'
-import { dishAPI, authAPI } from '@/services/api'
-import type { Dish, Ingredient, Step, BuddyGroup, DishPayload, PickerChangeEvent } from '@/types'
+import { dishAPI, tableAPI } from '@/services/api'
+import type { Dish, Ingredient, Step, DishPayload, PickerChangeEvent, Table } from '@/types'
+import { getStoredTableId, getTableDisplayName, rememberTableId } from '@/utils/table'
 import './create.scss'
 
 const DISH_TYPES = [
@@ -24,12 +25,6 @@ const DIFFICULTIES = [
   { value: 3, label: '困难' },
   { value: 4, label: '大师' },
 ]
-
-const GROUP_TYPES = [
-  { key: 'couple', label: '情侣' },
-  { key: 'buddy', label: '饭搭子' },
-]
-const DEFAULT_TABLE_ID = 'h5-personal-table'
 
 const getPickerIndex = (event: PickerChangeEvent): number => {
   const { value } = event.detail
@@ -57,17 +52,29 @@ export default function DishCreate() {
   const [restaurant, setRestaurant] = useState('')
   const [restaurantNote, setRestaurantNote] = useState('')
   const [photos, setPhotos] = useState<string[]>([])
-  const [groupType, setGroupType] = useState('couple')
-  const [groupId, setGroupId] = useState('')
-  const [buddyGroups, setBuddyGroups] = useState<BuddyGroup[]>([])
+  const [tables, setTables] = useState<Table[]>([])
+  const [activeTableId, setActiveTableId] = useState('')
   const [submitting, setSubmitting] = useState(false)
 
   useDidShow(() => {
     if (isEdit && id) {
       loadDishDetail(id)
     }
-    loadUserGroups()
+    loadTables()
   })
+
+  const loadTables = async () => {
+    try {
+      const res = await tableAPI.list()
+      const list = res.data || []
+      setTables(list)
+      const nextTableId = activeTableId || getStoredTableId(list)
+      setActiveTableId(nextTableId)
+      rememberTableId(nextTableId)
+    } catch {
+      Taro.showToast({ title: '加载餐桌失败', icon: 'none' })
+    }
+  }
 
   const loadDishDetail = async (dishId: string) => {
     try {
@@ -85,22 +92,11 @@ export default function DishCreate() {
       setRestaurant(dish.restaurant || '')
       setRestaurantNote(dish.restaurant_note || '')
       setPhotos(dish.photos || [])
-      setGroupId(dish.table_id || '')
+      setActiveTableId(dish.table_id || '')
+      rememberTableId(dish.table_id || '')
     } catch (err) {
       console.error('加载菜品失败', err)
       Taro.showToast({ title: '加载失败', icon: 'none' })
-    }
-  }
-
-  const loadUserGroups = async () => {
-    try {
-      const res = await authAPI.getProfile()
-      const user = res.data
-      if (user.buddy_groups) {
-        setBuddyGroups(user.buddy_groups)
-      }
-    } catch (err) {
-      // 忽略
     }
   }
 
@@ -177,8 +173,8 @@ export default function DishCreate() {
       return
     }
 
-    if (!groupType) {
-      Taro.showToast({ title: '请选择分组类型', icon: 'none' })
+    if (!activeTableId) {
+      Taro.showToast({ title: '请选择餐桌', icon: 'none' })
       return
     }
 
@@ -197,7 +193,7 @@ export default function DishCreate() {
       restaurant,
       restaurant_note: restaurantNote,
       photos,
-      table_id: groupId || Taro.getStorageSync('last-order-table-id') || DEFAULT_TABLE_ID,
+      table_id: activeTableId,
     }
 
     try {
@@ -226,15 +222,12 @@ export default function DishCreate() {
     setDifficulty(DIFFICULTIES[getPickerIndex(e)].value)
   }
 
-  const handleGroupTypeChange = (e: PickerChangeEvent) => {
-    setGroupType(GROUP_TYPES[getPickerIndex(e)].key)
-    setGroupId('')
-  }
-
-  const handleBuddyGroupChange = (e: PickerChangeEvent) => {
+  const handleTableChange = (e: PickerChangeEvent) => {
     const index = getPickerIndex(e)
-    if (buddyGroups[index]) {
-      setGroupId(buddyGroups[index].id)
+    const tableId = tables[index]?.id || ''
+    if (tableId) {
+      setActiveTableId(tableId)
+      rememberTableId(tableId)
     }
   }
 
@@ -247,12 +240,8 @@ export default function DishCreate() {
     return DIFFICULTIES.findIndex(d => d.value === difficulty)
   }
 
-  const getGroupTypeIndex = () => {
-    return GROUP_TYPES.findIndex(g => g.key === groupType)
-  }
-
-  const getBuddyGroupIndex = () => {
-    return buddyGroups.findIndex(g => g.id === groupId)
+  const getTableIndex = () => {
+    return Math.max(0, tables.findIndex(table => table.id === activeTableId))
   }
 
   return (
@@ -495,42 +484,23 @@ export default function DishCreate() {
             </View>
           </View>
 
-          {/* 分组信息 */}
+          {/* 餐桌 */}
           <View className='form-section'>
-            <Text className='section-label'>分组类型</Text>
+            <Text className='section-label'>餐桌</Text>
             <Picker
               mode='selector'
-              range={GROUP_TYPES.map(g => g.label)}
-              value={getGroupTypeIndex()}
-              onChange={handleGroupTypeChange}
+              range={tables.map(table => getTableDisplayName(table))}
+              value={getTableIndex()}
+              onChange={handleTableChange}
             >
               <View className='picker-wrap'>
-                <Text className='picker-value'>
-                  {GROUP_TYPES.find(g => g.key === groupType)?.label || '请选择'}
+                <Text className={activeTableId ? 'picker-value' : 'picker-placeholder'}>
+                  {getTableDisplayName(tables.find(table => table.id === activeTableId) || null)}
                 </Text>
                 <Text className='picker-arrow'>›</Text>
               </View>
             </Picker>
           </View>
-
-          {groupType === 'buddy' && buddyGroups.length > 0 && (
-            <View className='form-section'>
-              <Text className='section-label'>选择饭搭子群组</Text>
-              <Picker
-                mode='selector'
-                range={buddyGroups.map(g => g.name)}
-                value={getBuddyGroupIndex()}
-                onChange={handleBuddyGroupChange}
-              >
-                <View className='picker-wrap'>
-                  <Text className={groupId ? 'picker-value' : 'picker-placeholder'}>
-                    {groupId ? buddyGroups.find(g => g.id === groupId)?.name : '请选择群组'}
-                  </Text>
-                  <Text className='picker-arrow'>›</Text>
-                </View>
-              </Picker>
-            </View>
-          )}
         </View>
       </ScrollView>
 

@@ -6,7 +6,7 @@ import type { User, BuddyGroup, BuddyMember } from '@/types'
 import { getErrorMessage } from '@/utils/error'
 import './index.scss'
 
-// 饭搭子管理页：维护用户的饭搭子群组、邀请加入流程与成员管理入口。
+// 饭搭餐桌管理页：维护用户的饭搭餐桌、邀请加入流程与成员管理入口。
 const sticker = (name: string) => `/assets/stickers/${name}.png`
 
 export default function Buddy() {
@@ -32,7 +32,7 @@ export default function Buddy() {
       setUser(u)
       const gs = u.buddy_groups || []
       setGroups(gs)
-      // 首次进入默认选中第一个群组，避免已有群组时详情区为空。
+      // 首次进入默认选中第一个餐桌，避免已有餐桌时详情区为空。
       if (gs.length > 0 && !selectedGroup) {
         setSelectedGroup(gs[0])
       }
@@ -55,7 +55,7 @@ export default function Buddy() {
       const u: User = res.data
       setUser(u)
       setGroups(u.buddy_groups || [])
-      // 从群组中获取成员（简化处理，实际项目应有专门的 API）。
+      // 从餐桌中获取成员（简化处理，实际项目应有专门的 API）。
       setMembers([])
     } catch (err) {
       console.error('加载成员失败', err)
@@ -66,7 +66,7 @@ export default function Buddy() {
 
   const handleCreateGroup = async () => {
     if (!newGroupName.trim()) {
-      Taro.showToast({ title: '请输入群组名称', icon: 'none' })
+      Taro.showToast({ title: '请输入餐桌名称', icon: 'none' })
       return
     }
     setLoading(true)
@@ -91,7 +91,7 @@ export default function Buddy() {
       const { code } = res.data
       Taro.showModal({
         title: '邀请码已生成',
-        content: `邀请码：${code}\n将此码分享给好友加入群组`,
+        content: `邀请码：${code}\n将此码分享给好友加入餐桌`,
         showCancel: false,
         confirmText: '复制',
         success: () => {
@@ -107,7 +107,7 @@ export default function Buddy() {
   }
 
   const handleJoinGroup = async () => {
-    // 加入群组接口依赖当前选中群组 ID，未选中时不发起请求。
+    // 加入餐桌接口依赖当前选中餐桌 ID，未选中时不发起请求。
     if (!selectedGroup) return
     if (!joinCode.trim()) {
       Taro.showToast({ title: '请输入邀请码', icon: 'none' })
@@ -147,10 +147,10 @@ export default function Buddy() {
 
   return (
     <View className='page-buddy'>
-      {/* 群组列表 */}
+      {/* 餐桌列表 */}
       <View className='group-section'>
         <View className='section-header'>
-          <Text className='section-title'>我的饭搭子群组</Text>
+          <Text className='section-title'>我的饭搭餐桌</Text>
           <View className='create-btn' onClick={() => setShowCreateForm(true)}>
             <Text>+ 新建</Text>
           </View>
@@ -160,7 +160,7 @@ export default function Buddy() {
           <View className='create-form'>
             <Input
               className='create-input'
-              placeholder='输入群组名称'
+              placeholder='输入餐桌名称'
               value={newGroupName}
               onInput={e => setNewGroupName(e.detail.value)}
               focus
@@ -179,8 +179,8 @@ export default function Buddy() {
         {groups.length === 0 ? (
           <View className='empty-groups'>
             <Image className='empty-icon' src={sticker('buddy')} mode='aspectFit' />
-            <Text className='empty-text'>暂无饭搭子群组</Text>
-            <Text className='empty-hint'>创建一个群组，邀请好友一起吃饭吧</Text>
+            <Text className='empty-text'>暂无饭搭餐桌</Text>
+            <Text className='empty-hint'>创建一个餐桌，邀请好友一起吃饭吧</Text>
           </View>
         ) : (
           <View className='group-list'>
@@ -198,7 +198,7 @@ export default function Buddy() {
                 </View>
                 {group.owner_id === user?.uid && (
                   <View className='owner-tag'>
-                    <Text>群主</Text>
+                    <Text>桌主</Text>
                   </View>
                 )}
               </View>
@@ -207,7 +207,7 @@ export default function Buddy() {
         )}
       </View>
 
-      {/* 选中群组的详情 */}
+      {/* 选中餐桌的详情 */}
       {selectedGroup && (
         <View className='detail-section'>
           <View className='section-header'>
@@ -252,7 +252,7 @@ export default function Buddy() {
                 </View>
                 <View className='member-info'>
                   <Text className='member-name'>我（{user?.nickname}）</Text>
-                  <Text className='member-role'>群主</Text>
+                  <Text className='member-role'>桌主</Text>
                 </View>
               </View>
               {members.map(member => (
@@ -263,7 +263,7 @@ export default function Buddy() {
                   <View className='member-info'>
                     <Text className='member-name'>{member.user_id}</Text>
                     <Text className='member-role'>
-                      {member.role === 'owner' ? '群主' : member.role === 'admin' ? '管理员' : '成员'}
+                      {member.role === 'owner' ? '桌主' : member.role === 'admin' ? '管理员' : '成员'}
                     </Text>
                   </View>
                   {isOwner && member.role !== 'owner' && (

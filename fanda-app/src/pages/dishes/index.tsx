@@ -1,8 +1,9 @@
 import { View, Text, Image, Input, ScrollView } from '@tarojs/components'
 import Taro, { useDidShow, useReachBottom } from '@tarojs/taro'
 import { useState, useCallback } from 'react'
-import { dishAPI } from '@/services/api'
-import type { Dish, DishListParams } from '@/types'
+import { dishAPI, tableAPI } from '@/services/api'
+import type { Dish, DishListParams, Table } from '@/types'
+import { getStoredTableId, getTableDisplayName, rememberTableId } from '@/utils/table'
 import './index.scss'
 
 // 菜品列表页：按类型与关键词浏览自建菜品，并承接下拉/滚动分页与新增入口。
@@ -21,10 +22,11 @@ const DIFFICULTY_LABELS: Record<number, string> = {
 }
 
 const sticker = (name: string) => `/assets/stickers/${name}.png`
-const DEFAULT_TABLE_ID = 'h5-personal-table'
 
 export default function DishesIndex() {
   // activeTab/searchKeyword/page/hasMore 共同描述当前列表查询条件与分页游标。
+  const [tables, setTables] = useState<Table[]>([])
+  const [activeTableId, setActiveTableId] = useState('')
   const [activeTab, setActiveTab] = useState('all')
   const [searchKeyword, setSearchKeyword] = useState('')
   const [dishes, setDishes] = useState<Dish[]>([])
@@ -34,13 +36,14 @@ export default function DishesIndex() {
 
   const pageSize = 10
 
-  const loadDishes = useCallback(async (pageNum: number, append: boolean) => {
+  const loadDishes = useCallback(async (pageNum: number, append: boolean, tableId = activeTableId) => {
     if (loading) return
+    if (!tableId) return
     setLoading(true)
 
     try {
       const params: DishListParams = {
-        table_id: Taro.getStorageSync('last-order-table-id') || DEFAULT_TABLE_ID,
+        table_id: tableId,
         page: pageNum,
         page_size: pageSize,
       }
@@ -70,13 +73,29 @@ export default function DishesIndex() {
     } finally {
       setLoading(false)
     }
-  }, [activeTab, searchKeyword, loading])
+  }, [activeTab, activeTableId, searchKeyword, loading])
+
+  const loadTables = async () => {
+    try {
+      const res = await tableAPI.list()
+      const list = res.data || []
+      setTables(list)
+      const nextTableId = activeTableId || getStoredTableId(list)
+      setActiveTableId(nextTableId)
+      rememberTableId(nextTableId)
+      if (nextTableId) {
+        setPage(1)
+        setDishes([])
+        setHasMore(true)
+        loadDishes(1, false, nextTableId)
+      }
+    } catch {
+      Taro.showToast({ title: '加载餐桌失败', icon: 'none' })
+    }
+  }
 
   useDidShow(() => {
-    setPage(1)
-    setDishes([])
-    setHasMore(true)
-    loadDishes(1, false)
+    loadTables()
   })
 
   useReachBottom(() => {
@@ -94,6 +113,15 @@ export default function DishesIndex() {
     setTimeout(() => {
       loadDishes(1, false)
     }, 0)
+  }
+
+  const handleTableChange = (tableId: string) => {
+    setActiveTableId(tableId)
+    rememberTableId(tableId)
+    setDishes([])
+    setPage(1)
+    setHasMore(true)
+    loadDishes(1, false, tableId)
   }
 
   const handleSearch = () => {
@@ -130,9 +158,25 @@ export default function DishesIndex() {
       <View className='dishes-hero'>
         <View>
           <Text className='fanda-title'>我们的菜单</Text>
-          <Text className='fanda-subtitle'>收藏会做的菜、外卖灵感和想去的餐厅</Text>
+          <Text className='fanda-subtitle'>{getTableDisplayName(tables.find(table => table.id === activeTableId) || null)} · 收藏会做的菜、外卖灵感和想去的餐厅</Text>
         </View>
         <Image className='hero-sticker' src={sticker('menu')} mode='aspectFit' />
+      </View>
+
+      <View className='tab-bar fanda-filter'>
+        <ScrollView className='tab-scroll' scrollX scrollWithAnimation>
+          <View className='tab-list'>
+            {tables.map(table => (
+              <View
+                key={table.id}
+                className={`tab-item ${activeTableId === table.id ? 'active' : ''}`}
+                onClick={() => handleTableChange(table.id)}
+              >
+                <Text className='tab-label'>{getTableDisplayName(table)}</Text>
+              </View>
+            ))}
+          </View>
+        </ScrollView>
       </View>
 
       {/* 搜索栏 */}

@@ -242,15 +242,15 @@ export default function Profile() {
         </View>
       </View>
 
-      {/* 关系管理 */}
+      {/* 餐桌管理 */}
       <View className='section'>
-        <View className='section-title'>关系管理</View>
+        <View className='section-title'>餐桌管理</View>
         <View className='menu-list'>
           <View className='menu-item' onClick={() => handleNavigate('/pages/couple/index')}>
             <View className='menu-left'>
               <Image className='menu-icon' src={sticker('couple')} mode='aspectFit' />
               <View className='menu-text'>
-                <Text className='menu-name'>情侣管理</Text>
+                <Text className='menu-name'>情侣餐桌</Text>
                 <Text className='menu-desc'>
                   {user?.couple ? '已绑定' : '未绑定'}
                 </Text>
@@ -262,9 +262,9 @@ export default function Profile() {
             <View className='menu-left'>
               <Image className='menu-icon' src={sticker('buddy')} mode='aspectFit' />
               <View className='menu-text'>
-                <Text className='menu-name'>饭搭子管理</Text>
+                <Text className='menu-name'>饭搭餐桌</Text>
                 <Text className='menu-desc'>
-                  {user?.buddy_groups?.length || 0} 个群组
+                  {user?.buddy_groups?.length || 0} 张餐桌
                 </Text>
               </View>
             </View>

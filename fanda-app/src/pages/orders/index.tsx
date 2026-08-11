@@ -4,6 +4,7 @@ import { useState, useCallback } from 'react'
 import { orderAPI } from '@/services/api'
 import type { Order, OrderListParams } from '@/types'
 import { getErrorMessage } from '@/utils/error'
+import { LAST_ORDER_TABLE_KEY } from '@/utils/table'
 import './index.scss'
 
 // 订单列表页：按状态筛选点单记录，并提供确认、拒绝、投票和取消等订单操作。
@@ -65,7 +66,7 @@ export default function Orders() {
     setLoading(true)
     try {
       const params: OrderListParams = {
-        table_id: Taro.getStorageSync('last-order-table-id') || DEFAULT_TABLE_ID,
+        table_id: Taro.getStorageSync(LAST_ORDER_TABLE_KEY) || DEFAULT_TABLE_ID,
         page: pageNum,
         page_size: PAGE_SIZE,
       }
@@ -100,7 +101,7 @@ export default function Orders() {
     setLoading(true)
     try {
       const params: OrderListParams = {
-        table_id: Taro.getStorageSync('last-order-table-id') || DEFAULT_TABLE_ID,
+        table_id: Taro.getStorageSync(LAST_ORDER_TABLE_KEY) || DEFAULT_TABLE_ID,
         page: 1,
         page_size: PAGE_SIZE,
       }

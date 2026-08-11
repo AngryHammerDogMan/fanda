@@ -1,22 +1,21 @@
 import { View, Text, Input, Image } from '@tarojs/components'
 import Taro, { useDidShow } from '@tarojs/taro'
 import { useState, useEffect } from 'react'
-import { authAPI, featureAPI } from '@/services/api'
-import type { User, WishItem, BuddyGroup } from '@/types'
+import { featureAPI, tableAPI } from '@/services/api'
+import type { WishItem, Table } from '@/types'
 import { getErrorMessage } from '@/utils/error'
+import { getStoredTableId, getTableDisplayName, rememberTableId } from '@/utils/table'
 import './index.scss'
 
-// 心愿页：按关系分组维护想吃/想去清单，支持完成、删除与状态筛选。
+// 心愿页：按餐桌维护想吃/想去清单，支持完成、删除与状态筛选。
 const sticker = (name: string) => `/assets/stickers/${name}.png`
 
 type FilterType = '全部' | '未完成' | '已完成'
 
 export default function Wishes() {
-  // groupType/groupId 决定心愿归属；filter 控制是否把完成状态传给接口。
-  const [user, setUser] = useState<User | null>(null)
-  const [groupType, setGroupType] = useState('couple')
-  const [groupId, setGroupId] = useState('')
-  const [groups, setGroups] = useState<BuddyGroup[]>([])
+  // activeTableId 决定心愿归属；filter 控制是否把完成状态传给接口。
+  const [tables, setTables] = useState<Table[]>([])
+  const [activeTableId, setActiveTableId] = useState('')
   const [wishes, setWishes] = useState<WishItem[]>([])
   const [loading, setLoading] = useState(false)
   const [filter, setFilter] = useState<FilterType>('全部')
@@ -25,34 +24,29 @@ export default function Wishes() {
   const [newNote, setNewNote] = useState('')
 
   useDidShow(() => {
-    loadUser()
+    loadTables()
   })
 
-  const loadUser = async () => {
+  const loadTables = async () => {
     try {
-      const res = await authAPI.getProfile()
-      const u: User = res.data
-      setUser(u)
-      setGroups(u.buddy_groups || [])
-      if (u.couple) {
-        setGroupType('couple')
-        setGroupId(u.couple.id)
-      } else if (u.buddy_groups && u.buddy_groups.length > 0) {
-        setGroupType('buddy')
-        setGroupId(u.buddy_groups[0].id)
-      }
-    } catch (err) {
-      console.error('加载用户信息失败', err)
+      const res = await tableAPI.list()
+      const list = res.data || []
+      setTables(list)
+      const nextTableId = activeTableId || getStoredTableId(list)
+      setActiveTableId(nextTableId)
+      rememberTableId(nextTableId)
+    } catch {
+      Taro.showToast({ title: '加载餐桌失败', icon: 'none' })
     }
   }
 
   const loadWishes = async () => {
-    if (!groupType || !groupId) return
+    if (!activeTableId) return
     setLoading(true)
     try {
       // “全部”不传 completed，让后端返回完整列表；其他筛选转换为布尔值。
       const completedParam = filter === '全部' ? undefined : filter === '已完成'
-      const res = await featureAPI.listWishes(groupId, completedParam)
+      const res = await featureAPI.listWishes(activeTableId, completedParam)
       setWishes(Array.isArray(res.data) ? res.data : res.data?.list || [])
     } catch (err) {
       console.error('加载心愿失败', err)
@@ -62,23 +56,14 @@ export default function Wishes() {
   }
 
   useEffect(() => {
-    if (groupType && groupId) {
+    if (activeTableId) {
       loadWishes()
     }
-  }, [groupType, groupId, filter])
+  }, [activeTableId, filter])
 
-  const handleGroupTypeChange = (type: string) => {
-    setGroupType(type)
-    // 饭搭子模式下必须再选择具体群组，因此先清空 groupId，防止沿用情侣 ID。
-    if (type === 'couple' && user?.couple) {
-      setGroupId(user.couple.id)
-    } else {
-      setGroupId('')
-    }
-  }
-
-  const handleGroupChange = (gid: string) => {
-    setGroupId(gid)
+  const handleTableChange = (tableId: string) => {
+    setActiveTableId(tableId)
+    rememberTableId(tableId)
   }
 
   const handleFilterChange = (f: FilterType) => {
@@ -124,7 +109,7 @@ export default function Wishes() {
     }
     try {
       await featureAPI.createWish({
-        table_id: groupId,
+        table_id: activeTableId,
         name: newName.trim(),
         note: newNote.trim(),
       })
@@ -143,37 +128,19 @@ export default function Wishes() {
 
   return (
     <View className='page-wishes'>
-      {/* 分组选择 */}
+      {/* 餐桌选择 */}
       <View className='group-bar'>
         <View className='group-type-tabs'>
-          <View
-            className={`group-type-tab ${groupType === 'couple' ? 'active' : ''}`}
-            onClick={() => handleGroupTypeChange('couple')}
-          >
-            <Text>情侣</Text>
-          </View>
-          <View
-            className={`group-type-tab ${groupType === 'buddy' ? 'active' : ''}`}
-            onClick={() => handleGroupTypeChange('buddy')}
-          >
-            <Text>饭搭子</Text>
-          </View>
-        </View>
-        {groupType === 'buddy' && groups.length > 0 && (
-          <View className='group-select'>
-            <View className='group-select-inner'>
-              {groups.map(g => (
-                <View
-                  key={g.id}
-                  className={`group-select-item ${groupId === g.id ? 'active' : ''}`}
-                  onClick={() => handleGroupChange(g.id)}
-                >
-                  <Text>{g.name}</Text>
-                </View>
-              ))}
+          {tables.map(table => (
+            <View
+              key={table.id}
+              className={`group-type-tab ${activeTableId === table.id ? 'active' : ''}`}
+              onClick={() => handleTableChange(table.id)}
+            >
+              <Text>{getTableDisplayName(table)}</Text>
             </View>
-          </View>
-        )}
+          ))}
+        </View>
       </View>
 
       {/* 统计摘要 */}

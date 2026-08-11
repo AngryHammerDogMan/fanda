@@ -1,3 +1,3 @@
 export default definePageConfig({
-  navigationBarTitleText: '情侣管理'
+  navigationBarTitleText: '情侣餐桌'
 })

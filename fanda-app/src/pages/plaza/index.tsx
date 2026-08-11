@@ -1,12 +1,13 @@
 import { View, Text, Input, ScrollView, Image } from '@tarojs/components'
 import Taro, { useDidShow } from '@tarojs/taro'
 import { useState } from 'react'
-import { dishAPI } from '@/services/api'
-import type { PlazaDish, PlazaSearchParams } from '@/types'
+import { dishAPI, tableAPI } from '@/services/api'
+import type { PlazaDish, PlazaSearchParams, Table } from '@/types'
 import { getErrorMessage } from '@/utils/error'
+import { getStoredTableId, getTableDisplayName, rememberTableId } from '@/utils/table'
 import './index.scss'
 
-// 学菜广场页：浏览公开菜品模板，并将目标菜品导入到选中的情侣/饭搭子分组。
+// 学菜广场页：浏览公开菜品模板，并将目标菜品导入到选中的餐桌。
 const sticker = (name: string) => `/assets/stickers/${name}.png`
 
 export default function Plaza() {
@@ -18,13 +19,27 @@ export default function Plaza() {
   const [loading, setLoading] = useState(false)
   const [page, setPage] = useState(1)
   const [hasMore, setHasMore] = useState(true)
-  const [groupType, setGroupType] = useState('couple')
-  const [groupId, setGroupId] = useState('')
+  const [tables, setTables] = useState<Table[]>([])
+  const [activeTableId, setActiveTableId] = useState('')
 
   useDidShow(() => {
+    loadTables()
     loadCategories()
     loadDishes(true)
   })
+
+  const loadTables = async () => {
+    try {
+      const res = await tableAPI.list()
+      const list = res.data || []
+      setTables(list)
+      const nextTableId = activeTableId || getStoredTableId(list)
+      setActiveTableId(nextTableId)
+      rememberTableId(nextTableId)
+    } catch {
+      Taro.showToast({ title: '加载餐桌失败', icon: 'none' })
+    }
+  }
 
   const loadCategories = async () => {
     try {
@@ -78,13 +93,13 @@ export default function Plaza() {
   }
 
   const handleImport = async (dish: PlazaDish) => {
-    if (!groupType || !groupId) {
-      // 导入必须明确目标关系，否则后端无法把广场菜品落到用户自己的菜单。
-      Taro.showToast({ title: '请先选择目标分组', icon: 'none' })
+    if (!activeTableId) {
+      // 导入必须明确目标餐桌，否则后端无法把广场菜品落到用户自己的菜单。
+      Taro.showToast({ title: '请先选择目标餐桌', icon: 'none' })
       return
     }
     try {
-      await dishAPI.importFromPlaza(dish.id, groupId)
+      await dishAPI.importFromPlaza(dish.id, activeTableId)
       Taro.showToast({ title: '导入成功', icon: 'success' })
       // 更新导入计数
       setDishes(prev => prev.map(d =>
@@ -93,6 +108,11 @@ export default function Plaza() {
     } catch (err: unknown) {
       Taro.showToast({ title: getErrorMessage(err, '导入失败'), icon: 'none' })
     }
+  }
+
+  const handleTableChange = (tableId: string) => {
+    setActiveTableId(tableId)
+    rememberTableId(tableId)
   }
 
   const handleViewDetail = (id: string) => {
@@ -144,22 +164,19 @@ export default function Plaza() {
         </View>
       </ScrollView>
 
-      {/* 目标分组选择 */}
+      {/* 目标餐桌选择 */}
       <View className='group-selector'>
         <Text className='group-label'>导入到：</Text>
         <View className='group-options'>
-          <View
-            className={`group-option ${groupType === 'couple' ? 'active' : ''}`}
-            onClick={() => setGroupType('couple')}
-          >
-            <Text>情侣</Text>
-          </View>
-          <View
-            className={`group-option ${groupType === 'buddy' ? 'active' : ''}`}
-            onClick={() => { setGroupType('buddy'); setGroupId('') }}
-          >
-            <Text>饭搭子</Text>
-          </View>
+          {tables.map(table => (
+            <View
+              key={table.id}
+              className={`group-option ${activeTableId === table.id ? 'active' : ''}`}
+              onClick={() => handleTableChange(table.id)}
+            >
+              <Text>{getTableDisplayName(table)}</Text>
+            </View>
+          ))}
         </View>
       </View>
 
