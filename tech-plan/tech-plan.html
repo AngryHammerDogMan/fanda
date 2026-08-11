@@ -4,7 +4,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>饭搭小程序 - 前后端技术方案</title>
+<title>饭搭餐桌点单小程序 - 前后端技术方案</title>
 
 <style>
 /* === Theme CSS variables === */
@@ -807,8 +807,8 @@ erDiagram
     orders {
         uuid id PK
         uuid creator_id FK
-        uuid group_id FK
-        string type "couple|buddy"
+        uuid table_id FK
+        string type "personal|couple|buddy"
         string status "pending|confirmed|cancelled"
         string dine_mode "together|solo"
         decimal total_amount
@@ -839,8 +839,7 @@ erDiagram
       <tbody>
         <tr><td>id</td><td>UUID</td><td>PK</td><td>菜品唯一 ID</td></tr>
         <tr><td>owner_id</td><td>UUID</td><td>FK → users.uid</td><td>创建者</td></tr>
-        <tr><td>group_type</td><td>VARCHAR(10)</td><td>NOT NULL</td><td>归属类型：couple / buddy</td></tr>
-        <tr><td>group_id</td><td>UUID</td><td>FK</td><td>归属组合 ID（情侣或饭搭子组合）</td></tr>
+        <tr><td>table_id</td><td>UUID</td><td>FK → tables.id</td><td>归属餐桌 ID（我的餐桌、情侣餐桌或饭搭餐桌）</td></tr>
         <tr><td>dish_type</td><td>VARCHAR(10)</td><td>NOT NULL</td><td>条目类型：dish / takeout / dineout</td></tr>
         <tr><td>name</td><td>VARCHAR(100)</td><td>NOT NULL</td><td>名称</td></tr>
         <tr><td>category</td><td>VARCHAR(30)</td><td>—</td><td>分类</td></tr>
@@ -1024,18 +1023,17 @@ erDiagram
     </table>
   </div>
 
-  <h4>关系模块</h4>
+  <h4>餐桌模块</h4>
   <div class="table-wrap">
     <table>
       <thead>
         <tr><th>方法</th><th>路径</th><th>说明</th></tr>
       </thead>
       <tbody>
-        <tr><td><span class="api-method post">POST</span></td><td><span class="api-path">/api/v1/couple/invite</span></td><td><span class="api-desc">生成情侣邀请码</span></td></tr>
-        <tr><td><span class="api-method post">POST</span></td><td><span class="api-path">/api/v1/couple/join</span></td><td><span class="api-desc">通过邀请码绑定情侣关系</span></td></tr>
-        <tr><td><span class="api-method post">POST</span></td><td><span class="api-path">/api/v1/buddy/groups</span></td><td><span class="api-desc">创建饭搭子组合</span></td></tr>
-        <tr><td><span class="api-method post">POST</span></td><td><span class="api-path">/api/v1/buddy/groups/:id/invite</span></td><td><span class="api-desc">生成饭搭子邀请码</span></td></tr>
-        <tr><td><span class="api-method post">POST</span></td><td><span class="api-path">/api/v1/buddy/groups/:id/join</span></td><td><span class="api-desc">通过邀请码加入饭搭子组合</span></td></tr>
+        <tr><td><span class="api-method get">GET</span></td><td><span class="api-path">/api/v1/tables</span></td><td><span class="api-desc">获取我的餐桌列表（我的餐桌、情侣餐桌、饭搭餐桌）</span></td></tr>
+        <tr><td><span class="api-method put">PUT</span></td><td><span class="api-path">/api/v1/tables/:id</span></td><td><span class="api-desc">重命名餐桌</span></td></tr>
+        <tr><td><span class="api-method post">POST</span></td><td><span class="api-path">/api/v1/tables/:id/invite</span></td><td><span class="api-desc">生成餐桌邀请码</span></td></tr>
+        <tr><td><span class="api-method post">POST</span></td><td><span class="api-path">/api/v1/tables/join</span></td><td><span class="api-desc">通过邀请码加入情侣餐桌或饭搭餐桌</span></td></tr>
         <tr><td><span class="api-method delete">DELETE</span></td><td><span class="api-path">/api/v1/buddy/groups/:id/members/:uid</span></td><td><span class="api-desc">移除成员（管理员）</span></td></tr>
       </tbody>
     </table>
@@ -1349,12 +1347,12 @@ flowchart LR
           <td><strong>Sprint 2</strong></td>
           <td>第 3-4 周</td>
           <td>菜单管理（CRUD）、菜品详情、图片上传</td>
-          <td>情侣菜单完整功能可用</td>
+          <td>餐桌菜单管理完整功能可用</td>
         </tr>
         <tr>
           <td><strong>Sprint 3</strong></td>
           <td>第 5-6 周</td>
-          <td>点菜订单、菜篮子、情侣关系绑定、WebSocket 通知</td>
+          <td>点单订单、菜篮子、餐桌成员绑定、WebSocket 通知</td>
           <td>情侣点菜闭环可用</td>
         </tr>
         <tr>
