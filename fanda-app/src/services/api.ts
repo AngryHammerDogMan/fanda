@@ -3,15 +3,18 @@ import type { ApiResponse } from '@/types'
 
 declare const API_BASE_URL: string
 
+// API 统一出口：封装 Taro.request、登录态处理、H5 预览 mock，并按业务域导出接口分组。
 const BASE_URL = API_BASE_URL
 
 // 是否正在跳转登录页（防止重复跳转）
 let isRedirectingToLogin = false
 
 const isH5PreviewRequest = (token: string) => {
+  // 只有浏览器预览环境且 token 为登录页写入的固定值时，才拦截请求走本地 mock。
   return process.env.TARO_ENV === 'h5' && token === 'h5-preview-token'
 }
 
+// H5 预览用户：覆盖账号绑定、情侣、饭搭子等核心关系字段，保证主要页面可直接演示。
 const h5User = {
   uid: 'h5-preview-user',
   nickname: '饭搭预览用户',
@@ -77,22 +80,27 @@ const ok = <T>(data: T): ApiResponse<T> => ({ code: 0, message: 'ok', data })
 
 const list = <T>(items: T[]) => ({ list: items, total: items.length, page: 1, page_size: 20 })
 
+// H5 mock 响应路由：按真实接口 path 返回轻量数据，避免浏览器预览依赖小程序登录和后端服务。
 const createH5PreviewResponse = <T>(options: Taro.request.Option): ApiResponse<T> => {
   const url = options.url || ''
   const today = new Date().toISOString().slice(0, 10)
 
+  // 认证与个人中心相关 mock。
   if (url === '/auth/profile') return ok(h5User) as ApiResponse<T>
   if (url === '/checkin/status') return ok({ today_checked: false, month_count: 18, streak: 7 }) as ApiResponse<T>
   if (url === '/checkin') return ok({ today_checked: true, month_count: 19, streak: 8 }) as ApiResponse<T>
+  // 菜品/广场 mock。
   if (url === '/dishes') return ok(list(h5Dishes)) as ApiResponse<T>
   if (url.startsWith('/dishes/')) return ok(h5Dishes[0]) as ApiResponse<T>
   if (url === '/plaza') return ok(list(h5Dishes.map((dish) => ({ ...dish, import_count: 128 })))) as ApiResponse<T>
   if (url === '/plaza/categories') return ok(['家常菜', '轻食', '快手菜', '外食灵感']) as ApiResponse<T>
+  // 订单 mock。
   if (url === '/orders') {
     return ok(list([
       { id: 'h5-order-1', creator_id: 'h5-preview-user', group_type: 'couple', group_id: 'h5-couple', dine_mode: 'together', status: 'pending', total_amount: 58, order_items: [{ id: 'h5-order-item-1', order_id: 'h5-order-1', dish_id: 'h5-dish-1', quantity: 1, unit_price: 42 }], created_at: '2026-08-10T18:30:00Z' },
     ])) as ApiResponse<T>
   }
+  // 日历与统计 mock。
   if (url === '/calendar/records' || url === '/calendar/records/date') {
     return ok(list([
       { id: 'h5-record-1', user_id: 'h5-preview-user', group_type: 'couple', group_id: 'h5-couple', record_date: today, meal_type: 'dineout', meal_period: 'dinner', dish_ids: [], restaurant: '烧鸟小馆', amount: 168, source: 'manual', photos: [], comments: [], created_at: '2026-08-10T19:30:00Z' },
@@ -101,6 +109,7 @@ const createH5PreviewResponse = <T>(options: Taro.request.Option): ApiResponse<T
   if (url === '/calendar/stats') {
     return ok({ total_amount: 680, meal_count: { cook: 8, takeout: 6, dineout: 4 }, total_records: 18, unrecorded_days: [], year: 2026, month: 8 }) as ApiResponse<T>
   }
+  // 心愿、菜篮子、预算、积分和邀请 mock。
   if (url === '/wishes') return ok(list([{ id: 'h5-wish-1', user_id: 'h5-preview-user', group_type: 'couple', group_id: 'h5-couple', name: '想去吃巴斯克蛋糕', note: '周末下午茶', dish_id: null, is_completed: false, created_at: '2026-08-10T09:00:00Z' }])) as ApiResponse<T>
   if (url === '/basket') return ok(list([{ id: 'h5-basket-1', user_id: 'h5-preview-user', group_type: 'couple', group_id: 'h5-couple', name: '番茄', quantity: '3 个', is_purchased: false, created_at: '2026-08-10T09:00:00Z' }])) as ApiResponse<T>
   if (url === '/budget') return ok({ id: 'h5-budget', user_id: 'h5-preview-user', group_type: 'couple', group_id: 'h5-couple', month: '2026-08', budget: 1200, spent: 680 }) as ApiResponse<T>
@@ -128,6 +137,7 @@ const request = async <T>(options: Taro.request.Option): Promise<ApiResponse<T>>
   }
 
   try {
+    // 真实请求统一补 BASE_URL 和 Authorization，页面层不直接接触底层请求细节。
     const res = await Taro.request({
       ...options,
       url: `${BASE_URL}${options.url}`,
@@ -145,6 +155,7 @@ const request = async <T>(options: Taro.request.Option): Promise<ApiResponse<T>>
     }
 
     const data = res.data as ApiResponse<T>
+    // 业务错误统一弹 toast 并抛出，让页面只处理必要的兜底文案。
     if (data.code !== 0) {
       Taro.showToast({ title: data.message, icon: 'none' })
       throw new Error(data.message)
@@ -159,7 +170,7 @@ const request = async <T>(options: Taro.request.Option): Promise<ApiResponse<T>>
   }
 }
 
-// ============ 认证 ============
+// ============ 认证与关系 ============
 
 export const authAPI = {
   login: (code: string, platform: string) =>
@@ -174,14 +185,14 @@ export const authAPI = {
   bindPhone: (phone: string) =>
     request<any>({ url: '/auth/bind-phone', method: 'POST', data: { phone } }),
 
-  // 情侣
+  // 情侣关系：邀请与加入绑定。
   createCoupleInvite: () =>
     request<any>({ url: '/couple/invite', method: 'POST' }),
 
   joinCouple: (code: string) =>
     request<any>({ url: '/couple/join', method: 'POST', data: { code } }),
 
-  // 饭搭子
+  // 饭搭子关系：群组、邀请、加入与成员移除。
   createBuddyGroup: (name: string) =>
     request<any>({ url: '/buddy/groups', method: 'POST', data: { name } }),
 
@@ -195,7 +206,7 @@ export const authAPI = {
     request<any>({ url: `/buddy/groups/${groupId}/members/${uid}`, method: 'DELETE' }),
 }
 
-// ============ 菜品 ============
+// ============ 菜品与学菜广场 ============
 
 export const dishAPI = {
   list: (params: Record<string, any>) =>
@@ -216,7 +227,7 @@ export const dishAPI = {
   importFromPlaza: (plazaId: string, groupType: string, groupId: string) =>
     request<any>({ url: '/dishes/import', method: 'POST', data: { plaza_id: plazaId, group_type: groupType, group_id: groupId } }),
 
-  // 学菜广场
+  // 学菜广场：公开菜品搜索、分类与导入。
   searchPlaza: (params: Record<string, any>) =>
     request<any>({ url: '/plaza', method: 'GET', data: params }),
 
@@ -252,7 +263,7 @@ export const orderAPI = {
     request<any>({ url: `/orders/${id}/votes`, method: 'GET' }),
 }
 
-// ============ 日历 ============
+// ============ 日历记录与统计 ============
 
 export const calendarAPI = {
   listByMonth: (groupType: string, groupId: string, year: number, month: number) =>
@@ -283,7 +294,7 @@ export const calendarAPI = {
     request<any>({ url: '/calendar/stats', method: 'GET', data: { group_type: groupType, group_id: groupId, year, month } }),
 }
 
-// ============ 功能模块 ============
+// ============ 功能模块：心愿、签到、菜篮子、预算、积分 ============
 
 export const featureAPI = {
   // 心愿

@@ -5,6 +5,7 @@ import { orderAPI } from '@/services/api'
 import type { Order, PaginatedData } from '@/types'
 import './index.scss'
 
+// 订单列表页：按状态筛选点单记录，并提供确认、拒绝、投票和取消等订单操作。
 const STATUS_TABS = [
   { key: '', label: '全部' },
   { key: 'pending', label: '待确认' },
@@ -36,6 +37,7 @@ const sticker = (name: string) => `/assets/stickers/${name}.png`
 const PAGE_SIZE = 10
 
 export default function Orders() {
+  // activeTab 与 page/total 共同控制当前订单查询条件和分页边界。
   const [activeTab, setActiveTab] = useState('')
   const [orders, setOrders] = useState<Order[]>([])
   const [page, setPage] = useState(1)
@@ -69,6 +71,7 @@ export default function Orders() {
         page: pageNum,
         page_size: PAGE_SIZE,
       }
+      // 空状态代表“全部”，不传 status 以复用后端默认列表逻辑。
       if (activeTab) {
         params.status = activeTab
       }
@@ -109,6 +112,7 @@ export default function Orders() {
   const switchTab = async (key: string) => {
     if (key === activeTab) return
     setActiveTab(key)
+    // 切换筛选时先清空列表，避免旧状态订单在新 tab 请求返回前短暂混入展示。
     setOrders([])
     setPage(1)
     setTotal(0)
@@ -118,6 +122,7 @@ export default function Orders() {
         page: 1,
         page_size: PAGE_SIZE,
       }
+      // 这里直接使用入参 key 查询，避免等待 activeTab 的异步状态更新。
       if (key) {
         params.status = key
       }
@@ -270,6 +275,7 @@ export default function Orders() {
 
                 {/* 操作按钮 */}
                 <View className='order-actions'>
+                  {/* pending 是确认流；voted 是投票流；两类状态都保留取消入口。 */}
                   {order.status === 'pending' && (
                     <>
                       <View className='action-btn reject' onClick={() => handleReject(order.id)}>

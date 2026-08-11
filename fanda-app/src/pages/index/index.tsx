@@ -5,14 +5,16 @@ import { authAPI, featureAPI } from '@/services/api'
 import type { User, CheckinStatus } from '@/types'
 import './index.scss'
 
+// 首页：展示用户积分/签到概览，并汇总进入点单、菜篮子、心愿、预算等核心模块的快捷入口。
 const sticker = (name: string) => `/assets/stickers/${name}.png`
 
 export default function Index() {
+  // 首页只保留用户基础资料与签到状态，详情数据由各业务页按需加载。
   const [user, setUser] = useState<User | null>(null)
   const [checkinStatus, setCheckinStatus] = useState<CheckinStatus | null>(null)
 
   useDidShow(() => {
-    // 重置登录跳转标记
+    // 首页是 tab 入口，展示前先兜底校验 token，未登录时直接回到登录页。
     const token = Taro.getStorageSync('token')
     if (!token) {
       // 无 token，跳转登录页
@@ -39,7 +41,7 @@ export default function Index() {
       setCheckinStatus(res.data)
     } catch (err: any) {
       if (err.message === '未登录') return
-      // 未登录或接口错误忽略
+      // 签到卡片是首页辅助信息，接口异常时保持空态，不阻塞首页主内容。
     }
   }
 
@@ -47,6 +49,7 @@ export default function Index() {
     try {
       const res = await featureAPI.checkin()
       Taro.showToast({ title: `签到成功！+${res.data.points}积分`, icon: 'success' })
+      // 签到成功后只刷新签到摘要，避免重复拉取用户资料。
       loadCheckinStatus()
     } catch (err: any) {
       Taro.showToast({ title: err.message || '签到失败', icon: 'none' })

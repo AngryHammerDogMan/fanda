@@ -5,9 +5,11 @@ import { dishAPI } from '@/services/api'
 import type { PlazaDish } from '@/types'
 import './index.scss'
 
+// 学菜广场页：浏览公开菜品模板，并将目标菜品导入到选中的情侣/饭搭子分组。
 const sticker = (name: string) => `/assets/stickers/${name}.png`
 
 export default function Plaza() {
+  // categories/activeCategory/keyword 组成广场搜索条件；page/hasMore 管理瀑布流分页。
   const [categories, setCategories] = useState<string[]>([])
   const [activeCategory, setActiveCategory] = useState<string>('全部')
   const [keyword, setKeyword] = useState('')
@@ -39,6 +41,7 @@ export default function Plaza() {
     const currentPage = reset ? 1 : page
     try {
       const params: Record<string, any> = { page: currentPage, page_size: 20 }
+      // “全部”与空关键词不传给后端，避免误筛选公开菜品。
       if (activeCategory !== '全部') params.category = activeCategory
       if (keyword) params.keyword = keyword
       const res = await dishAPI.searchPlaza(params)
@@ -62,7 +65,7 @@ export default function Plaza() {
   const handleCategoryChange = (cat: string) => {
     setActiveCategory(cat)
     setPage(1)
-    // 延迟加载，等待 state 更新
+    // 延迟加载，等待 activeCategory 更新后让 loadDishes 使用最新分类。
     setTimeout(() => {
       loadDishes(true)
     }, 0)
@@ -75,6 +78,7 @@ export default function Plaza() {
 
   const handleImport = async (dish: PlazaDish) => {
     if (!groupType || !groupId) {
+      // 导入必须明确目标关系，否则后端无法把广场菜品落到用户自己的菜单。
       Taro.showToast({ title: '请先选择目标分组', icon: 'none' })
       return
     }

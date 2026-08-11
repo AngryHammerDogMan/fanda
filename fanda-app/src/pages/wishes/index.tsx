@@ -5,11 +5,13 @@ import { authAPI, featureAPI } from '@/services/api'
 import type { User, WishItem, BuddyGroup } from '@/types'
 import './index.scss'
 
+// 心愿页：按关系分组维护想吃/想去清单，支持完成、删除与状态筛选。
 const sticker = (name: string) => `/assets/stickers/${name}.png`
 
 type FilterType = '全部' | '未完成' | '已完成'
 
 export default function Wishes() {
+  // groupType/groupId 决定心愿归属；filter 控制是否把完成状态传给接口。
   const [user, setUser] = useState<User | null>(null)
   const [groupType, setGroupType] = useState('couple')
   const [groupId, setGroupId] = useState('')
@@ -47,6 +49,7 @@ export default function Wishes() {
     if (!groupType || !groupId) return
     setLoading(true)
     try {
+      // “全部”不传 completed，让后端返回完整列表；其他筛选转换为布尔值。
       const completedParam = filter === '全部' ? undefined : filter === '已完成'
       const res = await featureAPI.listWishes(groupType, groupId, completedParam)
       setWishes(res.data?.list || res.data || [])
@@ -65,6 +68,7 @@ export default function Wishes() {
 
   const handleGroupTypeChange = (type: string) => {
     setGroupType(type)
+    // 饭搭子模式下必须再选择具体群组，因此先清空 groupId，防止沿用情侣 ID。
     if (type === 'couple' && user?.couple) {
       setGroupId(user.couple.id)
     } else {
@@ -83,7 +87,7 @@ export default function Wishes() {
   const handleToggleComplete = async (wish: WishItem) => {
     try {
       if (wish.is_completed) {
-        // 已完成 -> 取消完成（通过 API 不支持，这里仅做 UI 提示）
+        // 当前后端只提供完成接口，不提供撤销完成；已完成项只提示不做本地回退。
         Taro.showToast({ title: '已完成的心愿不可取消', icon: 'none' })
         return
       }

@@ -5,6 +5,7 @@ import { calendarAPI, authAPI } from '@/services/api'
 import type { CalendarRecord, MonthlyStats, User } from '@/types'
 import './index.scss'
 
+// 美食日历页：按情侣/饭搭子关系展示月视图、单日餐食记录与月度金额统计。
 const WEEK_DAYS = ['日', '一', '二', '三', '四', '五', '六']
 const MEAL_LABELS: Record<string, string> = { cook: '做饭', takeout: '外卖', dineout: '外出' }
 const MEAL_COLORS: Record<string, string> = { cook: '#52C41A', takeout: '#FF6B35', dineout: '#1890FF' }
@@ -12,9 +13,11 @@ const sticker = (name: string) => `/assets/stickers/${name}.png`
 
 export default function Calendar() {
   const now = new Date()
+  // currentYear/currentMonth 控制月视图；selectedDate 保存当前展开的日记录。
   const [currentYear, setCurrentYear] = useState(now.getFullYear())
   const [currentMonth, setCurrentMonth] = useState(now.getMonth() + 1)
   const [selectedDate, setSelectedDate] = useState<string>('')
+  // groupType/groupId 决定日历数据归属，默认优先使用情侣关系。
   const [groupType, setGroupType] = useState<string>('couple')
   const [groupId, setGroupId] = useState<string>('')
 
@@ -24,7 +27,7 @@ export default function Calendar() {
   const [monthlyStats, setMonthlyStats] = useState<MonthlyStats | null>(null)
   const [loading, setLoading] = useState(false)
 
-  // 日历网格数据
+  // 日历网格数据：补齐上月尾部和下月开头，保证 UI 始终按完整周渲染。
   const calendarGrid = useMemo(() => {
     const firstDay = new Date(currentYear, currentMonth - 1, 1).getDay()
     const daysInMonth = new Date(currentYear, currentMonth, 0).getDate()
@@ -68,6 +71,7 @@ export default function Calendar() {
       const u: User = res.data
       setUser(u)
 
+      // 初始化时优先选情侣；没有情侣关系时回退到第一个饭搭子群组。
       if (groupType === 'couple' && u.couple) {
         setGroupId(u.couple.id)
       } else if (groupType === 'buddy' && u.buddy_groups.length > 0) {
@@ -95,6 +99,7 @@ export default function Calendar() {
       const res = await calendarAPI.listByMonth(groupType, groupId, currentYear, currentMonth)
       const records: CalendarRecord[] = res.data?.list || res.data || []
       const map: Record<string, CalendarRecord[]> = {}
+      // 按日期聚合记录，供日历格子快速判断当天有哪些 meal_type 圆点。
       records.forEach((r: CalendarRecord) => {
         const date = r.record_date?.slice(0, 10)
         if (date) {

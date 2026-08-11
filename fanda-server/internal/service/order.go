@@ -13,11 +13,12 @@ import (
 
 type OrderService struct{}
 
+// NewOrderService 创建订单服务，负责订单创建、状态流转和投票聚合。
 func NewOrderService() *OrderService {
 	return &OrderService{}
 }
 
-// CreateOrder 创建订单
+// CreateOrder 创建订单：先做组合鉴权，再用事务创建订单与订单项，并汇总可选金额。
 func (s *OrderService) CreateOrder(ctx context.Context, uid uuid.UUID, req CreateOrderReq) (*model.Order, error) {
 	if err := CanAccessGroup(ctx, uid, req.GroupType, req.GroupID); err != nil {
 		return nil, err
@@ -31,7 +32,7 @@ func (s *OrderService) CreateOrder(ctx context.Context, uid uuid.UUID, req Creat
 		Status:    "pending",
 	}
 
-	// 饭搭子+共同就餐 → 进入投票模式
+	// 饭搭子共同就餐不直接进入确认流，而是进入投票状态等待成员表态。
 	if req.GroupType == "buddy" && req.DineMode == "together" {
 		order.Status = "voted"
 	}
@@ -86,7 +87,7 @@ func (s *OrderService) GetOrder(ctx context.Context, uid uuid.UUID, orderID uuid
 	return &order, nil
 }
 
-// ListOrders 获取订单列表
+// ListOrders 获取订单列表：组合鉴权后按状态过滤，Count 和分页查询使用同一组条件。
 func (s *OrderService) ListOrders(ctx context.Context, uid uuid.UUID, groupType string, groupID uuid.UUID, status string, page, pageSize int) ([]model.Order, int64, error) {
 	var orders []model.Order
 	var total int64
@@ -115,7 +116,7 @@ func (s *OrderService) ListOrders(ctx context.Context, uid uuid.UUID, groupType 
 	return orders, total, nil
 }
 
-// ConfirmOrder 确认订单（情侣模式：对方确认；饭搭子：无需确认，直接同意）
+// ConfirmOrder 确认订单：pending 状态下仅非创建者可确认，防止自提自批。
 func (s *OrderService) ConfirmOrder(ctx context.Context, uid uuid.UUID, orderID uuid.UUID) error {
 	order, err := CanAccessOrder(ctx, uid, orderID)
 	if err != nil {
@@ -170,7 +171,7 @@ func (s *OrderService) CancelOrder(ctx context.Context, uid uuid.UUID, orderID u
 	return database.DB.Model(order).Update("status", "cancelled").Error
 }
 
-// VoteOrder 投票（饭搭子模式）
+// VoteOrder 投票：饭搭子 voted 状态订单可投票；重复投不同票会更新原投票。
 func (s *OrderService) VoteOrder(ctx context.Context, uid uuid.UUID, orderID uuid.UUID, vote string) error {
 	order, err := CanAccessOrder(ctx, uid, orderID)
 	if err != nil {
@@ -203,7 +204,7 @@ func (s *OrderService) VoteOrder(ctx context.Context, uid uuid.UUID, orderID uui
 	return nil
 }
 
-// GetOrderVotes 获取订单投票结果
+// GetOrderVotes 获取订单投票结果：读取投票明细后在内存中聚合 approve/reject/skip。
 func (s *OrderService) GetOrderVotes(ctx context.Context, uid uuid.UUID, orderID uuid.UUID) (map[string]interface{}, error) {
 	if _, err := CanAccessOrder(ctx, uid, orderID); err != nil {
 		return nil, errors.New("订单不存在")
@@ -233,7 +234,7 @@ func (s *OrderService) GetOrderVotes(ctx context.Context, uid uuid.UUID, orderID
 	}, nil
 }
 
-// ---- 请求结构 ----
+// ---- 请求结构：订单创建请求由组合、就餐模式和至少一个订单项组成 ----
 
 type CreateOrderReq struct {
 	GroupType string         `json:"group_type" binding:"required,oneof=couple buddy"`

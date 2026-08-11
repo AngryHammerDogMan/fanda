@@ -5,9 +5,11 @@ import { authAPI } from '@/services/api'
 import type { User, CoupleInfo } from '@/types'
 import './index.scss'
 
+// 情侣关系页：展示当前情侣绑定状态，并支持生成邀请码或输入邀请码完成绑定。
 const sticker = (name: string) => `/assets/stickers/${name}.png`
 
 export default function Couple() {
+  // couple 来自 profile；inviteCode/joinCode 分别服务创建邀请和加入绑定两条流程。
   const [user, setUser] = useState<User | null>(null)
   const [couple, setCouple] = useState<CoupleInfo | null>(null)
   const [inviteCode, setInviteCode] = useState<string | null>(null)
@@ -34,6 +36,7 @@ export default function Couple() {
     setLoading(true)
     try {
       const res = await authAPI.createCoupleInvite()
+      // 兼容后端返回 { code } 或直接返回字符串两种格式。
       const code = res.data?.code || res.data
       setInviteCode(code)
       Taro.showModal({
@@ -78,6 +81,7 @@ export default function Couple() {
       content: '确定要解除情侣绑定吗？',
       success: (res) => {
         if (res.confirm) {
+          // 页面预留入口，当前 API 层尚未提供情侣解绑接口。
           Taro.showToast({ title: '暂不支持解除绑定', icon: 'none' })
         }
       },

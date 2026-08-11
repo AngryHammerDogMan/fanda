@@ -1,3 +1,5 @@
+// Package config 负责从环境变量和 .env 文件加载运行配置，并在生产模式下
+// 拦截明显不安全的默认密钥，避免服务以本地开发配置上线。
 package config
 
 import (
@@ -10,6 +12,7 @@ import (
 	"github.com/joho/godotenv"
 )
 
+// Config 汇总服务启动所需的外部依赖、鉴权和跨域配置。
 type Config struct {
 	ServerPort string
 	ServerMode string
@@ -42,6 +45,7 @@ type Config struct {
 	CORSAllowOrigins string
 }
 
+// Load 优先读取 .env，再用环境变量覆盖默认值；最后统一执行安全校验。
 func Load() (*Config, error) {
 	_ = godotenv.Load()
 
@@ -82,6 +86,7 @@ func Load() (*Config, error) {
 	return cfg, nil
 }
 
+// Validate 只在 release 模式启用强校验，debug 模式保留开箱即用的本地默认值。
 func (c *Config) Validate() error {
 	if c.ServerMode != "release" {
 		return nil
@@ -100,6 +105,7 @@ func (c *Config) Validate() error {
 	return nil
 }
 
+// AllowsOrigin 判断请求 Origin 是否在 CORS_ALLOW_ORIGINS 白名单中。
 func (c *Config) AllowsOrigin(origin string) bool {
 	if c.CORSAllowOrigins == "*" {
 		return true
@@ -116,6 +122,7 @@ func (c *Config) String() string {
 	return fmt.Sprintf("port=%s mode=%s db=%s:%s/%s", c.ServerPort, c.ServerMode, c.DBHost, c.DBPort, c.DBName)
 }
 
+// getEnv 返回非空环境变量，否则回退到调用方提供的默认值。
 func getEnv(key, fallback string) string {
 	if val := os.Getenv(key); val != "" {
 		return val
@@ -123,6 +130,7 @@ func getEnv(key, fallback string) string {
 	return fallback
 }
 
+// getEnvInt 解析整数环境变量；非法值不报错，沿用默认配置保证服务可启动。
 func getEnvInt(key string, fallback int) int {
 	if val := os.Getenv(key); val != "" {
 		if n, err := strconv.Atoi(val); err == nil {

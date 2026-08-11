@@ -4,7 +4,8 @@ import { useState } from 'react'
 import { authAPI } from '@/services/api'
 import './index.scss'
 
-// 自动检测当前平台
+// 登录页：承接平台授权、首次昵称设置、手机号绑定与 H5 预览登录入口。
+// 自动检测当前平台，用于区分真实小程序登录能力与浏览器预览 mock。
 const IS_H5_PREVIEW = process.env.TARO_ENV === 'h5'
 const CURRENT_PLATFORM = process.env.TARO_ENV === 'weapp' ? 'wechat' : 'douyin'
 const PLATFORM_NAME = IS_H5_PREVIEW ? '浏览器预览' : CURRENT_PLATFORM === 'wechat' ? '微信' : '抖音'
@@ -13,7 +14,7 @@ const sticker = (name: string) => `/assets/stickers/${name}.png`
 
 export default function Login() {
   const [loading, setLoading] = useState(false)
-  // 步骤: choose(平台一键登录) | wechat(平台登录中) | nickname(设置昵称) | bind_phone(绑定手机号)
+  // 登录步骤状态机：choose(平台一键登录) | wechat(平台登录中) | nickname(设置昵称) | bind_phone(绑定手机号)。
   const [step, setStep] = useState<'choose' | 'wechat' | 'nickname' | 'bind_phone'>('choose')
   const [phone, setPhone] = useState('')
   const [nickname, setNickname] = useState('')
@@ -27,6 +28,7 @@ export default function Login() {
   })
 
   const handleH5MockLogin = () => {
+    // H5 预览不能调用微信/抖音登录，这里写入固定 token 和用户信息，让 API 层走本地 mock 响应。
     Taro.setStorageSync('token', 'h5-preview-token')
     Taro.setStorageSync('uid', 'h5-preview-user')
     Taro.setStorageSync('h5_preview_user', {
@@ -62,6 +64,7 @@ export default function Login() {
       Taro.setStorageSync('token', res.data.token)
       Taro.setStorageSync('uid', res.data.uid)
 
+      // 后端返回的新用户/手机号状态决定后续强制步骤，避免未绑定账号进入主流程造成跨平台数据不互通。
       if (res.data.is_new) {
         // 新用户：先设置昵称
         setNickname(res.data.nickname || '')

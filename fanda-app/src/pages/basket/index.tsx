@@ -5,9 +5,11 @@ import { authAPI, featureAPI } from '@/services/api'
 import type { User, BasketItem, BuddyGroup } from '@/types'
 import './index.scss'
 
+// 菜篮子页：按情侣/饭搭子分组维护采购清单，并支持添加、勾选已购与删除。
 const sticker = (name: string) => `/assets/stickers/${name}.png`
 
 export default function Basket() {
+  // groupType/groupId 锁定当前清单归属；groups 仅在饭搭子模式下用于切换具体群组。
   const [user, setUser] = useState<User | null>(null)
   const [groupType, setGroupType] = useState('couple')
   const [groupId, setGroupId] = useState('')
@@ -28,7 +30,7 @@ export default function Basket() {
       const u: User = res.data
       setUser(u)
       setGroups(u.buddy_groups || [])
-      // 默认选择情侣
+      // 默认选择情侣；没有情侣关系时回退到第一个饭搭子群组，保证页面尽量有可加载目标。
       if (u.couple) {
         setGroupType('couple')
         setGroupId(u.couple.id)
@@ -62,6 +64,7 @@ export default function Basket() {
 
   const handleGroupTypeChange = (type: string) => {
     setGroupType(type)
+    // 切到情侣时可直接使用用户资料中的 couple；切到饭搭子需等待用户点选具体群组。
     if (type === 'couple' && user?.couple) {
       setGroupId(user.couple.id)
     } else {
@@ -76,6 +79,7 @@ export default function Basket() {
   const handleTogglePurchased = async (item: BasketItem) => {
     try {
       await featureAPI.toggleBasket(item.id)
+      // 服务端切换成功后乐观更新本地勾选状态，避免重新拉全量列表。
       setItems(prev => prev.map(i =>
         i.id === item.id ? { ...i, is_purchased: !i.is_purchased } : i
       ))

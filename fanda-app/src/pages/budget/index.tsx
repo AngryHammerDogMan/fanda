@@ -5,7 +5,9 @@ import { authAPI, featureAPI, calendarAPI } from '@/services/api'
 import type { User, BudgetSetting, MonthlyStats, BuddyGroup } from '@/types'
 import './index.scss'
 
+// 预算页：按关系分组与月份展示餐饮预算、实际支出、剩余额度和月度餐食统计。
 export default function Budget() {
+  // groupType/groupId/month 共同组成预算与统计查询维度。
   const [user, setUser] = useState<User | null>(null)
   const [groupType, setGroupType] = useState('couple')
   const [groupId, setGroupId] = useState('')
@@ -30,6 +32,7 @@ export default function Budget() {
       const u: User = res.data
       setUser(u)
       setGroups(u.buddy_groups || [])
+      // 关系默认选择逻辑与菜篮子/心愿保持一致：情侣优先，饭搭子兜底。
       if (u.couple) {
         setGroupType('couple')
         setGroupId(u.couple.id)
@@ -46,6 +49,7 @@ export default function Budget() {
     if (!groupType || !groupId) return
     setLoading(true)
     try {
+      // 预算设置和日历统计独立返回，并发请求后在本页合并计算进度。
       const [budgetRes, statsRes] = await Promise.all([
         featureAPI.getBudget(groupType, groupId, currentMonth),
         calendarAPI.getStats(groupType, groupId, year, month),
@@ -67,6 +71,7 @@ export default function Budget() {
 
   const handleGroupTypeChange = (type: string) => {
     setGroupType(type)
+    // 切换到饭搭子时清空目标群组，避免继续使用情侣 groupId 查询预算。
     if (type === 'couple' && user?.couple) {
       setGroupId(user.couple.id)
     } else {
@@ -128,6 +133,7 @@ export default function Budget() {
   const budgetAmount_value = budget?.budget || 0
   const spentAmount = stats?.total_amount || 0
   const remaining = budgetAmount_value - spentAmount
+  // 进度条最多展示到 100%，超预算时通过剩余金额和颜色表达溢出。
   const percent = budgetAmount_value > 0 ? Math.min((spentAmount / budgetAmount_value) * 100, 100) : 0
 
   const getPercentColor = () => {

@@ -7,7 +7,7 @@ import (
 	"github.com/lib/pq"
 )
 
-// Dish 菜品表
+// Dish 菜品表；同时承载自做菜、外卖和堂食条目，按 group_type/group_id 归属到组合。
 type Dish struct {
 	ID             uuid.UUID      `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
 	OwnerID        uuid.UUID      `gorm:"type:uuid;not null;index" json:"owner_id"`
@@ -33,7 +33,7 @@ type Dish struct {
 
 func (Dish) TableName() string { return "dishes" }
 
-// PlazaDish 学菜广场菜品表
+// PlazaDish 学菜广场菜品表；作为可导入模板存在，导入后会复制为用户自己的 Dish。
 type PlazaDish struct {
 	ID          uuid.UUID      `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
 	Name        string         `gorm:"type:varchar(100);not null" json:"name"`

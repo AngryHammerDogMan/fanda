@@ -1,3 +1,4 @@
+// Package middleware 中的日志与 CORS 处理在路由入口统一安装。
 package middleware
 
 import (
@@ -8,6 +9,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// Logger 记录每个请求的状态码、方法、路径和耗时，用于本地排查接口错误。
 func Logger() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		start := time.Now()
@@ -23,6 +25,7 @@ func Logger() gin.HandlerFunc {
 	}
 }
 
+// CORS 根据配置动态回写允许的 Origin，并提前结束浏览器预检请求。
 func CORS(cfg *config.Config) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		origin := c.GetHeader("Origin")

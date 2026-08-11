@@ -6,7 +6,7 @@ import (
 	"github.com/google/uuid"
 )
 
-// WishItem 心愿清单表
+// WishItem 心愿清单表；由创建人维护完成/删除状态，组合成员可浏览。
 type WishItem struct {
 	ID          uuid.UUID  `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
 	UserID      uuid.UUID  `gorm:"type:uuid;not null;index:idx_wish_user" json:"user_id"`
@@ -21,7 +21,7 @@ type WishItem struct {
 
 func (WishItem) TableName() string { return "wish_items" }
 
-// Checkin 签到记录表
+// Checkin 签到记录表；同一用户同一天唯一，用于计算连续签到和积分奖励。
 type Checkin struct {
 	ID          uuid.UUID `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
 	UserID      uuid.UUID `gorm:"type:uuid;not null;uniqueIndex:idx_checkin_user_date" json:"user_id"`
@@ -32,7 +32,7 @@ type Checkin struct {
 
 func (Checkin) TableName() string { return "checkins" }
 
-// PointRecord 积分历史表
+// PointRecord 积分历史表；记录积分来源，便于前端展示流水。
 type PointRecord struct {
 	ID        uuid.UUID `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
 	UserID    uuid.UUID `gorm:"type:uuid;not null;index" json:"user_id"`
@@ -43,7 +43,7 @@ type PointRecord struct {
 
 func (PointRecord) TableName() string { return "point_records" }
 
-// BudgetSetting 预算设置表
+// BudgetSetting 预算设置表；同一用户、组合和月份唯一，支持按月覆盖预算。
 type BudgetSetting struct {
 	ID        uuid.UUID `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
 	UserID    uuid.UUID `gorm:"type:uuid;not null;uniqueIndex:idx_budget_unique" json:"user_id"`
@@ -57,7 +57,7 @@ type BudgetSetting struct {
 
 func (BudgetSetting) TableName() string { return "budget_settings" }
 
-// ShoppingBasket 菜篮子表
+// ShoppingBasket 菜篮子表；按组合共享采购项，购买状态由创建者维护。
 type ShoppingBasket struct {
 	ID          uuid.UUID `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
 	UserID      uuid.UUID `gorm:"type:uuid;not null;index:idx_basket_group" json:"user_id"`

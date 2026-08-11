@@ -13,13 +13,14 @@ type OrderHandler struct {
 	service *service.OrderService
 }
 
+// NewOrderHandler 创建订单 handler，处理点餐单、状态流转和饭搭子投票接口。
 func NewOrderHandler() *OrderHandler {
 	return &OrderHandler{
 		service: service.NewOrderService(),
 	}
 }
 
-// CreateOrder 创建订单
+// CreateOrder 创建订单：body 包含组合、就餐模式和菜品项，金额由 service 汇总。
 // POST /api/v1/orders
 func (h *OrderHandler) CreateOrder(c *gin.Context) {
 	uid := c.MustGet("uid").(uuid.UUID)
@@ -39,7 +40,7 @@ func (h *OrderHandler) CreateOrder(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"code": 0, "message": "ok", "data": order})
 }
 
-// GetOrder 获取订单详情
+// GetOrder 获取订单详情：路径 id 指定订单，返回订单及订单项。
 // GET /api/v1/orders/:id
 func (h *OrderHandler) GetOrder(c *gin.Context) {
 	uid := c.MustGet("uid").(uuid.UUID)
@@ -57,8 +58,8 @@ func (h *OrderHandler) GetOrder(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"code": 0, "message": "ok", "data": order})
 }
 
-// ListOrders 获取订单列表
-// GET /api/v1/orders?group_type=couple&group_id=xxx&status=&page=1&page_size=20
+// ListOrders 获取订单列表：按组合与状态过滤，使用 page/page_size 分页。
+// GET /api/v1/orders?group_type=couple&group_id=example-group-id&status=&page=1&page_size=20
 func (h *OrderHandler) ListOrders(c *gin.Context) {
 	uid := c.MustGet("uid").(uuid.UUID)
 	groupType := c.Query("group_type")
@@ -92,7 +93,7 @@ func (h *OrderHandler) ListOrders(c *gin.Context) {
 	})
 }
 
-// ConfirmOrder 确认订单
+// ConfirmOrder 确认订单：情侣模式中由非创建者确认 pending 订单。
 // POST /api/v1/orders/:id/confirm
 func (h *OrderHandler) ConfirmOrder(c *gin.Context) {
 	uid := c.MustGet("uid").(uuid.UUID)
@@ -109,7 +110,7 @@ func (h *OrderHandler) ConfirmOrder(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"code": 0, "message": "订单已确认"})
 }
 
-// RejectOrder 拒绝订单
+// RejectOrder 拒绝订单：情侣模式中由非创建者拒绝 pending 订单。
 // POST /api/v1/orders/:id/reject
 func (h *OrderHandler) RejectOrder(c *gin.Context) {
 	uid := c.MustGet("uid").(uuid.UUID)
@@ -126,7 +127,7 @@ func (h *OrderHandler) RejectOrder(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"code": 0, "message": "订单已拒绝"})
 }
 
-// CancelOrder 取消订单
+// CancelOrder 取消订单：仅创建者可取消未确认订单。
 // POST /api/v1/orders/:id/cancel
 func (h *OrderHandler) CancelOrder(c *gin.Context) {
 	uid := c.MustGet("uid").(uuid.UUID)
@@ -143,7 +144,7 @@ func (h *OrderHandler) CancelOrder(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"code": 0, "message": "订单已取消"})
 }
 
-// VoteOrder 订单投票
+// VoteOrder 订单投票：饭搭子共同就餐订单可提交 approve/reject/skip。
 // POST /api/v1/orders/:id/vote
 func (h *OrderHandler) VoteOrder(c *gin.Context) {
 	uid := c.MustGet("uid").(uuid.UUID)
@@ -168,7 +169,7 @@ func (h *OrderHandler) VoteOrder(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"code": 0, "message": "投票成功"})
 }
 
-// GetOrderVotes 获取订单投票结果
+// GetOrderVotes 获取订单投票结果：返回各票型计数及投票明细。
 // GET /api/v1/orders/:id/votes
 func (h *OrderHandler) GetOrderVotes(c *gin.Context) {
 	uid := c.MustGet("uid").(uuid.UUID)

@@ -13,6 +13,7 @@ type FeatureHandler struct {
 	service *service.FeatureService
 }
 
+// NewFeatureHandler 创建扩展功能 handler，覆盖心愿、签到、菜篮子、预算和积分。
 func NewFeatureHandler() *FeatureHandler {
 	return &FeatureHandler{
 		service: service.NewFeatureService(),
@@ -21,7 +22,7 @@ func NewFeatureHandler() *FeatureHandler {
 
 // ---- 心愿清单 ----
 
-// CreateWish 创建心愿
+// CreateWish 创建心愿：body 指定组合、心愿名称和可选关联菜品。
 // POST /api/v1/wishes
 func (h *FeatureHandler) CreateWish(c *gin.Context) {
 	uid := c.MustGet("uid").(uuid.UUID)
@@ -41,8 +42,8 @@ func (h *FeatureHandler) CreateWish(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"code": 0, "message": "ok", "data": wish})
 }
 
-// ListWishes 获取心愿列表
-// GET /api/v1/wishes?group_type=couple&group_id=xxx&completed=false
+// ListWishes 获取心愿列表：completed 支持 true/false 过滤，缺省返回全部。
+// GET /api/v1/wishes?group_type=couple&group_id=example-group-id&completed=false
 func (h *FeatureHandler) ListWishes(c *gin.Context) {
 	uid := c.MustGet("uid").(uuid.UUID)
 	groupType := c.Query("group_type")
@@ -69,7 +70,7 @@ func (h *FeatureHandler) ListWishes(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"code": 0, "message": "ok", "data": wishes})
 }
 
-// CompleteWish 完成心愿
+// CompleteWish 完成心愿：路径 id 指定心愿，仅创建者可标记完成。
 // POST /api/v1/wishes/:id/complete
 func (h *FeatureHandler) CompleteWish(c *gin.Context) {
 	uid := c.MustGet("uid").(uuid.UUID)
@@ -86,7 +87,7 @@ func (h *FeatureHandler) CompleteWish(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"code": 0, "message": "心愿已完成"})
 }
 
-// DeleteWish 删除心愿
+// DeleteWish 删除心愿：路径 id 指定心愿，仅创建者可删除。
 // DELETE /api/v1/wishes/:id
 func (h *FeatureHandler) DeleteWish(c *gin.Context) {
 	uid := c.MustGet("uid").(uuid.UUID)
@@ -105,7 +106,7 @@ func (h *FeatureHandler) DeleteWish(c *gin.Context) {
 
 // ---- 签到 ----
 
-// Checkin 签到
+// Checkin 签到：不需要 body，根据当前日期创建签到并发放积分。
 // POST /api/v1/checkin
 func (h *FeatureHandler) Checkin(c *gin.Context) {
 	uid := c.MustGet("uid").(uuid.UUID)
@@ -119,7 +120,7 @@ func (h *FeatureHandler) Checkin(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"code": 0, "message": "签到成功", "data": result})
 }
 
-// GetCheckinStatus 获取签到状态
+// GetCheckinStatus 获取签到状态：返回今日、本月和连续签到信息。
 // GET /api/v1/checkin/status
 func (h *FeatureHandler) GetCheckinStatus(c *gin.Context) {
 	uid := c.MustGet("uid").(uuid.UUID)
@@ -135,7 +136,7 @@ func (h *FeatureHandler) GetCheckinStatus(c *gin.Context) {
 
 // ---- 菜篮子 ----
 
-// AddToBasket 添加到菜篮子
+// AddToBasket 添加到菜篮子：body 指定组合、物品名称和可选数量。
 // POST /api/v1/basket
 func (h *FeatureHandler) AddToBasket(c *gin.Context) {
 	uid := c.MustGet("uid").(uuid.UUID)
@@ -155,8 +156,8 @@ func (h *FeatureHandler) AddToBasket(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"code": 0, "message": "ok", "data": item})
 }
 
-// ListBasket 获取菜篮子
-// GET /api/v1/basket?group_type=couple&group_id=xxx
+// ListBasket 获取菜篮子：按组合返回未购买优先、最新在前的清单。
+// GET /api/v1/basket?group_type=couple&group_id=example-group-id
 func (h *FeatureHandler) ListBasket(c *gin.Context) {
 	uid := c.MustGet("uid").(uuid.UUID)
 	groupType := c.Query("group_type")
@@ -174,7 +175,7 @@ func (h *FeatureHandler) ListBasket(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"code": 0, "message": "ok", "data": items})
 }
 
-// ToggleBasketPurchased 切换购买状态
+// ToggleBasketPurchased 切换购买状态：路径 id 指定清单项，仅创建者可操作。
 // POST /api/v1/basket/:id/toggle
 func (h *FeatureHandler) ToggleBasketPurchased(c *gin.Context) {
 	uid := c.MustGet("uid").(uuid.UUID)
@@ -191,7 +192,7 @@ func (h *FeatureHandler) ToggleBasketPurchased(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"code": 0, "message": "ok"})
 }
 
-// DeleteBasket 删除菜篮子项
+// DeleteBasket 删除菜篮子项：路径 id 指定清单项，仅创建者可删除。
 // DELETE /api/v1/basket/:id
 func (h *FeatureHandler) DeleteBasket(c *gin.Context) {
 	uid := c.MustGet("uid").(uuid.UUID)
@@ -210,7 +211,7 @@ func (h *FeatureHandler) DeleteBasket(c *gin.Context) {
 
 // ---- 预算 ----
 
-// SetBudget 设置预算
+// SetBudget 设置预算：body.month 为 YYYY-MM，存在则覆盖当月预算。
 // POST /api/v1/budget
 func (h *FeatureHandler) SetBudget(c *gin.Context) {
 	uid := c.MustGet("uid").(uuid.UUID)
@@ -230,8 +231,8 @@ func (h *FeatureHandler) SetBudget(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"code": 0, "message": "ok", "data": budget})
 }
 
-// GetBudget 获取预算
-// GET /api/v1/budget?group_type=couple&group_id=xxx&month=2026-08
+// GetBudget 获取预算：按组合和月份查询预算设置，不存在返回 404。
+// GET /api/v1/budget?group_type=couple&group_id=example-group-id&month=2026-08
 func (h *FeatureHandler) GetBudget(c *gin.Context) {
 	uid := c.MustGet("uid").(uuid.UUID)
 	groupType := c.Query("group_type")
@@ -252,7 +253,7 @@ func (h *FeatureHandler) GetBudget(c *gin.Context) {
 
 // ---- 积分 ----
 
-// GetPointHistory 获取积分历史
+// GetPointHistory 获取积分历史：返回当前用户积分流水和分页元信息。
 // GET /api/v1/points?page=1&page_size=20
 func (h *FeatureHandler) GetPointHistory(c *gin.Context) {
 	uid := c.MustGet("uid").(uuid.UUID)

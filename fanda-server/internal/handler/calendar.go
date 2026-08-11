@@ -14,13 +14,14 @@ type CalendarHandler struct {
 	service *service.CalendarService
 }
 
+// NewCalendarHandler 创建日历记录 handler，承接吃饭记录、照片、留言和统计接口。
 func NewCalendarHandler() *CalendarHandler {
 	return &CalendarHandler{
 		service: service.NewCalendarService(),
 	}
 }
 
-// CreateRecord 创建日历记录
+// CreateRecord 创建日历记录：body 描述日期、餐型、金额、照片和留言等一次用餐信息。
 // POST /api/v1/calendar/records
 func (h *CalendarHandler) CreateRecord(c *gin.Context) {
 	uid := c.MustGet("uid").(uuid.UUID)
@@ -40,7 +41,7 @@ func (h *CalendarHandler) CreateRecord(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"code": 0, "message": "ok", "data": record})
 }
 
-// UpdateRecord 更新日历记录
+// UpdateRecord 更新日历记录：路径 id 指定记录，仅创建人可修改基础字段。
 // PUT /api/v1/calendar/records/:id
 func (h *CalendarHandler) UpdateRecord(c *gin.Context) {
 	uid := c.MustGet("uid").(uuid.UUID)
@@ -63,7 +64,7 @@ func (h *CalendarHandler) UpdateRecord(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"code": 0, "message": "更新成功"})
 }
 
-// DeleteRecord 删除日历记录
+// DeleteRecord 删除日历记录：路径 id 指定记录，仅创建人可删除。
 // DELETE /api/v1/calendar/records/:id
 func (h *CalendarHandler) DeleteRecord(c *gin.Context) {
 	uid := c.MustGet("uid").(uuid.UUID)
@@ -80,7 +81,7 @@ func (h *CalendarHandler) DeleteRecord(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"code": 0, "message": "删除成功"})
 }
 
-// GetRecord 获取记录详情
+// GetRecord 获取记录详情：返回记录及预加载的照片、留言。
 // GET /api/v1/calendar/records/:id
 func (h *CalendarHandler) GetRecord(c *gin.Context) {
 	uid := c.MustGet("uid").(uuid.UUID)
@@ -98,8 +99,8 @@ func (h *CalendarHandler) GetRecord(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"code": 0, "message": "ok", "data": record})
 }
 
-// ListRecords 按月获取日历记录
-// GET /api/v1/calendar/records?group_type=couple&group_id=xxx&year=2026&month=8
+// ListRecords 按月获取日历记录：year/month 组成月份窗口，不走分页。
+// GET /api/v1/calendar/records?group_type=couple&group_id=example-group-id&year=2026&month=8
 func (h *CalendarHandler) ListRecords(c *gin.Context) {
 	uid := c.MustGet("uid").(uuid.UUID)
 	groupType := c.Query("group_type")
@@ -124,8 +125,8 @@ func (h *CalendarHandler) ListRecords(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"code": 0, "message": "ok", "data": records})
 }
 
-// ListRecordsByDate 按日期获取记录
-// GET /api/v1/calendar/records/date?group_type=couple&group_id=xxx&date=2026-08-08
+// ListRecordsByDate 按日期获取记录：date 必须是 YYYY-MM-DD。
+// GET /api/v1/calendar/records/date?group_type=couple&group_id=example-group-id&date=2026-08-08
 func (h *CalendarHandler) ListRecordsByDate(c *gin.Context) {
 	uid := c.MustGet("uid").(uuid.UUID)
 	groupType := c.Query("group_type")
@@ -149,7 +150,7 @@ func (h *CalendarHandler) ListRecordsByDate(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"code": 0, "message": "ok", "data": records})
 }
 
-// AddComment 添加留言
+// AddComment 添加留言：body.content 是追加到指定记录的文本内容。
 // POST /api/v1/calendar/records/:id/comments
 func (h *CalendarHandler) AddComment(c *gin.Context) {
 	uid := c.MustGet("uid").(uuid.UUID)
@@ -175,7 +176,7 @@ func (h *CalendarHandler) AddComment(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"code": 0, "message": "ok", "data": comment})
 }
 
-// AddPhoto 添加照片
+// AddPhoto 添加照片：body.url 是已上传资源地址，type 默认为 image。
 // POST /api/v1/calendar/records/:id/photos
 func (h *CalendarHandler) AddPhoto(c *gin.Context) {
 	uid := c.MustGet("uid").(uuid.UUID)
@@ -202,8 +203,8 @@ func (h *CalendarHandler) AddPhoto(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"code": 0, "message": "ok", "data": photo})
 }
 
-// GetMonthlyStats 获取月度统计
-// GET /api/v1/calendar/stats?group_type=couple&group_id=xxx&year=2026&month=8
+// GetMonthlyStats 获取月度统计：按组合和月份聚合金额、餐型数量和缺金额记录。
+// GET /api/v1/calendar/stats?group_type=couple&group_id=example-group-id&year=2026&month=8
 func (h *CalendarHandler) GetMonthlyStats(c *gin.Context) {
 	uid := c.MustGet("uid").(uuid.UUID)
 	groupType := c.Query("group_type")

@@ -5,6 +5,7 @@ import { dishAPI } from '@/services/api'
 import type { Dish, PaginatedData } from '@/types'
 import './index.scss'
 
+// 菜品列表页：按类型与关键词浏览自建菜品，并承接下拉/滚动分页与新增入口。
 const DISH_TYPES = [
   { key: 'all', label: '全部' },
   { key: 'dish', label: '菜品' },
@@ -22,6 +23,7 @@ const DIFFICULTY_LABELS: Record<number, string> = {
 const sticker = (name: string) => `/assets/stickers/${name}.png`
 
 export default function DishesIndex() {
+  // activeTab/searchKeyword/page/hasMore 共同描述当前列表查询条件与分页游标。
   const [activeTab, setActiveTab] = useState('all')
   const [searchKeyword, setSearchKeyword] = useState('')
   const [dishes, setDishes] = useState<Dish[]>([])
@@ -42,6 +44,7 @@ export default function DishesIndex() {
         page_size: pageSize,
       }
 
+      // “全部”不传 dish_type，让后端按默认全集合查询；具体类型才下发筛选条件。
       if (activeTab !== 'all') {
         params.dish_type = activeTab
       }
@@ -87,7 +90,7 @@ export default function DishesIndex() {
     setDishes([])
     setPage(1)
     setHasMore(true)
-    // 触发重新加载
+    // 等待 activeTab 写入后再触发查询，避免 loadDishes 读取到上一个 tab。
     setTimeout(() => {
       loadDishes(1, false)
     }, 0)

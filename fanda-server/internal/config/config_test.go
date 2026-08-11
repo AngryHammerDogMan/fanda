@@ -4,6 +4,7 @@ import (
 	"testing"
 )
 
+// TestLoadRejectsUnsafeReleaseSecrets 覆盖生产模式安全兜底：默认 JWT/后台密码必须被拒绝。
 func TestLoadRejectsUnsafeReleaseSecrets(t *testing.T) {
 	t.Setenv("SERVER_MODE", "release")
 	t.Setenv("JWT_SECRET", "default-secret")
@@ -15,6 +16,7 @@ func TestLoadRejectsUnsafeReleaseSecrets(t *testing.T) {
 	}
 }
 
+// TestLoadAcceptsDevelopmentDefaults 覆盖本地开发模式：允许默认配置，降低本地启动成本。
 func TestLoadAcceptsDevelopmentDefaults(t *testing.T) {
 	t.Setenv("SERVER_MODE", "debug")
 

@@ -17,11 +17,12 @@ type AdminHandler struct {
 	cfg *config.Config
 }
 
+// NewAdminHandler 创建后台管理 handler，后台接口只依赖配置和数据库。
 func NewAdminHandler(cfg *config.Config) *AdminHandler {
 	return &AdminHandler{cfg: cfg}
 }
 
-// AdminLogin 管理员登录
+// AdminLogin 管理员登录：body.password 与配置中的后台密码匹配后签发 role=admin 的 JWT。
 func (h *AdminHandler) AdminLogin(c *gin.Context) {
 	var req struct {
 		Password string `json:"password" binding:"required"`
@@ -55,7 +56,7 @@ func (h *AdminHandler) AdminLogin(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"code": 0, "message": "ok", "data": gin.H{"token": tokenStr}})
 }
 
-// GetStats 仪表盘统计
+// GetStats 仪表盘统计：汇总全站总量、今日增量和本月消费，供后台首页展示。
 func (h *AdminHandler) GetStats(c *gin.Context) {
 	var totalUsers, totalDishes, totalOrders, totalRecords int64
 	database.DB.Model(&model.User{}).Count(&totalUsers)
@@ -97,7 +98,7 @@ func (h *AdminHandler) GetStats(c *gin.Context) {
 	}})
 }
 
-// ListUsers 用户列表（支持分页和搜索）
+// ListUsers 用户列表：支持 page/page_size 分页和昵称/手机号关键词搜索。
 func (h *AdminHandler) ListUsers(c *gin.Context) {
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
@@ -160,7 +161,7 @@ func (h *AdminHandler) ListUsers(c *gin.Context) {
 	})
 }
 
-// ListDishes 菜品列表（支持分页和搜索）
+// ListDishes 菜品列表：仅返回未软删除菜品，支持关键词、类型和分页。
 func (h *AdminHandler) ListDishes(c *gin.Context) {
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
@@ -225,14 +226,14 @@ func (h *AdminHandler) ListDishes(c *gin.Context) {
 	})
 }
 
-// DeleteDish 删除菜品
+// DeleteDish 删除菜品：后台按路径 id 执行软删除，用于管理违规或无效数据。
 func (h *AdminHandler) DeleteDish(c *gin.Context) {
 	id := c.Param("id")
 	database.DB.Model(&model.Dish{}).Where("id = ?", id).Update("is_deleted", true)
 	c.JSON(http.StatusOK, gin.H{"code": 0, "message": "删除成功"})
 }
 
-// ListOrders 订单列表（支持分页和搜索）
+// ListOrders 订单列表：支持按订单状态过滤并分页返回后台展示字段。
 func (h *AdminHandler) ListOrders(c *gin.Context) {
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
@@ -292,7 +293,7 @@ func (h *AdminHandler) ListOrders(c *gin.Context) {
 	})
 }
 
-// ListRecords 日历记录列表（支持分页和搜索）
+// ListRecords 日历记录列表：支持按餐型过滤并分页返回后台展示字段。
 func (h *AdminHandler) ListRecords(c *gin.Context) {
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))

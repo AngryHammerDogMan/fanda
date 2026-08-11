@@ -12,6 +12,7 @@ import (
 	"gorm.io/gorm"
 )
 
+// setupPhoneMergeTestDB 构造仅覆盖合并路径所需字段的内存库，避免测试依赖真实 PostgreSQL。
 func setupPhoneMergeTestDB(t *testing.T) {
 	t.Helper()
 
@@ -47,6 +48,8 @@ func setupPhoneMergeTestDB(t *testing.T) {
 	database.DB = db
 }
 
+// TestBindPhoneMergesExistingPhoneAccount 覆盖“抖音账号绑定已被微信账号占用的手机号”场景：
+// 期望 openid 合并、积分累加，并删除源平台账号。
 func TestBindPhoneMergesExistingPhoneAccount(t *testing.T) {
 	setupPhoneMergeTestDB(t)
 

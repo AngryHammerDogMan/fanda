@@ -1,3 +1,4 @@
+// Package router 统一声明 HTTP 路由表和中间件链路，保持 handler 只关注请求处理。
 package router
 
 import (
@@ -8,6 +9,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// Setup 创建 Gin Engine，并按“公开接口、后台接口、用户鉴权接口”分组挂载路由。
 func Setup(cfg *config.Config) *gin.Engine {
 	gin.SetMode(cfg.ServerMode)
 
@@ -38,15 +40,18 @@ func Setup(cfg *config.Config) *gin.Engine {
 		// ============ 公开接口（无需认证）============
 		auth := api.Group("/auth")
 		{
+			// 小程序端用平台 code 登录，登录成功后下游接口均依赖返回的 JWT。
 			auth.POST("/login", authHandler.Login)
 		}
 
 		// ============ 后台管理 ============
 		admin := api.Group("/admin")
 		{
+			// 后台登录只校验管理密码，签发 role=admin 的独立 JWT。
 			admin.POST("/login", adminHandler.AdminLogin)
 		}
 		adminAuth := api.Group("/admin")
+		// 后台统计和列表接口与用户端 JWT 隔离，只接受管理员角色令牌。
 		adminAuth.Use(middleware.AdminMiddleware(cfg))
 		{
 			adminAuth.GET("/stats", adminHandler.GetStats)
@@ -59,6 +64,7 @@ func Setup(cfg *config.Config) *gin.Engine {
 
 		// ============ 需要认证的接口 ============
 		protected := api.Group("")
+		// 保护组依赖 AuthMiddleware 写入 uid/platform，handler 不再重复解析令牌。
 		protected.Use(middleware.AuthMiddleware(cfg))
 		{
 			// 用户认证

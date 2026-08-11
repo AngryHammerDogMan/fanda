@@ -12,6 +12,7 @@ import (
 	"gorm.io/gorm"
 )
 
+// setupAuthzTestDB 构造鉴权相关的最小表集合，专注验证成员归属和资源所有者限制。
 func setupAuthzTestDB(t *testing.T) {
 	t.Helper()
 
@@ -35,6 +36,7 @@ func setupAuthzTestDB(t *testing.T) {
 	database.DB = db
 }
 
+// TestCanAccessGroupRejectsNonMember 覆盖组合鉴权：成员可访问，非成员被拒绝。
 func TestCanAccessGroupRejectsNonMember(t *testing.T) {
 	setupAuthzTestDB(t)
 
@@ -65,6 +67,7 @@ func TestCanAccessGroupRejectsNonMember(t *testing.T) {
 	}
 }
 
+// TestCompleteWishRejectsNonOwner 覆盖心愿所有者约束，避免组内其他成员越权完成心愿。
 func TestCompleteWishRejectsNonOwner(t *testing.T) {
 	setupAuthzTestDB(t)
 
@@ -103,6 +106,7 @@ func TestCompleteWishRejectsNonOwner(t *testing.T) {
 	}
 }
 
+// TestToggleBasketRejectsNonOwner 覆盖菜篮子所有者约束，越权失败后状态不应被修改。
 func TestToggleBasketRejectsNonOwner(t *testing.T) {
 	setupAuthzTestDB(t)
 

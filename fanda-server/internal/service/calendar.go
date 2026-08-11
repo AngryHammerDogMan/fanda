@@ -15,11 +15,12 @@ import (
 
 type CalendarService struct{}
 
+// NewCalendarService 创建日历记录服务，封装吃饭记录、附件、留言和月度统计。
 func NewCalendarService() *CalendarService {
 	return &CalendarService{}
 }
 
-// CreateRecord 创建日历记录
+// CreateRecord 创建日历记录：校验组合权限和日期格式后，用事务写入记录、照片和首条留言。
 func (s *CalendarService) CreateRecord(ctx context.Context, uid uuid.UUID, req CreateRecordReq) (*model.CalendarRecord, error) {
 	if err := CanAccessGroup(ctx, uid, req.GroupType, req.GroupID); err != nil {
 		return nil, err
@@ -94,7 +95,7 @@ func (s *CalendarService) CreateRecord(ctx context.Context, uid uuid.UUID, req C
 	return &record, nil
 }
 
-// UpdateRecord 更新日历记录
+// UpdateRecord 更新日历记录：仅创建人可修改，空更新保持幂等返回 nil。
 func (s *CalendarService) UpdateRecord(ctx context.Context, uid uuid.UUID, recordID uuid.UUID, req UpdateRecordReq) error {
 	var record model.CalendarRecord
 	if err := database.DB.Where("id = ? AND user_id = ?", recordID, uid).First(&record).Error; err != nil {
@@ -146,7 +147,7 @@ func (s *CalendarService) GetRecord(ctx context.Context, uid uuid.UUID, recordID
 	return &record, nil
 }
 
-// ListRecords 按月份获取日历记录
+// ListRecords 按月份获取日历记录：按 [月初, 下月初) 查询，避免月底日期边界问题。
 func (s *CalendarService) ListRecords(ctx context.Context, uid uuid.UUID, groupType string, groupID uuid.UUID, year, month int) ([]model.CalendarRecord, error) {
 	var records []model.CalendarRecord
 	if err := CanAccessGroup(ctx, uid, groupType, groupID); err != nil {
@@ -166,7 +167,7 @@ func (s *CalendarService) ListRecords(ctx context.Context, uid uuid.UUID, groupT
 	return records, nil
 }
 
-// ListRecordsByDate 按日期获取记录
+// ListRecordsByDate 按日期获取记录：用于日历某一天详情，日期格式错误返回业务错误。
 func (s *CalendarService) ListRecordsByDate(ctx context.Context, uid uuid.UUID, groupType string, groupID uuid.UUID, date string) ([]model.CalendarRecord, error) {
 	if err := CanAccessGroup(ctx, uid, groupType, groupID); err != nil {
 		return nil, err
@@ -187,7 +188,7 @@ func (s *CalendarService) ListRecordsByDate(ctx context.Context, uid uuid.UUID, 
 	return records, nil
 }
 
-// AddComment 添加留言
+// AddComment 添加留言：只要用户可访问记录所属组合即可追加留言。
 func (s *CalendarService) AddComment(ctx context.Context, uid uuid.UUID, recordID uuid.UUID, content string) (*model.RecordComment, error) {
 	if _, err := CanAccessRecord(ctx, uid, recordID); err != nil {
 		return nil, errors.New("记录不存在")
@@ -204,7 +205,7 @@ func (s *CalendarService) AddComment(ctx context.Context, uid uuid.UUID, recordI
 	return &comment, nil
 }
 
-// AddPhoto 添加照片/视频
+// AddPhoto 添加照片/视频：当前仅创建人可追加附件，并按已有数量写入排序序号。
 func (s *CalendarService) AddPhoto(ctx context.Context, uid uuid.UUID, recordID uuid.UUID, url, fileType string) (*model.RecordPhoto, error) {
 	var record model.CalendarRecord
 	if err := database.DB.Where("id = ? AND user_id = ?", recordID, uid).First(&record).Error; err != nil {
@@ -231,7 +232,7 @@ func (s *CalendarService) AddPhoto(ctx context.Context, uid uuid.UUID, recordID 
 	return &photo, nil
 }
 
-// GetMonthlyStats 获取月度统计
+// GetMonthlyStats 获取月度统计：按月份聚合消费金额、餐型次数和缺少金额的日期。
 func (s *CalendarService) GetMonthlyStats(ctx context.Context, uid uuid.UUID, groupType string, groupID uuid.UUID, year, month int) (map[string]interface{}, error) {
 	if err := CanAccessGroup(ctx, uid, groupType, groupID); err != nil {
 		return nil, err
@@ -268,7 +269,7 @@ func (s *CalendarService) GetMonthlyStats(ctx context.Context, uid uuid.UUID, gr
 	}, nil
 }
 
-// ---- 请求结构 ----
+// ---- 请求结构：日期字段使用字符串承接 HTTP JSON，再在 service 中统一解析 ----
 
 type CreateRecordReq struct {
 	GroupType  string     `json:"group_type" binding:"required,oneof=couple buddy"`

@@ -15,11 +15,12 @@ import (
 
 type DishService struct{}
 
+// NewDishService 创建菜品服务，所有数据访问通过 database.DB 完成。
 func NewDishService() *DishService {
 	return &DishService{}
 }
 
-// CreateDish 创建菜品
+// CreateDish 创建菜品：先校验用户是否属于目标组合，再把复杂字段序列化为 JSONB 字符串保存。
 func (s *DishService) CreateDish(ctx context.Context, uid uuid.UUID, req CreateDishReq) (*model.Dish, error) {
 	if err := CanAccessGroup(ctx, uid, req.GroupType, req.GroupID); err != nil {
 		return nil, err
@@ -63,7 +64,7 @@ func (s *DishService) CreateDish(ctx context.Context, uid uuid.UUID, req CreateD
 	return &dish, nil
 }
 
-// UpdateDish 更新菜品
+// UpdateDish 更新菜品：只允许创建者修改未删除菜品，并只写入请求中显式提供的字段。
 func (s *DishService) UpdateDish(ctx context.Context, uid uuid.UUID, dishID uuid.UUID, req UpdateDishReq) error {
 	var dish model.Dish
 	if err := database.DB.Where("id = ? AND owner_id = ? AND is_deleted = false", dishID, uid).First(&dish).Error; err != nil {
@@ -115,7 +116,7 @@ func (s *DishService) UpdateDish(ctx context.Context, uid uuid.UUID, dishID uuid
 	return database.DB.Model(&dish).Updates(updates).Error
 }
 
-// DeleteDish 软删除菜品
+// DeleteDish 软删除菜品：保留历史订单/记录引用，仅把 is_deleted 置为 true。
 func (s *DishService) DeleteDish(ctx context.Context, uid uuid.UUID, dishID uuid.UUID) error {
 	result := database.DB.Model(&model.Dish{}).
 		Where("id = ? AND owner_id = ? AND is_deleted = false", dishID, uid).
@@ -135,7 +136,7 @@ func (s *DishService) GetDish(ctx context.Context, uid uuid.UUID, dishID uuid.UU
 	return dish, nil
 }
 
-// ListDishes 获取菜品列表
+// ListDishes 获取菜品列表：组合鉴权后拼接筛选条件，先 Count 再按分页读取列表。
 func (s *DishService) ListDishes(ctx context.Context, uid uuid.UUID, groupType string, groupID uuid.UUID, dishType, category, keyword string, page, pageSize int) ([]model.Dish, int64, error) {
 	var dishes []model.Dish
 	var total int64
@@ -170,7 +171,7 @@ func (s *DishService) ListDishes(ctx context.Context, uid uuid.UUID, groupType s
 	return dishes, total, nil
 }
 
-// ImportFromPlaza 从学菜广场导入菜品
+// ImportFromPlaza 从学菜广场导入菜品：复制广场菜品快照到目标组合并增加导入计数。
 func (s *DishService) ImportFromPlaza(ctx context.Context, uid uuid.UUID, plazaID uuid.UUID, groupType string, groupID uuid.UUID) (*model.Dish, error) {
 	if err := CanAccessGroup(ctx, uid, groupType, groupID); err != nil {
 		return nil, err
@@ -207,7 +208,7 @@ func (s *DishService) ImportFromPlaza(ctx context.Context, uid uuid.UUID, plazaI
 	return &dish, nil
 }
 
-// SearchPlaza 搜索学菜广场
+// SearchPlaza 搜索学菜广场：按导入热度和创建时间排序，适配前端瀑布流分页。
 func (s *DishService) SearchPlaza(ctx context.Context, category, keyword string, page, pageSize int) ([]model.PlazaDish, int64, error) {
 	var dishes []model.PlazaDish
 	var total int64
@@ -240,7 +241,7 @@ func (s *DishService) GetPlazaCategories(ctx context.Context) ([]string, error) 
 	return preset, nil
 }
 
-// ---- 请求结构 ----
+// ---- 请求结构：字段标签同时服务于 Gin 参数绑定和接口文档阅读 ----
 
 type CreateDishReq struct {
 	GroupType      string      `json:"group_type" binding:"required,oneof=couple buddy"`

@@ -5,13 +5,15 @@ import { authAPI, featureAPI } from '@/services/api'
 import type { User, CheckinStatus, PointRecord } from '@/types'
 import './index.scss'
 
-// 自动检测当前平台
+// 个人中心页：展示资料、账号绑定、关系入口、积分明细与退出登录。
+// 自动检测当前平台，用于展示跨微信/抖音绑定提示，不参与业务请求参数。
 const CURRENT_PLATFORM = process.env.TARO_ENV === 'weapp' ? 'wechat' : 'douyin'
 const PLATFORM_NAME = CURRENT_PLATFORM === 'wechat' ? '微信' : '抖音'
 const OTHER_PLATFORM_NAME = CURRENT_PLATFORM === 'wechat' ? '抖音' : '微信'
 const sticker = (name: string) => `/assets/stickers/${name}.png`
 
 export default function Profile() {
+  // user/checkinStatus 支撑顶部概览；pointHistory 只在用户主动展开时加载。
   const [user, setUser] = useState<User | null>(null)
   const [checkinStatus, setCheckinStatus] = useState<CheckinStatus | null>(null)
   const [pointHistory, setPointHistory] = useState<PointRecord[]>([])
@@ -24,6 +26,7 @@ export default function Profile() {
 
   const loadAll = async () => {
     try {
+      // 个人资料与签到状态互不依赖，并发加载减少进入个人中心时的等待。
       const [profileRes, checkinRes] = await Promise.all([
         authAPI.getProfile(),
         featureAPI.getCheckinStatus(),
@@ -38,6 +41,7 @@ export default function Profile() {
   const loadPointHistory = async () => {
     setLoading(true)
     try {
+      // 积分记录不是首屏必需数据，点击“积分明细”后再取第一页。
       const res = await featureAPI.getPointHistory(1, 20)
       setPointHistory(res.data?.list || res.data || [])
       setShowPointHistory(true)
@@ -75,7 +79,7 @@ export default function Profile() {
         sourceType: ['album', 'camera'],
       })
       const tempPath = res.tempFilePaths[0]
-      // 模拟上传，实际项目中需要上传到云存储
+      // 当前仅走本地选图流程；后续接入云存储时再把 tempPath 上传并回写头像 URL。
       Taro.showToast({ title: '头像上传成功', icon: 'success' })
       loadAll()
     } catch (err) {

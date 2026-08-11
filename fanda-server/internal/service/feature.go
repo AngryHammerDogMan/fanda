@@ -14,13 +14,14 @@ import (
 
 type FeatureService struct{}
 
+// NewFeatureService 创建扩展功能服务，聚合轻量但共用鉴权规则的业务能力。
 func NewFeatureService() *FeatureService {
 	return &FeatureService{}
 }
 
 // ---- 心愿清单 ----
 
-// CreateWish 创建心愿
+// CreateWish 创建心愿：先确认当前用户可访问目标组合，再写入个人创建的心愿。
 func (s *FeatureService) CreateWish(ctx context.Context, uid uuid.UUID, req CreateWishReq) (*model.WishItem, error) {
 	if err := CanAccessGroup(ctx, uid, req.GroupType, req.GroupID); err != nil {
 		return nil, err
@@ -42,7 +43,7 @@ func (s *FeatureService) CreateWish(ctx context.Context, uid uuid.UUID, req Crea
 	return &wish, nil
 }
 
-// ListWishes 获取心愿列表
+// ListWishes 获取心愿列表：组合鉴权后可按完成状态过滤。
 func (s *FeatureService) ListWishes(ctx context.Context, uid uuid.UUID, groupType string, groupID uuid.UUID, completed *bool) ([]model.WishItem, error) {
 	var wishes []model.WishItem
 	if err := CanAccessGroup(ctx, uid, groupType, groupID); err != nil {
@@ -58,7 +59,7 @@ func (s *FeatureService) ListWishes(ctx context.Context, uid uuid.UUID, groupTyp
 	return wishes, nil
 }
 
-// CompleteWish 完成心愿
+// CompleteWish 完成心愿：按 user_id 限制为创建者操作，避免组内成员互相修改。
 func (s *FeatureService) CompleteWish(ctx context.Context, uid uuid.UUID, wishID uuid.UUID) error {
 	result := database.DB.Model(&model.WishItem{}).
 		Where("id = ? AND user_id = ?", wishID, uid).
@@ -80,7 +81,7 @@ func (s *FeatureService) DeleteWish(ctx context.Context, uid uuid.UUID, wishID u
 
 // ---- 签到 ----
 
-// Checkin 签到
+// Checkin 签到：同一天只允许一次，连续签到在事务中同时写签到、积分和流水。
 func (s *FeatureService) Checkin(ctx context.Context, uid uuid.UUID) (map[string]interface{}, error) {
 	today := time.Now().Format("2006-01-02")
 	todayDate, _ := time.Parse("2006-01-02", today)
@@ -111,7 +112,7 @@ func (s *FeatureService) Checkin(ctx context.Context, uid uuid.UUID) (map[string
 		return nil, fmt.Errorf("签到失败: %w", err)
 	}
 
-	// 更新用户积分
+	// 更新用户积分和记录流水必须与签到记录同事务提交，避免积分与签到状态不一致。
 	if err := tx.Model(&model.User{}).Where("uid = ?", uid).UpdateColumn("points", tx.Raw("points + ?", points)).Error; err != nil {
 		tx.Rollback()
 		return nil, fmt.Errorf("更新积分失败: %w", err)
@@ -138,7 +139,7 @@ func (s *FeatureService) Checkin(ctx context.Context, uid uuid.UUID) (map[string
 	}, nil
 }
 
-// GetCheckinStatus 获取签到状态
+// GetCheckinStatus 获取签到状态：计算今日是否签到、本月次数和从今天/昨天回溯的连续天数。
 func (s *FeatureService) GetCheckinStatus(ctx context.Context, uid uuid.UUID) (map[string]interface{}, error) {
 	today := time.Now().Format("2006-01-02")
 	todayDate, _ := time.Parse("2006-01-02", today)
@@ -179,7 +180,7 @@ func (s *FeatureService) GetCheckinStatus(ctx context.Context, uid uuid.UUID) (m
 
 // ---- 菜篮子 ----
 
-// AddToBasket 添加到菜篮子
+// AddToBasket 添加到菜篮子：数量缺省时写入 "1"，其余字段保持用户输入。
 func (s *FeatureService) AddToBasket(ctx context.Context, uid uuid.UUID, req BasketReq) (*model.ShoppingBasket, error) {
 	if err := CanAccessGroup(ctx, uid, req.GroupType, req.GroupID); err != nil {
 		return nil, err
@@ -201,7 +202,7 @@ func (s *FeatureService) AddToBasket(ctx context.Context, uid uuid.UUID, req Bas
 	return &item, nil
 }
 
-// ListBasket 获取菜篮子
+// ListBasket 获取菜篮子：未购买项排在前面，方便前端优先展示待采购内容。
 func (s *FeatureService) ListBasket(ctx context.Context, uid uuid.UUID, groupType string, groupID uuid.UUID) ([]model.ShoppingBasket, error) {
 	var items []model.ShoppingBasket
 	if err := CanAccessGroup(ctx, uid, groupType, groupID); err != nil {
@@ -234,7 +235,7 @@ func (s *FeatureService) DeleteBasket(ctx context.Context, uid uuid.UUID, itemID
 
 // ---- 预算 ----
 
-// SetBudget 设置预算
+// SetBudget 设置预算：同一用户、组合和月份已有记录时更新，否则创建新预算。
 func (s *FeatureService) SetBudget(ctx context.Context, uid uuid.UUID, req BudgetReq) (*model.BudgetSetting, error) {
 	if err := CanAccessGroup(ctx, uid, req.GroupType, req.GroupID); err != nil {
 		return nil, err
@@ -281,7 +282,7 @@ func (s *FeatureService) GetBudget(ctx context.Context, uid uuid.UUID, groupType
 
 // ---- 积分历史 ----
 
-// GetPointHistory 获取积分历史
+// GetPointHistory 获取积分历史：按当前用户过滤后返回总数和分页后的流水。
 func (s *FeatureService) GetPointHistory(ctx context.Context, uid uuid.UUID, page, pageSize int) ([]model.PointRecord, int64, error) {
 	var records []model.PointRecord
 	var total int64
@@ -300,7 +301,7 @@ func (s *FeatureService) GetPointHistory(ctx context.Context, uid uuid.UUID, pag
 	return records, total, nil
 }
 
-// ---- 请求结构 ----
+// ---- 请求结构：扩展功能请求均显式携带 group_type/group_id 以复用组合鉴权 ----
 
 type CreateWishReq struct {
 	GroupType string     `json:"group_type" binding:"required,oneof=couple buddy"`

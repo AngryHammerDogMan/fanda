@@ -5,9 +5,11 @@ import { authAPI } from '@/services/api'
 import type { User, BuddyGroup, BuddyMember } from '@/types'
 import './index.scss'
 
+// 饭搭子管理页：维护用户的饭搭子群组、邀请加入流程与成员管理入口。
 const sticker = (name: string) => `/assets/stickers/${name}.png`
 
 export default function Buddy() {
+  // selectedGroup 驱动右侧/下方详情区；inviteCode/joinCode 分别承载邀请与加入流程。
   const [user, setUser] = useState<User | null>(null)
   const [groups, setGroups] = useState<BuddyGroup[]>([])
   const [members, setMembers] = useState<BuddyMember[]>([])
@@ -31,6 +33,7 @@ export default function Buddy() {
       setUser(u)
       const gs = u.buddy_groups || []
       setGroups(gs)
+      // 首次进入默认选中第一个群组，避免已有群组时详情区为空。
       if (gs.length > 0 && !selectedGroup) {
         setSelectedGroup(gs[0])
       }
@@ -45,15 +48,15 @@ export default function Buddy() {
   }
 
   const loadMembers = async (groupId: string) => {
-    // 成员列表通过 getProfile 中的 buddy_groups 获取，这里简化处理
+    // 成员列表通过 getProfile 中的 buddy_groups 获取，这里简化处理。
     setLoading(true)
     try {
-      // 重新获取 profile 以得到最新成员列表
+      // 重新获取 profile 以得到最新成员列表。
       const res = await authAPI.getProfile()
       const u: User = res.data
       setUser(u)
       setGroups(u.buddy_groups || [])
-      // 从群组中获取成员（简化处理，实际项目应有专门的 API）
+      // 从群组中获取成员（简化处理，实际项目应有专门的 API）。
       setMembers([])
     } catch (err) {
       console.error('加载成员失败', err)
@@ -86,6 +89,7 @@ export default function Buddy() {
     setLoading(true)
     try {
       const res = await authAPI.createBuddyInvite(selectedGroup.id)
+      // 邀请接口可能返回对象或字符串，统一提取为展示/复制用的邀请码。
       const code = res.data?.code || res.data
       setInviteCode(code)
       setShowInvite(true)
@@ -107,6 +111,7 @@ export default function Buddy() {
   }
 
   const handleJoinGroup = async () => {
+    // 加入群组接口依赖当前选中群组 ID，未选中时不发起请求。
     if (!selectedGroup) return
     if (!joinCode.trim()) {
       Taro.showToast({ title: '请输入邀请码', icon: 'none' })

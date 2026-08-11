@@ -1,3 +1,4 @@
+// Package model 定义数据库表结构和 JSON 序列化字段，供 GORM 自动映射。
 package model
 
 import (
@@ -7,7 +8,7 @@ import (
 	"gorm.io/gorm"
 )
 
-// User 用户表
+// User 用户表；微信 openid、抖音 openid 和手机号均为唯一标识，手机号用于跨平台账号合并。
 type User struct {
 	UID       uuid.UUID `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"uid"`
 	WxOpenID  *string   `gorm:"column:wx_openid;type:varchar(64);uniqueIndex" json:"wx_openid,omitempty"`
@@ -20,6 +21,7 @@ type User struct {
 	UpdatedAt time.Time `json:"updated_at"`
 }
 
+// BeforeCreate 兼容不支持数据库侧 gen_random_uuid 的测试环境，确保新用户始终有 UID。
 func (u *User) BeforeCreate(tx *gorm.DB) error {
 	if u.UID == uuid.Nil {
 		u.UID = uuid.New()
@@ -27,7 +29,7 @@ func (u *User) BeforeCreate(tx *gorm.DB) error {
 	return nil
 }
 
-// Couple 情侣关系表
+// Couple 情侣关系表；active 表示当前有效关系，鉴权会校验双方任一成员身份。
 type Couple struct {
 	ID        uuid.UUID `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
 	User1ID   uuid.UUID `gorm:"type:uuid;not null;uniqueIndex:idx_couple_user1" json:"user1_id"`
@@ -36,7 +38,7 @@ type Couple struct {
 	CreatedAt time.Time `json:"created_at"`
 }
 
-// CoupleInvite 情侣邀请码表
+// CoupleInvite 情侣邀请码表；邀请码有过期和使用状态，用于一次性建立情侣关系。
 type CoupleInvite struct {
 	ID        uuid.UUID `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
 	InviterID uuid.UUID `gorm:"type:uuid;not null;index" json:"inviter_id"`
@@ -46,7 +48,7 @@ type CoupleInvite struct {
 	CreatedAt time.Time `json:"created_at"`
 }
 
-// BuddyGroup 饭搭子组合表
+// BuddyGroup 饭搭子组合表；owner_id 与 buddy_members 共同描述群主和成员关系。
 type BuddyGroup struct {
 	ID        uuid.UUID `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
 	Name      string    `gorm:"type:varchar(50);not null" json:"name"`
@@ -57,7 +59,7 @@ type BuddyGroup struct {
 	UpdatedAt time.Time `json:"updated_at"`
 }
 
-// BuddyMember 饭搭子成员表
+// BuddyMember 饭搭子成员表；group_id + user_id 唯一，避免同一用户重复入群。
 type BuddyMember struct {
 	ID       uuid.UUID `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
 	GroupID  uuid.UUID `gorm:"type:uuid;not null;index:idx_buddy_group" json:"group_id"`
@@ -66,7 +68,7 @@ type BuddyMember struct {
 	JoinedAt time.Time `json:"joined_at"`
 }
 
-// BuddyInvite 饭搭子邀请码表
+// BuddyInvite 饭搭子邀请码表；邀请人必须是对应饭搭子组合的 owner/admin。
 type BuddyInvite struct {
 	ID        uuid.UUID `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
 	GroupID   uuid.UUID `gorm:"type:uuid;not null;index" json:"group_id"`

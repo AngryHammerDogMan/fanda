@@ -11,10 +11,13 @@ import (
 )
 
 var (
+	// ErrForbidden 表示用户身份有效，但不属于目标情侣/饭搭子组合。
 	ErrForbidden = errors.New("无权访问该资源")
-	ErrNotFound  = errors.New("资源不存在")
+	// ErrNotFound 表示资源本身不存在，调用方通常映射为 404 或业务“不存在”提示。
+	ErrNotFound = errors.New("资源不存在")
 )
 
+// CanAccessGroup 是组合级鉴权入口：情侣校验双方成员，饭搭子校验 active 群成员。
 func CanAccessGroup(ctx context.Context, uid uuid.UUID, groupType string, groupID uuid.UUID) error {
 	if uid == uuid.Nil || groupID == uuid.Nil {
 		return ErrForbidden
@@ -47,6 +50,7 @@ func CanAccessGroup(ctx context.Context, uid uuid.UUID, groupType string, groupI
 	return nil
 }
 
+// CanAccessDish 先读取菜品归属，再复用组合鉴权，避免越权访问其他组合菜品。
 func CanAccessDish(ctx context.Context, uid uuid.UUID, dishID uuid.UUID) (*model.Dish, error) {
 	var dish model.Dish
 	if err := database.DB.WithContext(ctx).Where("id = ? AND is_deleted = false", dishID).First(&dish).Error; err != nil {
@@ -58,6 +62,7 @@ func CanAccessDish(ctx context.Context, uid uuid.UUID, dishID uuid.UUID) (*model
 	return &dish, nil
 }
 
+// CanAccessOrder 先读取订单归属，再复用组合鉴权，供详情、状态流转和投票使用。
 func CanAccessOrder(ctx context.Context, uid uuid.UUID, orderID uuid.UUID) (*model.Order, error) {
 	var order model.Order
 	if err := database.DB.WithContext(ctx).First(&order, "id = ?", orderID).Error; err != nil {
@@ -69,6 +74,7 @@ func CanAccessOrder(ctx context.Context, uid uuid.UUID, orderID uuid.UUID) (*mod
 	return &order, nil
 }
 
+// CanAccessRecord 先读取日历记录归属，再复用组合鉴权，供详情、留言和统计使用。
 func CanAccessRecord(ctx context.Context, uid uuid.UUID, recordID uuid.UUID) (*model.CalendarRecord, error) {
 	var record model.CalendarRecord
 	if err := database.DB.WithContext(ctx).First(&record, "id = ?", recordID).Error; err != nil {
