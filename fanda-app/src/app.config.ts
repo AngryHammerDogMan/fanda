@@ -36,8 +36,8 @@ export default defineAppConfig({
         selectedIconPath: 'assets/tabbar/home-active.png'
       },
       {
-        pagePath: 'pages/dishes/index',
-        text: '菜单',
+        pagePath: 'pages/orders/create',
+        text: '点单',
         iconPath: 'assets/tabbar/menu.png',
         selectedIconPath: 'assets/tabbar/menu-active.png'
       },

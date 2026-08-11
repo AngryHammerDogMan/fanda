@@ -114,15 +114,15 @@ export default function Index() {
         <View className='quick-actions'>
           <View className='quick-item' onClick={() => navigateTo('/pages/orders/create')}>
             <Image className='sticker-icon' src={sticker('order')} mode='aspectFit' />
-            <Text className='quick-label'>新建点单</Text>
+            <Text className='quick-label'>开始点单</Text>
           </View>
           <View className='quick-item' onClick={() => navigateTo('/pages/plaza/index')}>
             <Image className='sticker-icon' src={sticker('plaza')} mode='aspectFit' />
             <Text className='quick-label'>学菜广场</Text>
           </View>
-          <View className='quick-item' onClick={() => navigateTo('/pages/dishes/create')}>
+          <View className='quick-item' onClick={() => navigateTo('/pages/dishes/index')}>
             <Image className='sticker-icon' src={sticker('menu')} mode='aspectFit' />
-            <Text className='quick-label'>添加菜品</Text>
+            <Text className='quick-label'>菜单管理</Text>
           </View>
           <View className='quick-item' onClick={() => navigateTo('/pages/couple/index')}>
             <Image className='sticker-icon' src={sticker('couple')} mode='aspectFit' />
