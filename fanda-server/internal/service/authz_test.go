@@ -13,7 +13,7 @@ import (
 )
 
 // setupAuthzTestDB 构造鉴权相关的最小表集合，专注验证成员归属和资源所有者限制。
-func setupAuthzTestDB(t *testing.T) {
+func setupAuthzTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
 
 	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
@@ -25,6 +25,8 @@ func setupAuthzTestDB(t *testing.T) {
 		`CREATE TABLE couples (id TEXT PRIMARY KEY, user1_id TEXT NOT NULL, user2_id TEXT NOT NULL, status TEXT NOT NULL, created_at DATETIME)`,
 		`CREATE TABLE buddy_groups (id TEXT PRIMARY KEY, name TEXT NOT NULL, owner_id TEXT NOT NULL, max_member INTEGER, status TEXT NOT NULL, created_at DATETIME, updated_at DATETIME)`,
 		`CREATE TABLE buddy_members (id TEXT PRIMARY KEY, group_id TEXT NOT NULL, user_id TEXT NOT NULL, role TEXT NOT NULL, joined_at DATETIME)`,
+		`CREATE TABLE tables (id TEXT PRIMARY KEY, type TEXT NOT NULL, name TEXT NOT NULL, owner_id TEXT NOT NULL, status TEXT NOT NULL)`,
+		`CREATE TABLE table_members (id TEXT PRIMARY KEY, table_id TEXT NOT NULL, user_id TEXT NOT NULL, role TEXT NOT NULL, status TEXT NOT NULL, joined_at DATETIME)`,
 		`CREATE TABLE wish_items (id TEXT PRIMARY KEY, user_id TEXT NOT NULL, group_type TEXT NOT NULL, group_id TEXT NOT NULL, name TEXT NOT NULL, note TEXT, dish_id TEXT, is_completed BOOLEAN, created_at DATETIME)`,
 		`CREATE TABLE shopping_baskets (id TEXT PRIMARY KEY, user_id TEXT NOT NULL, group_type TEXT NOT NULL, group_id TEXT NOT NULL, name TEXT NOT NULL, quantity TEXT, is_purchased BOOLEAN, created_at DATETIME)`,
 	}
@@ -34,6 +36,55 @@ func setupAuthzTestDB(t *testing.T) {
 		}
 	}
 	database.DB = db
+	return db
+}
+
+func TestCanAccessTableAllowsActiveMember(t *testing.T) {
+	db := setupAuthzTestDB(t)
+	database.DB = db
+
+	uid := uuid.New()
+	tableID := uuid.New()
+
+	if err := db.Exec(`INSERT INTO users (uid, nickname) VALUES (?, ?)`, uid, "tester").Error; err != nil {
+		t.Fatal(err)
+	}
+	if err := db.Exec(`INSERT INTO tables (id, type, name, owner_id, status) VALUES (?, ?, ?, ?, ?)`, tableID, "personal", "我的餐桌", uid, "active").Error; err != nil {
+		t.Fatal(err)
+	}
+	if err := db.Exec(`INSERT INTO table_members (id, table_id, user_id, role, status) VALUES (?, ?, ?, ?, ?)`, uuid.New(), tableID, uid, "owner", "active").Error; err != nil {
+		t.Fatal(err)
+	}
+
+	if err := CanAccessTable(context.Background(), uid, tableID); err != nil {
+		t.Fatalf("活跃餐桌成员应可访问餐桌: %v", err)
+	}
+}
+
+func TestCanAccessTableRejectsNonMember(t *testing.T) {
+	db := setupAuthzTestDB(t)
+	database.DB = db
+
+	ownerID := uuid.New()
+	otherID := uuid.New()
+	tableID := uuid.New()
+
+	if err := db.Exec(`INSERT INTO users (uid, nickname) VALUES (?, ?)`, ownerID, "owner").Error; err != nil {
+		t.Fatal(err)
+	}
+	if err := db.Exec(`INSERT INTO users (uid, nickname) VALUES (?, ?)`, otherID, "other").Error; err != nil {
+		t.Fatal(err)
+	}
+	if err := db.Exec(`INSERT INTO tables (id, type, name, owner_id, status) VALUES (?, ?, ?, ?, ?)`, tableID, "personal", "我的餐桌", ownerID, "active").Error; err != nil {
+		t.Fatal(err)
+	}
+	if err := db.Exec(`INSERT INTO table_members (id, table_id, user_id, role, status) VALUES (?, ?, ?, ?, ?)`, uuid.New(), tableID, ownerID, "owner", "active").Error; err != nil {
+		t.Fatal(err)
+	}
+
+	if err := CanAccessTable(context.Background(), otherID, tableID); err == nil {
+		t.Fatal("非餐桌成员不应访问餐桌")
+	}
 }
 
 // TestCanAccessGroupRejectsNonMember 覆盖组合鉴权：成员可访问，非成员被拒绝。

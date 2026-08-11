@@ -50,6 +50,26 @@ func CanAccessGroup(ctx context.Context, uid uuid.UUID, groupType string, groupI
 	return nil
 }
 
+// CanAccessTable 校验用户是否为活跃餐桌的活跃成员，是新餐桌模型的统一鉴权入口。
+func CanAccessTable(ctx context.Context, uid uuid.UUID, tableID uuid.UUID) error {
+	if uid == uuid.Nil || tableID == uuid.Nil {
+		return errors.New("餐桌不存在")
+	}
+
+	var count int64
+	err := database.DB.WithContext(ctx).Model(&model.TableMember{}).
+		Joins("JOIN tables ON tables.id = table_members.table_id").
+		Where("table_members.table_id = ? AND table_members.user_id = ? AND table_members.status = 'active' AND tables.status = 'active'", tableID, uid).
+		Count(&count).Error
+	if err != nil {
+		return err
+	}
+	if count == 0 {
+		return errors.New("无权访问该餐桌")
+	}
+	return nil
+}
+
 // CanAccessDish 先读取菜品归属，再复用组合鉴权，避免越权访问其他组合菜品。
 func CanAccessDish(ctx context.Context, uid uuid.UUID, dishID uuid.UUID) (*model.Dish, error) {
 	var dish model.Dish
