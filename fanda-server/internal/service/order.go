@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"fanda-server/internal/database"
 	"fanda-server/internal/model"
@@ -18,26 +19,38 @@ func NewOrderService() *OrderService {
 	return &OrderService{}
 }
 
-// CreateOrder 创建订单：先做组合鉴权，再用事务创建订单与订单项，并汇总可选金额。
+// CreateOrder 创建订单：先做餐桌鉴权，再用事务同时创建订单、订单项、日历记录和可选参与人。
 func (s *OrderService) CreateOrder(ctx context.Context, uid uuid.UUID, req CreateOrderReq) (*model.Order, error) {
-	if err := CanAccessGroup(ctx, uid, req.GroupType, req.GroupID); err != nil {
+	if err := CanAccessTable(ctx, uid, req.TableID); err != nil {
 		return nil, err
 	}
 
+	status := "confirmed"
+	recordStatus := "confirmed"
+	if req.DineMode == "together" && len(req.ParticipantIDs) > 0 {
+		status = "pending"
+		recordStatus = "pending"
+	}
+	if req.DineMode == "together" {
+		for _, participantID := range req.ParticipantIDs {
+			if participantID == uid {
+				return nil, errors.New("不能邀请自己")
+			}
+			if err := CanAccessTable(ctx, participantID, req.TableID); err != nil {
+				return nil, errors.New("参与人不属于该餐桌")
+			}
+		}
+	}
+
 	order := model.Order{
+		ID:        uuid.New(),
 		CreatorID: uid,
-		GroupType: req.GroupType,
-		GroupID:   req.GroupID,
+		TableID:   req.TableID,
 		DineMode:  req.DineMode,
-		Status:    "pending",
+		Status:    status,
 	}
 
-	// 饭搭子共同就餐不直接进入确认流，而是进入投票状态等待成员表态。
-	if req.GroupType == "buddy" && req.DineMode == "together" {
-		order.Status = "voted"
-	}
-
-	tx := database.DB.Begin()
+	tx := database.DB.WithContext(ctx).Begin()
 
 	if err := tx.Create(&order).Error; err != nil {
 		tx.Rollback()
@@ -45,12 +58,15 @@ func (s *OrderService) CreateOrder(ctx context.Context, uid uuid.UUID, req Creat
 	}
 
 	var totalAmount float64
+	dishIDs := make([]string, 0, len(req.Items))
 	for _, item := range req.Items {
 		orderItem := model.OrderItem{
+			ID:       uuid.New(),
 			OrderID:  order.ID,
 			DishID:   item.DishID,
 			Quantity: item.Quantity,
 		}
+		dishIDs = append(dishIDs, item.DishID.String())
 		if item.UnitPrice != nil {
 			orderItem.UnitPrice = item.UnitPrice
 			totalAmount += *item.UnitPrice * float64(item.Quantity)
@@ -63,7 +79,44 @@ func (s *OrderService) CreateOrder(ctx context.Context, uid uuid.UUID, req Creat
 
 	if totalAmount > 0 {
 		order.TotalAmount = &totalAmount
-		tx.Model(&order).Update("total_amount", totalAmount)
+	}
+
+	record := model.CalendarRecord{
+		ID:         uuid.New(),
+		UserID:     uid,
+		TableID:    req.TableID,
+		RecordDate: time.Now(),
+		MealType:   "cook",
+		MealPeriod: "",
+		DishIDs:    dishIDs,
+		Amount:     order.TotalAmount,
+		Source:     "order",
+		Status:     recordStatus,
+	}
+	if err := tx.Create(&record).Error; err != nil {
+		tx.Rollback()
+		return nil, fmt.Errorf("创建日历记录失败: %w", err)
+	}
+
+	order.CalendarRecordID = &record.ID
+	if err := tx.Model(&order).Updates(model.Order{TotalAmount: order.TotalAmount, CalendarRecordID: order.CalendarRecordID}).Error; err != nil {
+		tx.Rollback()
+		return nil, fmt.Errorf("更新订单汇总失败: %w", err)
+	}
+
+	if req.DineMode == "together" {
+		for _, participantID := range req.ParticipantIDs {
+			participant := model.OrderParticipant{
+				ID:      uuid.New(),
+				OrderID: order.ID,
+				UserID:  participantID,
+				Status:  "invited",
+			}
+			if err := tx.Create(&participant).Error; err != nil {
+				tx.Rollback()
+				return nil, fmt.Errorf("添加参与人失败: %w", err)
+			}
+		}
 	}
 
 	if err := tx.Commit().Error; err != nil {
@@ -71,7 +124,7 @@ func (s *OrderService) CreateOrder(ctx context.Context, uid uuid.UUID, req Creat
 	}
 
 	// 重新加载带关联数据
-	database.DB.Preload("OrderItems").First(&order, "id = ?", order.ID)
+	database.DB.WithContext(ctx).Preload("OrderItems").Preload("Participants").First(&order, "id = ?", order.ID)
 	return &order, nil
 }
 
@@ -81,24 +134,24 @@ func (s *OrderService) GetOrder(ctx context.Context, uid uuid.UUID, orderID uuid
 		return nil, errors.New("订单不存在")
 	}
 	var order model.Order
-	if err := database.DB.Preload("OrderItems").First(&order, "id = ?", orderID).Error; err != nil {
+	if err := database.DB.WithContext(ctx).Preload("OrderItems").Preload("Participants").First(&order, "id = ?", orderID).Error; err != nil {
 		return nil, errors.New("订单不存在")
 	}
 	return &order, nil
 }
 
-// ListOrders 获取订单列表：组合鉴权后按状态过滤，Count 和分页查询使用同一组条件。
-func (s *OrderService) ListOrders(ctx context.Context, uid uuid.UUID, groupType string, groupID uuid.UUID, status string, page, pageSize int) ([]model.Order, int64, error) {
+// ListOrders 获取订单列表：餐桌鉴权后按状态过滤，Count 和分页查询使用同一组条件。
+func (s *OrderService) ListOrders(ctx context.Context, uid uuid.UUID, tableID uuid.UUID, status string, page, pageSize int) ([]model.Order, int64, error) {
 	var orders []model.Order
 	var total int64
 	page, pageSize = NormalizePagination(page, pageSize)
 
-	if err := CanAccessGroup(ctx, uid, groupType, groupID); err != nil {
+	if err := CanAccessTable(ctx, uid, tableID); err != nil {
 		return nil, 0, err
 	}
 
 	query := database.DB.Model(&model.Order{}).
-		Where("group_type = ? AND group_id = ?", groupType, groupID)
+		Where("table_id = ?", tableID)
 
 	if status != "" {
 		query = query.Where("status = ?", status)
@@ -109,7 +162,7 @@ func (s *OrderService) ListOrders(ctx context.Context, uid uuid.UUID, groupType 
 	}
 
 	offset := (page - 1) * pageSize
-	if err := query.Preload("OrderItems").Order("created_at DESC").Offset(offset).Limit(pageSize).Find(&orders).Error; err != nil {
+	if err := query.Preload("OrderItems").Preload("Participants").Order("created_at DESC").Offset(offset).Limit(pageSize).Find(&orders).Error; err != nil {
 		return nil, 0, err
 	}
 
@@ -242,13 +295,13 @@ func (s *OrderService) GetOrderVotes(ctx context.Context, uid uuid.UUID, orderID
 	}, nil
 }
 
-// ---- 请求结构：订单创建请求由组合、就餐模式和至少一个订单项组成 ----
+// ---- 请求结构：订单创建请求由餐桌、就餐模式和至少一个订单项组成 ----
 
 type CreateOrderReq struct {
-	GroupType string         `json:"group_type" binding:"required,oneof=couple buddy"`
-	GroupID   uuid.UUID      `json:"group_id" binding:"required"`
-	DineMode  string         `json:"dine_mode" binding:"required,oneof=together solo"`
-	Items     []OrderItemReq `json:"items" binding:"required,min=1"`
+	TableID        uuid.UUID      `json:"table_id" binding:"required"`
+	DineMode       string         `json:"dine_mode" binding:"required,oneof=together solo"`
+	ParticipantIDs []uuid.UUID    `json:"participant_ids"`
+	Items          []OrderItemReq `json:"items" binding:"required,min=1"`
 }
 
 type OrderItemReq struct {

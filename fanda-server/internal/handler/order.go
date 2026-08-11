@@ -20,7 +20,7 @@ func NewOrderHandler() *OrderHandler {
 	}
 }
 
-// CreateOrder 创建订单：body 包含组合、就餐模式和菜品项，金额由 service 汇总。
+// CreateOrder 创建订单：body 包含餐桌、就餐模式和菜品项，金额由 service 汇总。
 // POST /api/v1/orders
 func (h *OrderHandler) CreateOrder(c *gin.Context) {
 	uid := c.MustGet("uid").(uuid.UUID)
@@ -58,24 +58,23 @@ func (h *OrderHandler) GetOrder(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"code": 0, "message": "ok", "data": order})
 }
 
-// ListOrders 获取订单列表：按组合与状态过滤，使用 page/page_size 分页。
-// GET /api/v1/orders?group_type=couple&group_id=example-group-id&status=&page=1&page_size=20
+// ListOrders 获取订单列表：按餐桌与状态过滤，使用 page/page_size 分页。
+// GET /api/v1/orders?table_id=example-table-id&status=&page=1&page_size=20
 func (h *OrderHandler) ListOrders(c *gin.Context) {
 	uid := c.MustGet("uid").(uuid.UUID)
-	groupType := c.Query("group_type")
-	groupID, ok := parseUUIDQuery(c, "group_id")
+	tableID, ok := parseUUIDQuery(c, "table_id")
 	if !ok {
 		return
 	}
 	status := c.Query("status")
 	page, pageSize := parsePagination(c)
 
-	if groupType == "" || groupID == uuid.Nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "缺少 group_type 或 group_id"})
+	if tableID == uuid.Nil {
+		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "缺少 table_id"})
 		return
 	}
 
-	orders, total, err := h.service.ListOrders(c.Request.Context(), uid, groupType, groupID, status, page, pageSize)
+	orders, total, err := h.service.ListOrders(c.Request.Context(), uid, tableID, status, page, pageSize)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": err.Error()})
 		return

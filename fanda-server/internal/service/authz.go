@@ -70,37 +70,37 @@ func CanAccessTable(ctx context.Context, uid uuid.UUID, tableID uuid.UUID) error
 	return nil
 }
 
-// CanAccessDish 先读取菜品归属，再复用组合鉴权，避免越权访问其他组合菜品。
+// CanAccessDish 先读取菜品归属，再复用餐桌鉴权，避免越权访问其他餐桌菜品。
 func CanAccessDish(ctx context.Context, uid uuid.UUID, dishID uuid.UUID) (*model.Dish, error) {
 	var dish model.Dish
 	if err := database.DB.WithContext(ctx).Where("id = ? AND is_deleted = false", dishID).First(&dish).Error; err != nil {
 		return nil, ErrNotFound
 	}
-	if err := CanAccessGroup(ctx, uid, dish.GroupType, dish.GroupID); err != nil {
+	if err := CanAccessTable(ctx, uid, dish.TableID); err != nil {
 		return nil, err
 	}
 	return &dish, nil
 }
 
-// CanAccessOrder 先读取订单归属，再复用组合鉴权，供详情、状态流转和投票使用。
+// CanAccessOrder 先读取订单归属，再复用餐桌鉴权，供详情、状态流转和投票使用。
 func CanAccessOrder(ctx context.Context, uid uuid.UUID, orderID uuid.UUID) (*model.Order, error) {
 	var order model.Order
 	if err := database.DB.WithContext(ctx).First(&order, "id = ?", orderID).Error; err != nil {
 		return nil, ErrNotFound
 	}
-	if err := CanAccessGroup(ctx, uid, order.GroupType, order.GroupID); err != nil {
+	if err := CanAccessTable(ctx, uid, order.TableID); err != nil {
 		return nil, err
 	}
 	return &order, nil
 }
 
-// CanAccessRecord 先读取日历记录归属，再复用组合鉴权，供详情、留言和统计使用。
+// CanAccessRecord 先读取日历记录归属，再复用餐桌鉴权，供详情、留言和统计使用。
 func CanAccessRecord(ctx context.Context, uid uuid.UUID, recordID uuid.UUID) (*model.CalendarRecord, error) {
 	var record model.CalendarRecord
 	if err := database.DB.WithContext(ctx).First(&record, "id = ?", recordID).Error; err != nil {
 		return nil, ErrNotFound
 	}
-	if err := CanAccessGroup(ctx, uid, record.GroupType, record.GroupID); err != nil {
+	if err := CanAccessTable(ctx, uid, record.TableID); err != nil {
 		return nil, err
 	}
 	return &record, nil

@@ -21,18 +21,17 @@ func NewFeatureService() *FeatureService {
 
 // ---- 心愿清单 ----
 
-// CreateWish 创建心愿：先确认当前用户可访问目标组合，再写入个人创建的心愿。
+// CreateWish 创建心愿：先确认当前用户可访问目标餐桌，再写入个人创建的心愿。
 func (s *FeatureService) CreateWish(ctx context.Context, uid uuid.UUID, req CreateWishReq) (*model.WishItem, error) {
-	if err := CanAccessGroup(ctx, uid, req.GroupType, req.GroupID); err != nil {
+	if err := CanAccessTable(ctx, uid, req.TableID); err != nil {
 		return nil, err
 	}
 
 	wish := model.WishItem{
-		UserID:    uid,
-		GroupType: req.GroupType,
-		GroupID:   req.GroupID,
-		Name:      req.Name,
-		Note:      req.Note,
+		UserID:  uid,
+		TableID: req.TableID,
+		Name:    req.Name,
+		Note:    req.Note,
 	}
 	if req.DishID != nil {
 		wish.DishID = req.DishID
@@ -43,13 +42,13 @@ func (s *FeatureService) CreateWish(ctx context.Context, uid uuid.UUID, req Crea
 	return &wish, nil
 }
 
-// ListWishes 获取心愿列表：组合鉴权后可按完成状态过滤。
-func (s *FeatureService) ListWishes(ctx context.Context, uid uuid.UUID, groupType string, groupID uuid.UUID, completed *bool) ([]model.WishItem, error) {
+// ListWishes 获取心愿列表：餐桌鉴权后可按完成状态过滤。
+func (s *FeatureService) ListWishes(ctx context.Context, uid uuid.UUID, tableID uuid.UUID, completed *bool) ([]model.WishItem, error) {
 	var wishes []model.WishItem
-	if err := CanAccessGroup(ctx, uid, groupType, groupID); err != nil {
+	if err := CanAccessTable(ctx, uid, tableID); err != nil {
 		return nil, err
 	}
-	query := database.DB.Where("group_type = ? AND group_id = ?", groupType, groupID)
+	query := database.DB.Where("table_id = ?", tableID)
 	if completed != nil {
 		query = query.Where("is_completed = ?", *completed)
 	}
@@ -193,16 +192,15 @@ func (s *FeatureService) GetCheckinStatus(ctx context.Context, uid uuid.UUID) (*
 
 // AddToBasket 添加到菜篮子：数量缺省时写入 "1"，其余字段保持用户输入。
 func (s *FeatureService) AddToBasket(ctx context.Context, uid uuid.UUID, req BasketReq) (*model.ShoppingBasket, error) {
-	if err := CanAccessGroup(ctx, uid, req.GroupType, req.GroupID); err != nil {
+	if err := CanAccessTable(ctx, uid, req.TableID); err != nil {
 		return nil, err
 	}
 
 	item := model.ShoppingBasket{
-		UserID:    uid,
-		GroupType: req.GroupType,
-		GroupID:   req.GroupID,
-		Name:      req.Name,
-		Quantity:  req.Quantity,
+		UserID:   uid,
+		TableID:  req.TableID,
+		Name:     req.Name,
+		Quantity: req.Quantity,
 	}
 	if req.Quantity == "" {
 		item.Quantity = "1"
@@ -214,12 +212,12 @@ func (s *FeatureService) AddToBasket(ctx context.Context, uid uuid.UUID, req Bas
 }
 
 // ListBasket 获取菜篮子：未购买项排在前面，方便前端优先展示待采购内容。
-func (s *FeatureService) ListBasket(ctx context.Context, uid uuid.UUID, groupType string, groupID uuid.UUID) ([]model.ShoppingBasket, error) {
+func (s *FeatureService) ListBasket(ctx context.Context, uid uuid.UUID, tableID uuid.UUID) ([]model.ShoppingBasket, error) {
 	var items []model.ShoppingBasket
-	if err := CanAccessGroup(ctx, uid, groupType, groupID); err != nil {
+	if err := CanAccessTable(ctx, uid, tableID); err != nil {
 		return nil, err
 	}
-	if err := database.DB.Where("group_type = ? AND group_id = ?", groupType, groupID).
+	if err := database.DB.Where("table_id = ?", tableID).
 		Order("is_purchased ASC, created_at DESC").Find(&items).Error; err != nil {
 		return nil, err
 	}
@@ -246,16 +244,16 @@ func (s *FeatureService) DeleteBasket(ctx context.Context, uid uuid.UUID, itemID
 
 // ---- 预算 ----
 
-// SetBudget 设置预算：同一用户、组合和月份已有记录时更新，否则创建新预算。
+// SetBudget 设置预算：同一用户、餐桌和月份已有记录时更新，否则创建新预算。
 func (s *FeatureService) SetBudget(ctx context.Context, uid uuid.UUID, req BudgetReq) (*model.BudgetSetting, error) {
-	if err := CanAccessGroup(ctx, uid, req.GroupType, req.GroupID); err != nil {
+	if err := CanAccessTable(ctx, uid, req.TableID); err != nil {
 		return nil, err
 	}
 
 	var budget model.BudgetSetting
 	// 查找已有设置，存在则更新
-	err := database.DB.Where("user_id = ? AND group_type = ? AND group_id = ? AND month = ?",
-		uid, req.GroupType, req.GroupID, req.Month).First(&budget).Error
+	err := database.DB.Where("user_id = ? AND table_id = ? AND month = ?",
+		uid, req.TableID, req.Month).First(&budget).Error
 
 	if err == nil {
 		budget.Budget = req.Budget
@@ -266,11 +264,10 @@ func (s *FeatureService) SetBudget(ctx context.Context, uid uuid.UUID, req Budge
 	}
 
 	budget = model.BudgetSetting{
-		UserID:    uid,
-		GroupType: req.GroupType,
-		GroupID:   req.GroupID,
-		Month:     req.Month,
-		Budget:    req.Budget,
+		UserID:  uid,
+		TableID: req.TableID,
+		Month:   req.Month,
+		Budget:  req.Budget,
 	}
 	if err := database.DB.Create(&budget).Error; err != nil {
 		return nil, fmt.Errorf("设置预算失败: %w", err)
@@ -279,13 +276,13 @@ func (s *FeatureService) SetBudget(ctx context.Context, uid uuid.UUID, req Budge
 }
 
 // GetBudget 获取预算
-func (s *FeatureService) GetBudget(ctx context.Context, uid uuid.UUID, groupType string, groupID uuid.UUID, month string) (*model.BudgetSetting, error) {
-	if err := CanAccessGroup(ctx, uid, groupType, groupID); err != nil {
+func (s *FeatureService) GetBudget(ctx context.Context, uid uuid.UUID, tableID uuid.UUID, month string) (*model.BudgetSetting, error) {
+	if err := CanAccessTable(ctx, uid, tableID); err != nil {
 		return nil, err
 	}
 
 	var budget model.BudgetSetting
-	if err := database.DB.Where("group_type = ? AND group_id = ? AND month = ?", groupType, groupID, month).First(&budget).Error; err != nil {
+	if err := database.DB.Where("table_id = ? AND month = ?", tableID, month).First(&budget).Error; err != nil {
 		return nil, errors.New("未设置预算")
 	}
 	return &budget, nil
@@ -312,26 +309,23 @@ func (s *FeatureService) GetPointHistory(ctx context.Context, uid uuid.UUID, pag
 	return records, total, nil
 }
 
-// ---- 请求结构：扩展功能请求均显式携带 group_type/group_id 以复用组合鉴权 ----
+// ---- 请求结构：扩展功能请求均显式携带 table_id 以复用餐桌鉴权 ----
 
 type CreateWishReq struct {
-	GroupType string     `json:"group_type" binding:"required,oneof=couple buddy"`
-	GroupID   uuid.UUID  `json:"group_id" binding:"required"`
-	Name      string     `json:"name" binding:"required,max=100"`
-	Note      string     `json:"note"`
-	DishID    *uuid.UUID `json:"dish_id"`
+	TableID uuid.UUID  `json:"table_id" binding:"required"`
+	Name    string     `json:"name" binding:"required,max=100"`
+	Note    string     `json:"note"`
+	DishID  *uuid.UUID `json:"dish_id"`
 }
 
 type BasketReq struct {
-	GroupType string    `json:"group_type" binding:"required,oneof=couple buddy"`
-	GroupID   uuid.UUID `json:"group_id" binding:"required"`
-	Name      string    `json:"name" binding:"required,max=100"`
-	Quantity  string    `json:"quantity"`
+	TableID  uuid.UUID `json:"table_id" binding:"required"`
+	Name     string    `json:"name" binding:"required,max=100"`
+	Quantity string    `json:"quantity"`
 }
 
 type BudgetReq struct {
-	GroupType string    `json:"group_type" binding:"required,oneof=couple buddy"`
-	GroupID   uuid.UUID `json:"group_id" binding:"required"`
-	Month     string    `json:"month" binding:"required"` // 2026-08
-	Budget    float64   `json:"budget" binding:"required,min=0"`
+	TableID uuid.UUID `json:"table_id" binding:"required"`
+	Month   string    `json:"month" binding:"required"` // 2026-08
+	Budget  float64   `json:"budget" binding:"required,min=0"`
 }

@@ -100,23 +100,23 @@ func (h *CalendarHandler) GetRecord(c *gin.Context) {
 }
 
 // ListRecords 按月获取日历记录：year/month 组成月份窗口，不走分页。
-// GET /api/v1/calendar/records?group_type=couple&group_id=example-group-id&year=2026&month=8
+// GET /api/v1/calendar/records?table_id=example-table-id&status=&year=2026&month=8
 func (h *CalendarHandler) ListRecords(c *gin.Context) {
 	uid := c.MustGet("uid").(uuid.UUID)
-	groupType := c.Query("group_type")
-	groupID, ok := parseUUIDQuery(c, "group_id")
+	tableID, ok := parseUUIDQuery(c, "table_id")
 	if !ok {
 		return
 	}
+	status := c.Query("status")
 	year, _ := strconv.Atoi(c.DefaultQuery("year", "2026"))
 	month, _ := strconv.Atoi(c.DefaultQuery("month", "8"))
 
-	if groupType == "" || groupID == uuid.Nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "缺少 group_type 或 group_id"})
+	if tableID == uuid.Nil {
+		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "缺少 table_id"})
 		return
 	}
 
-	records, err := h.service.ListRecords(c.Request.Context(), uid, groupType, groupID, year, month)
+	records, err := h.service.ListRecords(c.Request.Context(), uid, tableID, status, year, month)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": err.Error()})
 		return
@@ -126,22 +126,22 @@ func (h *CalendarHandler) ListRecords(c *gin.Context) {
 }
 
 // ListRecordsByDate 按日期获取记录：date 必须是 YYYY-MM-DD。
-// GET /api/v1/calendar/records/date?group_type=couple&group_id=example-group-id&date=2026-08-08
+// GET /api/v1/calendar/records/date?table_id=example-table-id&status=&date=2026-08-08
 func (h *CalendarHandler) ListRecordsByDate(c *gin.Context) {
 	uid := c.MustGet("uid").(uuid.UUID)
-	groupType := c.Query("group_type")
-	groupID, ok := parseUUIDQuery(c, "group_id")
+	tableID, ok := parseUUIDQuery(c, "table_id")
 	if !ok {
 		return
 	}
+	status := c.Query("status")
 	date := c.Query("date")
 
-	if groupType == "" || groupID == uuid.Nil || date == "" {
+	if tableID == uuid.Nil || date == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "缺少必要参数"})
 		return
 	}
 
-	records, err := h.service.ListRecordsByDate(c.Request.Context(), uid, groupType, groupID, date)
+	records, err := h.service.ListRecordsByDate(c.Request.Context(), uid, tableID, status, date)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": err.Error()})
 		return
@@ -203,24 +203,23 @@ func (h *CalendarHandler) AddPhoto(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"code": 0, "message": "ok", "data": photo})
 }
 
-// GetMonthlyStats 获取月度统计：按组合和月份聚合金额、餐型数量和缺金额记录。
-// GET /api/v1/calendar/stats?group_type=couple&group_id=example-group-id&year=2026&month=8
+// GetMonthlyStats 获取月度统计：按餐桌和月份聚合金额、餐型数量和缺金额记录。
+// GET /api/v1/calendar/stats?table_id=example-table-id&year=2026&month=8
 func (h *CalendarHandler) GetMonthlyStats(c *gin.Context) {
 	uid := c.MustGet("uid").(uuid.UUID)
-	groupType := c.Query("group_type")
-	groupID, ok := parseUUIDQuery(c, "group_id")
+	tableID, ok := parseUUIDQuery(c, "table_id")
 	if !ok {
 		return
 	}
 	year, _ := strconv.Atoi(c.DefaultQuery("year", "2026"))
 	month, _ := strconv.Atoi(c.DefaultQuery("month", "8"))
 
-	if groupType == "" || groupID == uuid.Nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "缺少 group_type 或 group_id"})
+	if tableID == uuid.Nil {
+		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "缺少 table_id"})
 		return
 	}
 
-	stats, err := h.service.GetMonthlyStats(c.Request.Context(), uid, groupType, groupID, year, month)
+	stats, err := h.service.GetMonthlyStats(c.Request.Context(), uid, tableID, year, month)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": err.Error()})
 		return

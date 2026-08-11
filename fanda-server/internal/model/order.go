@@ -7,19 +7,19 @@ import (
 	"github.com/lib/pq"
 )
 
-// Order 订单表；pending/confirmed 等状态驱动情侣确认和饭搭子投票流程。
+// Order 订单表；table_id 作为餐桌边界，pending/confirmed 等状态驱动一起吃确认流程。
 type Order struct {
-	ID               uuid.UUID   `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
-	CreatorID        uuid.UUID   `gorm:"type:uuid;not null;index" json:"creator_id"`
-	GroupType        string      `gorm:"type:varchar(10);not null;index:idx_order_group" json:"group_type"` // couple / buddy
-	GroupID          uuid.UUID   `gorm:"type:uuid;not null;index:idx_order_group" json:"group_id"`
-	DineMode         string      `gorm:"type:varchar(10);not null" json:"dine_mode"`                // together / solo
-	Status           string      `gorm:"type:varchar(15);not null;default:'pending'" json:"status"` // pending / confirmed / rejected / cancelled / voted
-	TotalAmount      *float64    `gorm:"type:decimal(10,2)" json:"total_amount"`
-	VoteDeadline     *time.Time  `json:"vote_deadline"`
-	CalendarRecordID *uuid.UUID  `gorm:"type:uuid" json:"calendar_record_id"`
-	CreatedAt        time.Time   `json:"created_at"`
-	OrderItems       []OrderItem `gorm:"foreignKey:OrderID" json:"order_items,omitempty"`
+	ID               uuid.UUID          `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
+	CreatorID        uuid.UUID          `gorm:"type:uuid;not null;index" json:"creator_id"`
+	TableID          uuid.UUID          `gorm:"type:uuid;not null;index" json:"table_id"`
+	DineMode         string             `gorm:"type:varchar(10);not null" json:"dine_mode"`                // together / solo
+	Status           string             `gorm:"type:varchar(15);not null;default:'pending'" json:"status"` // pending / confirmed / rejected / cancelled / voted
+	TotalAmount      *float64           `gorm:"type:decimal(10,2)" json:"total_amount"`
+	VoteDeadline     *time.Time         `json:"vote_deadline"`
+	CalendarRecordID *uuid.UUID         `gorm:"type:uuid" json:"calendar_record_id"`
+	CreatedAt        time.Time          `json:"created_at"`
+	OrderItems       []OrderItem        `gorm:"foreignKey:OrderID" json:"order_items,omitempty"`
+	Participants     []OrderParticipant `gorm:"foreignKey:OrderID" json:"participants,omitempty"`
 }
 
 func (Order) TableName() string { return "orders" }
@@ -35,6 +35,18 @@ type OrderItem struct {
 
 func (OrderItem) TableName() string { return "order_items" }
 
+// OrderParticipant 订单参与人表；用于多人餐桌的一起吃邀请状态。
+type OrderParticipant struct {
+	ID        uuid.UUID `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
+	OrderID   uuid.UUID `gorm:"type:uuid;not null;uniqueIndex:idx_order_participant_user" json:"order_id"`
+	UserID    uuid.UUID `gorm:"type:uuid;not null;uniqueIndex:idx_order_participant_user" json:"user_id"`
+	Status    string    `gorm:"type:varchar(15);not null;default:'invited'" json:"status"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
+func (OrderParticipant) TableName() string { return "order_participants" }
+
 // OrderVote 订单投票表（饭搭子）；order_id + user_id 唯一，支持用户改票但不重复计票。
 type OrderVote struct {
 	ID        uuid.UUID `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
@@ -46,19 +58,19 @@ type OrderVote struct {
 
 func (OrderVote) TableName() string { return "order_votes" }
 
-// CalendarRecord 日历记录表；按组合和日期归档每餐记录，可关联照片、留言和订单来源。
+// CalendarRecord 日历记录表；按餐桌和日期归档每餐记录，可关联照片、留言和订单来源。
 type CalendarRecord struct {
 	ID         uuid.UUID       `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
 	UserID     uuid.UUID       `gorm:"type:uuid;not null;index:idx_calendar_user" json:"user_id"`
-	GroupType  string          `gorm:"type:varchar(10);not null;index:idx_calendar_group" json:"group_type"` // couple / buddy
-	GroupID    uuid.UUID       `gorm:"type:uuid;not null;index:idx_calendar_group" json:"group_id"`
-	RecordDate time.Time       `gorm:"type:date;not null;index:idx_calendar_group" json:"record_date"`
+	TableID    uuid.UUID       `gorm:"type:uuid;not null;index:idx_calendar_table" json:"table_id"`
+	RecordDate time.Time       `gorm:"type:date;not null;index:idx_calendar_table" json:"record_date"`
 	MealType   string          `gorm:"type:varchar(10);not null" json:"meal_type"` // cook / takeout / dineout
 	MealPeriod string          `gorm:"type:varchar(10)" json:"meal_period"`        // breakfast / lunch / dinner / snack
 	DishIDs    pq.StringArray  `gorm:"type:uuid[]" json:"dish_ids"`
 	Restaurant string          `gorm:"type:varchar(100)" json:"restaurant"`
 	Amount     *float64        `gorm:"type:decimal(10,2)" json:"amount"`
 	Source     string          `gorm:"type:varchar(10);default:'manual'" json:"source"` // manual / order
+	Status     string          `gorm:"type:varchar(15);not null;default:'confirmed'" json:"status"`
 	CreatedAt  time.Time       `json:"created_at"`
 	Photos     []RecordPhoto   `gorm:"foreignKey:RecordID" json:"photos,omitempty"`
 	Comments   []RecordComment `gorm:"foreignKey:RecordID" json:"comments,omitempty"`

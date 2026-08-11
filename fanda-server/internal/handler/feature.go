@@ -22,7 +22,7 @@ func NewFeatureHandler() *FeatureHandler {
 
 // ---- 心愿清单 ----
 
-// CreateWish 创建心愿：body 指定组合、心愿名称和可选关联菜品。
+// CreateWish 创建心愿：body 指定餐桌、心愿名称和可选关联菜品。
 // POST /api/v1/wishes
 func (h *FeatureHandler) CreateWish(c *gin.Context) {
 	uid := c.MustGet("uid").(uuid.UUID)
@@ -43,11 +43,10 @@ func (h *FeatureHandler) CreateWish(c *gin.Context) {
 }
 
 // ListWishes 获取心愿列表：completed 支持 true/false 过滤，缺省返回全部。
-// GET /api/v1/wishes?group_type=couple&group_id=example-group-id&completed=false
+// GET /api/v1/wishes?table_id=example-table-id&completed=false
 func (h *FeatureHandler) ListWishes(c *gin.Context) {
 	uid := c.MustGet("uid").(uuid.UUID)
-	groupType := c.Query("group_type")
-	groupID, ok := parseUUIDQuery(c, "group_id")
+	tableID, ok := parseUUIDQuery(c, "table_id")
 	if !ok {
 		return
 	}
@@ -61,7 +60,7 @@ func (h *FeatureHandler) ListWishes(c *gin.Context) {
 		completed = &f
 	}
 
-	wishes, err := h.service.ListWishes(c.Request.Context(), uid, groupType, groupID, completed)
+	wishes, err := h.service.ListWishes(c.Request.Context(), uid, tableID, completed)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": err.Error()})
 		return
@@ -136,7 +135,7 @@ func (h *FeatureHandler) GetCheckinStatus(c *gin.Context) {
 
 // ---- 菜篮子 ----
 
-// AddToBasket 添加到菜篮子：body 指定组合、物品名称和可选数量。
+// AddToBasket 添加到菜篮子：body 指定餐桌、物品名称和可选数量。
 // POST /api/v1/basket
 func (h *FeatureHandler) AddToBasket(c *gin.Context) {
 	uid := c.MustGet("uid").(uuid.UUID)
@@ -156,17 +155,16 @@ func (h *FeatureHandler) AddToBasket(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"code": 0, "message": "ok", "data": item})
 }
 
-// ListBasket 获取菜篮子：按组合返回未购买优先、最新在前的清单。
-// GET /api/v1/basket?group_type=couple&group_id=example-group-id
+// ListBasket 获取菜篮子：按餐桌返回未购买优先、最新在前的清单。
+// GET /api/v1/basket?table_id=example-table-id
 func (h *FeatureHandler) ListBasket(c *gin.Context) {
 	uid := c.MustGet("uid").(uuid.UUID)
-	groupType := c.Query("group_type")
-	groupID, ok := parseUUIDQuery(c, "group_id")
+	tableID, ok := parseUUIDQuery(c, "table_id")
 	if !ok {
 		return
 	}
 
-	items, err := h.service.ListBasket(c.Request.Context(), uid, groupType, groupID)
+	items, err := h.service.ListBasket(c.Request.Context(), uid, tableID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": err.Error()})
 		return
@@ -231,18 +229,17 @@ func (h *FeatureHandler) SetBudget(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"code": 0, "message": "ok", "data": budget})
 }
 
-// GetBudget 获取预算：按组合和月份查询预算设置，不存在返回 404。
-// GET /api/v1/budget?group_type=couple&group_id=example-group-id&month=2026-08
+// GetBudget 获取预算：按餐桌和月份查询预算设置，不存在返回 404。
+// GET /api/v1/budget?table_id=example-table-id&month=2026-08
 func (h *FeatureHandler) GetBudget(c *gin.Context) {
 	uid := c.MustGet("uid").(uuid.UUID)
-	groupType := c.Query("group_type")
-	groupID, ok := parseUUIDQuery(c, "group_id")
+	tableID, ok := parseUUIDQuery(c, "table_id")
 	if !ok {
 		return
 	}
 	month := c.Query("month")
 
-	budget, err := h.service.GetBudget(c.Request.Context(), uid, groupType, groupID, month)
+	budget, err := h.service.GetBudget(c.Request.Context(), uid, tableID, month)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"code": 404, "message": err.Error()})
 		return

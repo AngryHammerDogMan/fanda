@@ -194,7 +194,7 @@ func (h *AdminHandler) ListDishes(c *gin.Context) {
 		ID        string    `json:"id"`
 		Name      string    `json:"name"`
 		DishType  string    `json:"dish_type"`
-		GroupType string    `json:"group_type"`
+		TableID   string    `json:"table_id"`
 		Price     float64   `json:"price"`
 		CreatedAt time.Time `json:"created_at"`
 	}
@@ -209,7 +209,7 @@ func (h *AdminHandler) ListDishes(c *gin.Context) {
 			ID:        d.ID.String(),
 			Name:      d.Name,
 			DishType:  d.DishType,
-			GroupType: d.GroupType,
+			TableID:   d.TableID.String(),
 			Price:     price,
 			CreatedAt: d.CreatedAt,
 		}
@@ -259,7 +259,7 @@ func (h *AdminHandler) ListOrders(c *gin.Context) {
 
 	type OrderItem struct {
 		ID          string    `json:"id"`
-		GroupType   string    `json:"group_type"`
+		TableID     string    `json:"table_id"`
 		DineMode    string    `json:"dine_mode"`
 		Status      string    `json:"status"`
 		TotalAmount float64   `json:"total_amount"`
@@ -274,7 +274,7 @@ func (h *AdminHandler) ListOrders(c *gin.Context) {
 		}
 		result[i] = OrderItem{
 			ID:          o.ID.String(),
-			GroupType:   o.GroupType,
+			TableID:     o.TableID.String(),
 			DineMode:    o.DineMode,
 			Status:      o.Status,
 			TotalAmount: amt,
@@ -319,7 +319,7 @@ func (h *AdminHandler) ListRecords(c *gin.Context) {
 
 	type RecordItem struct {
 		ID         string    `json:"id"`
-		GroupType  string    `json:"group_type"`
+		TableID    string    `json:"table_id"`
 		MealType   string    `json:"meal_type"`
 		RecordDate string    `json:"record_date"`
 		Amount     float64   `json:"amount"`
@@ -334,7 +334,7 @@ func (h *AdminHandler) ListRecords(c *gin.Context) {
 		}
 		result[i] = RecordItem{
 			ID:         r.ID.String(),
-			GroupType:  r.GroupType,
+			TableID:    r.TableID.String(),
 			MealType:   r.MealType,
 			RecordDate: r.RecordDate.Format("2006-01-02"),
 			Amount:     amt,

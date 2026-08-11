@@ -20,16 +20,15 @@ func NewDishService() *DishService {
 	return &DishService{}
 }
 
-// CreateDish 创建菜品：先校验用户是否属于目标组合，再把复杂字段序列化为 JSONB 字符串保存。
+// CreateDish 创建菜品：先校验用户是否属于目标餐桌，再把复杂字段序列化为 JSONB 字符串保存。
 func (s *DishService) CreateDish(ctx context.Context, uid uuid.UUID, req CreateDishReq) (*model.Dish, error) {
-	if err := CanAccessGroup(ctx, uid, req.GroupType, req.GroupID); err != nil {
+	if err := CanAccessTable(ctx, uid, req.TableID); err != nil {
 		return nil, err
 	}
 
 	dish := model.Dish{
 		OwnerID:        uid,
-		GroupType:      req.GroupType,
-		GroupID:        req.GroupID,
+		TableID:        req.TableID,
 		DishType:       req.DishType,
 		Name:           req.Name,
 		Category:       req.Category,
@@ -66,8 +65,8 @@ func (s *DishService) CreateDish(ctx context.Context, uid uuid.UUID, req CreateD
 
 // UpdateDish 更新菜品：只允许创建者修改未删除菜品，并只写入请求中显式提供的字段。
 func (s *DishService) UpdateDish(ctx context.Context, uid uuid.UUID, dishID uuid.UUID, req UpdateDishReq) error {
-	var dish model.Dish
-	if err := database.DB.Where("id = ? AND owner_id = ? AND is_deleted = false", dishID, uid).First(&dish).Error; err != nil {
+	dish, err := CanAccessDish(ctx, uid, dishID)
+	if err != nil || dish.OwnerID != uid {
 		return errors.New("菜品不存在")
 	}
 
@@ -164,6 +163,10 @@ func (s *DishService) UpdateDish(ctx context.Context, uid uuid.UUID, dishID uuid
 
 // DeleteDish 软删除菜品：保留历史订单/记录引用，仅把 is_deleted 置为 true。
 func (s *DishService) DeleteDish(ctx context.Context, uid uuid.UUID, dishID uuid.UUID) error {
+	dish, err := CanAccessDish(ctx, uid, dishID)
+	if err != nil || dish.OwnerID != uid {
+		return errors.New("菜品不存在")
+	}
 	result := database.DB.Model(&model.Dish{}).
 		Where("id = ? AND owner_id = ? AND is_deleted = false", dishID, uid).
 		Update("is_deleted", true)
@@ -182,18 +185,18 @@ func (s *DishService) GetDish(ctx context.Context, uid uuid.UUID, dishID uuid.UU
 	return dish, nil
 }
 
-// ListDishes 获取菜品列表：组合鉴权后拼接筛选条件，先 Count 再按分页读取列表。
-func (s *DishService) ListDishes(ctx context.Context, uid uuid.UUID, groupType string, groupID uuid.UUID, dishType, category, keyword string, page, pageSize int) ([]model.Dish, int64, error) {
+// ListDishes 获取菜品列表：餐桌鉴权后拼接筛选条件，先 Count 再按分页读取列表。
+func (s *DishService) ListDishes(ctx context.Context, uid uuid.UUID, tableID uuid.UUID, dishType, category, keyword string, page, pageSize int) ([]model.Dish, int64, error) {
 	var dishes []model.Dish
 	var total int64
 	page, pageSize = NormalizePagination(page, pageSize)
 
-	if err := CanAccessGroup(ctx, uid, groupType, groupID); err != nil {
+	if err := CanAccessTable(ctx, uid, tableID); err != nil {
 		return nil, 0, err
 	}
 
 	query := database.DB.Model(&model.Dish{}).
-		Where("group_type = ? AND group_id = ? AND is_deleted = false", groupType, groupID)
+		Where("table_id = ? AND is_deleted = false", tableID)
 
 	if dishType != "" {
 		query = query.Where("dish_type = ?", dishType)
@@ -217,9 +220,9 @@ func (s *DishService) ListDishes(ctx context.Context, uid uuid.UUID, groupType s
 	return dishes, total, nil
 }
 
-// ImportFromPlaza 从学菜广场导入菜品：复制广场菜品快照到目标组合并增加导入计数。
-func (s *DishService) ImportFromPlaza(ctx context.Context, uid uuid.UUID, plazaID uuid.UUID, groupType string, groupID uuid.UUID) (*model.Dish, error) {
-	if err := CanAccessGroup(ctx, uid, groupType, groupID); err != nil {
+// ImportFromPlaza 从学菜广场导入菜品：复制广场菜品快照到目标餐桌并增加导入计数。
+func (s *DishService) ImportFromPlaza(ctx context.Context, uid uuid.UUID, plazaID uuid.UUID, tableID uuid.UUID) (*model.Dish, error) {
+	if err := CanAccessTable(ctx, uid, tableID); err != nil {
 		return nil, err
 	}
 
@@ -230,8 +233,7 @@ func (s *DishService) ImportFromPlaza(ctx context.Context, uid uuid.UUID, plazaI
 
 	dish := model.Dish{
 		OwnerID:     uid,
-		GroupType:   groupType,
-		GroupID:     groupID,
+		TableID:     tableID,
 		DishType:    "dish",
 		Name:        plaza.Name,
 		Category:    plaza.Category,
@@ -301,8 +303,7 @@ type StepReq struct {
 }
 
 type CreateDishReq struct {
-	GroupType      string          `json:"group_type" binding:"required,oneof=couple buddy"`
-	GroupID        uuid.UUID       `json:"group_id" binding:"required"`
+	TableID        uuid.UUID       `json:"table_id" binding:"required"`
 	DishType       string          `json:"dish_type" binding:"required,oneof=dish takeout dineout"`
 	Name           string          `json:"name" binding:"required,max=100"`
 	Category       string          `json:"category"`

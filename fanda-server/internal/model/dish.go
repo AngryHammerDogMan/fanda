@@ -7,12 +7,11 @@ import (
 	"github.com/lib/pq"
 )
 
-// Dish 菜品表；同时承载自做菜、外卖和堂食条目，按 group_type/group_id 归属到组合。
+// Dish 菜品表；同时承载自做菜、外卖和堂食条目，按 table_id 归属到餐桌。
 type Dish struct {
 	ID             uuid.UUID      `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
 	OwnerID        uuid.UUID      `gorm:"type:uuid;not null;index" json:"owner_id"`
-	GroupType      string         `gorm:"type:varchar(10);not null;index:idx_dish_group" json:"group_type"` // couple / buddy
-	GroupID        uuid.UUID      `gorm:"type:uuid;not null;index:idx_dish_group" json:"group_id"`
+	TableID        uuid.UUID      `gorm:"type:uuid;not null;index" json:"table_id"`
 	DishType       string         `gorm:"type:varchar(10);not null" json:"dish_type"` // dish / takeout / dineout
 	Name           string         `gorm:"type:varchar(100);not null" json:"name"`
 	Category       string         `gorm:"type:varchar(30)" json:"category"`

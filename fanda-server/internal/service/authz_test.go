@@ -27,8 +27,8 @@ func setupAuthzTestDB(t *testing.T) *gorm.DB {
 		`CREATE TABLE buddy_members (id TEXT PRIMARY KEY, group_id TEXT NOT NULL, user_id TEXT NOT NULL, role TEXT NOT NULL, joined_at DATETIME)`,
 		`CREATE TABLE tables (id TEXT PRIMARY KEY, type TEXT NOT NULL, name TEXT NOT NULL, owner_id TEXT NOT NULL, status TEXT NOT NULL)`,
 		`CREATE TABLE table_members (id TEXT PRIMARY KEY, table_id TEXT NOT NULL, user_id TEXT NOT NULL, role TEXT NOT NULL, status TEXT NOT NULL, joined_at DATETIME)`,
-		`CREATE TABLE wish_items (id TEXT PRIMARY KEY, user_id TEXT NOT NULL, group_type TEXT NOT NULL, group_id TEXT NOT NULL, name TEXT NOT NULL, note TEXT, dish_id TEXT, is_completed BOOLEAN, created_at DATETIME)`,
-		`CREATE TABLE shopping_baskets (id TEXT PRIMARY KEY, user_id TEXT NOT NULL, group_type TEXT NOT NULL, group_id TEXT NOT NULL, name TEXT NOT NULL, quantity TEXT, is_purchased BOOLEAN, created_at DATETIME)`,
+		`CREATE TABLE wish_items (id TEXT PRIMARY KEY, user_id TEXT NOT NULL, table_id TEXT NOT NULL, name TEXT NOT NULL, note TEXT, dish_id TEXT, is_completed BOOLEAN, created_at DATETIME)`,
+		`CREATE TABLE shopping_baskets (id TEXT PRIMARY KEY, user_id TEXT NOT NULL, table_id TEXT NOT NULL, name TEXT NOT NULL, quantity TEXT, is_purchased BOOLEAN, created_at DATETIME)`,
 	}
 	for _, stmt := range stmts {
 		if err := db.Exec(stmt).Error; err != nil {
@@ -134,11 +134,10 @@ func TestCompleteWishRejectsNonOwner(t *testing.T) {
 		t.Fatal(err)
 	}
 	if err := database.DB.Create(&model.WishItem{
-		ID:        wishID,
-		UserID:    ownerUID,
-		GroupType: "couple",
-		GroupID:   groupID,
-		Name:      "周末吃火锅",
+		ID:      wishID,
+		UserID:  ownerUID,
+		TableID: groupID,
+		Name:    "周末吃火锅",
 	}).Error; err != nil {
 		t.Fatal(err)
 	}
@@ -172,11 +171,10 @@ func TestToggleBasketRejectsNonOwner(t *testing.T) {
 		t.Fatal(err)
 	}
 	if err := database.DB.Create(&model.ShoppingBasket{
-		ID:        itemID,
-		UserID:    ownerUID,
-		GroupType: "couple",
-		GroupID:   uuid.New(),
-		Name:      "鸡蛋",
+		ID:      itemID,
+		UserID:  ownerUID,
+		TableID: uuid.New(),
+		Name:    "鸡蛋",
 	}).Error; err != nil {
 		t.Fatal(err)
 	}

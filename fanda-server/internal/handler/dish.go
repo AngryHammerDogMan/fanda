@@ -20,7 +20,7 @@ func NewDishHandler() *DishHandler {
 	}
 }
 
-// CreateDish 创建菜品：body 描述菜品、归属 group 和类型，uid 作为创建人写入。
+// CreateDish 创建菜品：body 描述菜品、归属餐桌和类型，uid 作为创建人写入。
 // POST /api/v1/dishes
 func (h *DishHandler) CreateDish(c *gin.Context) {
 	uid := c.MustGet("uid").(uuid.UUID)
@@ -98,12 +98,11 @@ func (h *DishHandler) GetDish(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"code": 0, "message": "ok", "data": dish})
 }
 
-// ListDishes 获取菜品列表：按组合、菜品类型、分类、关键词过滤，并返回分页元信息。
-// GET /api/v1/dishes?group_type=couple&group_id=example-group-id&dish_type=&category=&keyword=&page=1&page_size=20
+// ListDishes 获取菜品列表：按餐桌、菜品类型、分类、关键词过滤，并返回分页元信息。
+// GET /api/v1/dishes?table_id=example-table-id&dish_type=&category=&keyword=&page=1&page_size=20
 func (h *DishHandler) ListDishes(c *gin.Context) {
 	uid := c.MustGet("uid").(uuid.UUID)
-	groupType := c.Query("group_type")
-	groupID, ok := parseUUIDQuery(c, "group_id")
+	tableID, ok := parseUUIDQuery(c, "table_id")
 	if !ok {
 		return
 	}
@@ -112,12 +111,12 @@ func (h *DishHandler) ListDishes(c *gin.Context) {
 	keyword := c.Query("keyword")
 	page, pageSize := parsePagination(c)
 
-	if groupType == "" || groupID == uuid.Nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "缺少 group_type 或 group_id"})
+	if tableID == uuid.Nil {
+		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "缺少 table_id"})
 		return
 	}
 
-	dishes, total, err := h.service.ListDishes(c.Request.Context(), uid, groupType, groupID, dishType, category, keyword, page, pageSize)
+	dishes, total, err := h.service.ListDishes(c.Request.Context(), uid, tableID, dishType, category, keyword, page, pageSize)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": err.Error()})
 		return
@@ -135,15 +134,14 @@ func (h *DishHandler) ListDishes(c *gin.Context) {
 	})
 }
 
-// ImportFromPlaza 从学菜广场导入菜品：body 指定 plaza_id 和目标组合，导入后成为用户菜品。
+// ImportFromPlaza 从学菜广场导入菜品：body 指定 plaza_id 和目标餐桌，导入后成为用户菜品。
 // POST /api/v1/dishes/import
 func (h *DishHandler) ImportFromPlaza(c *gin.Context) {
 	uid := c.MustGet("uid").(uuid.UUID)
 
 	var req struct {
-		PlazaID   string `json:"plaza_id" binding:"required"`
-		GroupType string `json:"group_type" binding:"required,oneof=couple buddy"`
-		GroupID   string `json:"group_id" binding:"required"`
+		PlazaID string `json:"plaza_id" binding:"required"`
+		TableID string `json:"table_id" binding:"required"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "参数错误"})
@@ -155,13 +153,13 @@ func (h *DishHandler) ImportFromPlaza(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "无效的 plaza_id"})
 		return
 	}
-	groupID, err := uuid.Parse(req.GroupID)
-	if err != nil || groupID == uuid.Nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "无效的 group_id"})
+	tableID, err := uuid.Parse(req.TableID)
+	if err != nil || tableID == uuid.Nil {
+		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "无效的 table_id"})
 		return
 	}
 
-	dish, err := h.service.ImportFromPlaza(c.Request.Context(), uid, plazaID, req.GroupType, groupID)
+	dish, err := h.service.ImportFromPlaza(c.Request.Context(), uid, plazaID, tableID)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": err.Error()})
 		return

@@ -6,12 +6,11 @@ import (
 	"github.com/google/uuid"
 )
 
-// WishItem 心愿清单表；由创建人维护完成/删除状态，组合成员可浏览。
+// WishItem 心愿清单表；由创建人维护完成/删除状态，餐桌成员可浏览。
 type WishItem struct {
 	ID          uuid.UUID  `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
 	UserID      uuid.UUID  `gorm:"type:uuid;not null;index:idx_wish_user" json:"user_id"`
-	GroupType   string     `gorm:"type:varchar(10);not null;index:idx_wish_user" json:"group_type"` // couple / buddy
-	GroupID     uuid.UUID  `gorm:"type:uuid;not null;index:idx_wish_user" json:"group_id"`
+	TableID     uuid.UUID  `gorm:"type:uuid;not null;index:idx_wish_table" json:"table_id"`
 	Name        string     `gorm:"type:varchar(100);not null" json:"name"`
 	Note        string     `gorm:"type:text" json:"note"`
 	DishID      *uuid.UUID `gorm:"type:uuid" json:"dish_id"`
@@ -43,12 +42,11 @@ type PointRecord struct {
 
 func (PointRecord) TableName() string { return "point_records" }
 
-// BudgetSetting 预算设置表；同一用户、组合和月份唯一，支持按月覆盖预算。
+// BudgetSetting 预算设置表；同一用户、餐桌和月份唯一，支持按月覆盖预算。
 type BudgetSetting struct {
 	ID        uuid.UUID `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
 	UserID    uuid.UUID `gorm:"type:uuid;not null;uniqueIndex:idx_budget_unique" json:"user_id"`
-	GroupType string    `gorm:"type:varchar(10);not null;uniqueIndex:idx_budget_unique" json:"group_type"` // couple / buddy
-	GroupID   uuid.UUID `gorm:"type:uuid;not null;uniqueIndex:idx_budget_unique" json:"group_id"`
+	TableID   uuid.UUID `gorm:"type:uuid;not null;uniqueIndex:idx_budget_unique;index:idx_budget_table" json:"table_id"`
 	Month     string    `gorm:"type:varchar(7);not null;uniqueIndex:idx_budget_unique" json:"month"` // 格式: 2026-08
 	Budget    float64   `gorm:"type:decimal(10,2);not null" json:"budget"`
 	CreatedAt time.Time `json:"created_at"`
@@ -57,12 +55,11 @@ type BudgetSetting struct {
 
 func (BudgetSetting) TableName() string { return "budget_settings" }
 
-// ShoppingBasket 菜篮子表；按组合共享采购项，购买状态由创建者维护。
+// ShoppingBasket 菜篮子表；按餐桌共享采购项，购买状态由创建者维护。
 type ShoppingBasket struct {
 	ID          uuid.UUID `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
-	UserID      uuid.UUID `gorm:"type:uuid;not null;index:idx_basket_group" json:"user_id"`
-	GroupType   string    `gorm:"type:varchar(10);not null;index:idx_basket_group" json:"group_type"` // couple / buddy
-	GroupID     uuid.UUID `gorm:"type:uuid;not null;index:idx_basket_group" json:"group_id"`
+	UserID      uuid.UUID `gorm:"type:uuid;not null;index:idx_basket_table" json:"user_id"`
+	TableID     uuid.UUID `gorm:"type:uuid;not null;index:idx_basket_table" json:"table_id"`
 	Name        string    `gorm:"type:varchar(100);not null" json:"name"`
 	Quantity    string    `gorm:"type:varchar(30);default:'1'" json:"quantity"`
 	IsPurchased bool      `gorm:"default:false" json:"is_purchased"`

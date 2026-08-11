@@ -20,9 +20,9 @@ func NewCalendarService() *CalendarService {
 	return &CalendarService{}
 }
 
-// CreateRecord 创建日历记录：校验组合权限和日期格式后，用事务写入记录、照片和首条留言。
+// CreateRecord 创建日历记录：校验餐桌权限和日期格式后，用事务写入记录、照片和首条留言。
 func (s *CalendarService) CreateRecord(ctx context.Context, uid uuid.UUID, req CreateRecordReq) (*model.CalendarRecord, error) {
-	if err := CanAccessGroup(ctx, uid, req.GroupType, req.GroupID); err != nil {
+	if err := CanAccessTable(ctx, uid, req.TableID); err != nil {
 		return nil, err
 	}
 
@@ -33,13 +33,13 @@ func (s *CalendarService) CreateRecord(ctx context.Context, uid uuid.UUID, req C
 
 	record := model.CalendarRecord{
 		UserID:     uid,
-		GroupType:  req.GroupType,
-		GroupID:    req.GroupID,
+		TableID:    req.TableID,
 		RecordDate: recordDate,
 		MealType:   req.MealType,
 		MealPeriod: req.MealPeriod,
 		Restaurant: req.Restaurant,
 		Source:     "manual",
+		Status:     "confirmed",
 	}
 
 	if req.DishIDs != nil {
@@ -164,17 +164,21 @@ func (s *CalendarService) GetRecord(ctx context.Context, uid uuid.UUID, recordID
 }
 
 // ListRecords 按月份获取日历记录：按 [月初, 下月初) 查询，避免月底日期边界问题。
-func (s *CalendarService) ListRecords(ctx context.Context, uid uuid.UUID, groupType string, groupID uuid.UUID, year, month int) ([]model.CalendarRecord, error) {
+func (s *CalendarService) ListRecords(ctx context.Context, uid uuid.UUID, tableID uuid.UUID, status string, year, month int) ([]model.CalendarRecord, error) {
 	var records []model.CalendarRecord
-	if err := CanAccessGroup(ctx, uid, groupType, groupID); err != nil {
+	if err := CanAccessTable(ctx, uid, tableID); err != nil {
 		return nil, err
 	}
 
 	startDate := time.Date(year, time.Month(month), 1, 0, 0, 0, 0, time.Local)
 	endDate := startDate.AddDate(0, 1, 0)
 
-	if err := database.DB.Preload("Photos").Preload("Comments").
-		Where("group_type = ? AND group_id = ? AND record_date >= ? AND record_date < ?", groupType, groupID, startDate, endDate).
+	query := database.DB.Preload("Photos").Preload("Comments").
+		Where("table_id = ? AND record_date >= ? AND record_date < ?", tableID, startDate, endDate)
+	if status != "" {
+		query = query.Where("status = ?", status)
+	}
+	if err := query.
 		Order("record_date ASC, created_at ASC").
 		Find(&records).Error; err != nil {
 		return nil, err
@@ -184,8 +188,8 @@ func (s *CalendarService) ListRecords(ctx context.Context, uid uuid.UUID, groupT
 }
 
 // ListRecordsByDate 按日期获取记录：用于日历某一天详情，日期格式错误返回业务错误。
-func (s *CalendarService) ListRecordsByDate(ctx context.Context, uid uuid.UUID, groupType string, groupID uuid.UUID, date string) ([]model.CalendarRecord, error) {
-	if err := CanAccessGroup(ctx, uid, groupType, groupID); err != nil {
+func (s *CalendarService) ListRecordsByDate(ctx context.Context, uid uuid.UUID, tableID uuid.UUID, status string, date string) ([]model.CalendarRecord, error) {
+	if err := CanAccessTable(ctx, uid, tableID); err != nil {
 		return nil, err
 	}
 	recordDate, err := time.Parse("2006-01-02", date)
@@ -194,8 +198,12 @@ func (s *CalendarService) ListRecordsByDate(ctx context.Context, uid uuid.UUID, 
 	}
 
 	var records []model.CalendarRecord
-	if err := database.DB.Preload("Photos").Preload("Comments").
-		Where("group_type = ? AND group_id = ? AND record_date = ?", groupType, groupID, recordDate).
+	query := database.DB.Preload("Photos").Preload("Comments").
+		Where("table_id = ? AND record_date = ?", tableID, recordDate)
+	if status != "" {
+		query = query.Where("status = ?", status)
+	}
+	if err := query.
 		Order("created_at ASC").
 		Find(&records).Error; err != nil {
 		return nil, err
@@ -258,8 +266,8 @@ type MonthlyStatsResult struct {
 }
 
 // GetMonthlyStats 获取月度统计：按月份聚合消费金额、餐型次数和缺少金额的日期。
-func (s *CalendarService) GetMonthlyStats(ctx context.Context, uid uuid.UUID, groupType string, groupID uuid.UUID, year, month int) (*MonthlyStatsResult, error) {
-	if err := CanAccessGroup(ctx, uid, groupType, groupID); err != nil {
+func (s *CalendarService) GetMonthlyStats(ctx context.Context, uid uuid.UUID, tableID uuid.UUID, year, month int) (*MonthlyStatsResult, error) {
+	if err := CanAccessTable(ctx, uid, tableID); err != nil {
 		return nil, err
 	}
 
@@ -267,7 +275,7 @@ func (s *CalendarService) GetMonthlyStats(ctx context.Context, uid uuid.UUID, gr
 	endDate := startDate.AddDate(0, 1, 0)
 
 	var records []model.CalendarRecord
-	database.DB.Where("group_type = ? AND group_id = ? AND record_date >= ? AND record_date < ?", groupType, groupID, startDate, endDate).Find(&records)
+	database.DB.Where("table_id = ? AND record_date >= ? AND record_date < ?", tableID, startDate, endDate).Find(&records)
 
 	var totalAmount float64
 	var unrecordedDays []string
@@ -297,8 +305,7 @@ func (s *CalendarService) GetMonthlyStats(ctx context.Context, uid uuid.UUID, gr
 // ---- 请求结构：日期字段使用字符串承接 HTTP JSON，再在 service 中统一解析 ----
 
 type CreateRecordReq struct {
-	GroupType  string     `json:"group_type" binding:"required,oneof=couple buddy"`
-	GroupID    uuid.UUID  `json:"group_id" binding:"required"`
+	TableID    uuid.UUID  `json:"table_id" binding:"required"`
 	RecordDate string     `json:"record_date" binding:"required"` // YYYY-MM-DD
 	MealType   string     `json:"meal_type" binding:"required,oneof=cook takeout dineout"`
 	MealPeriod string     `json:"meal_period"` // breakfast / lunch / dinner / snack
