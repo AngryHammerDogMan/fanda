@@ -87,3 +87,16 @@ test('ordering page uses integrated delivery-style visual structure', () => {
   assert(!ordersCreateStyle.includes('.table-card'), 'orders/create style must not keep the heavy table card')
   assert(!ordersCreateStyle.includes('box-shadow: var(--shadow-sm);\\n}'), 'orders/create must avoid card-like shadow on the main menu modules')
 })
+
+test('ordering page confirms basket purchase items before submitting', () => {
+  const ordersCreateContent = fs.readFileSync(
+    path.join(process.cwd(), 'fanda-app/src/pages/orders/create.tsx'),
+    'utf8'
+  )
+
+  assert(ordersCreateContent.includes('确认本餐'), 'orders/create must show an order confirmation sheet')
+  assert(ordersCreateContent.includes('needPurchase'), 'orders/create must default purchase requirement to off')
+  assert(ordersCreateContent.includes('purchaseCandidates'), 'orders/create must derive purchase candidates from selected dishes')
+  assert(ordersCreateContent.includes('selectedPurchaseKeys'), 'orders/create must submit only checked purchase items')
+  assert(ordersCreateContent.includes('basket_items'), 'orders/create must send selected purchase items in order payload')
+})

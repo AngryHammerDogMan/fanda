@@ -26,11 +26,52 @@ func setupOrderTestDB(t *testing.T) *gorm.DB {
 		`CREATE TABLE order_items (id TEXT PRIMARY KEY, order_id TEXT NOT NULL, dish_id TEXT NOT NULL, quantity INTEGER, unit_price REAL)`,
 		`CREATE TABLE calendar_records (id TEXT PRIMARY KEY, user_id TEXT NOT NULL, table_id TEXT NOT NULL, record_date DATETIME NOT NULL, meal_type TEXT NOT NULL, meal_period TEXT, dish_ids TEXT, restaurant TEXT, amount REAL, source TEXT, status TEXT NOT NULL, created_at DATETIME)`,
 		`CREATE TABLE order_participants (id TEXT PRIMARY KEY, order_id TEXT NOT NULL, user_id TEXT NOT NULL, status TEXT NOT NULL, created_at DATETIME, updated_at DATETIME)`,
+		`CREATE TABLE shopping_baskets (id TEXT PRIMARY KEY, user_id TEXT NOT NULL, table_id TEXT NOT NULL, name TEXT NOT NULL, quantity TEXT, is_purchased BOOLEAN, created_at DATETIME)`,
 	}
 	for _, stmt := range stmts {
 		require.NoError(t, db.Exec(stmt).Error)
 	}
 	return db
+}
+
+func TestCreateOrderCreatesSelectedBasketItems(t *testing.T) {
+	db := setupOrderTestDB(t)
+	database.DB = db
+
+	uid := uuid.New()
+	tableID := uuid.New()
+	dishID := uuid.New()
+	price := 42.0
+
+	require.NoError(t, db.Create(&model.User{UID: uid, Nickname: "tester"}).Error)
+	require.NoError(t, db.Create(&model.Table{ID: tableID, Type: "personal", Name: "我的餐桌", OwnerID: uid, Status: "active"}).Error)
+	require.NoError(t, db.Create(&model.TableMember{ID: uuid.New(), TableID: tableID, UserID: uid, Role: "owner", Status: "active"}).Error)
+	require.NoError(t, db.Create(&model.Dish{ID: dishID, OwnerID: uid, TableID: tableID, DishType: "dish", Name: "番茄牛腩", Price: &price}).Error)
+
+	_, err := NewOrderService().CreateOrder(context.Background(), uid, CreateOrderReq{
+		TableID:  tableID,
+		DineMode: "solo",
+		Items: []OrderItemReq{{
+			DishID:    dishID,
+			Quantity:  1,
+			UnitPrice: &price,
+		}},
+		BasketItems: []OrderBasketItemReq{
+			{Name: "牛腩", Quantity: "500g"},
+			{Name: "番茄", Quantity: "3 个"},
+		},
+	})
+
+	require.NoError(t, err)
+
+	var baskets []model.ShoppingBasket
+	require.NoError(t, db.Order("name ASC").Find(&baskets, "table_id = ?", tableID).Error)
+	require.Len(t, baskets, 2)
+	require.Equal(t, "牛腩", baskets[0].Name)
+	require.Equal(t, "500g", baskets[0].Quantity)
+	require.False(t, baskets[0].IsPurchased)
+	require.Equal(t, "番茄", baskets[1].Name)
+	require.Equal(t, "3 个", baskets[1].Quantity)
 }
 
 func TestCreateOrderCreatesCalendarRecord(t *testing.T) {

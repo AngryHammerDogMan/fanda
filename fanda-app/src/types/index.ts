@@ -336,11 +336,17 @@ export interface OrderItemPayload {
   unit_price: number | null
 }
 
+export interface OrderBasketItemPayload {
+  name: string
+  quantity: string
+}
+
 export interface CreateOrderPayload {
   table_id: string
   dine_mode: 'solo' | 'together'
   participant_ids?: string[]
-  order_items: OrderItemPayload[]
+  items: OrderItemPayload[]
+  basket_items?: OrderBasketItemPayload[]
 }
 
 export interface OrderVotes {

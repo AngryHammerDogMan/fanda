@@ -140,6 +140,10 @@ const h5Dishes: Dish[] = [
   },
 ]
 
+let h5PreviewBasketItems: BasketItem[] = [
+  { id: 'h5-basket-1', user_id: 'h5-preview-user', table_id: 'h5-personal-table', name: '番茄', quantity: '3 个', is_purchased: false, created_at: '2026-08-10T09:00:00Z' },
+]
+
 const ok = <T>(data: T): ApiResponse<T> => ({ code: 0, message: 'ok', data })
 
 const list = <T>(items: T[]): PaginatedData<T> => ({ list: items, total: items.length, page: 1, page_size: 20 })
@@ -161,6 +165,39 @@ const createH5PreviewResponse = <T>(options: Taro.request.Option): ApiResponse<T
   if (url === '/plaza/categories') return ok(['家常菜', '轻食', '快手菜', '外食灵感']) as ApiResponse<T>
   // 订单 mock。
   if (url === '/orders') {
+    if (options.method === 'POST') {
+      const payload = options.data as CreateOrderPayload
+      const createdAt = new Date().toISOString()
+      const createdBasketItems = (payload.basket_items || []).map((item, index): BasketItem => ({
+        id: `h5-basket-created-${Date.now()}-${index}`,
+        user_id: 'h5-preview-user',
+        table_id: payload.table_id,
+        name: item.name,
+        quantity: item.quantity || '1',
+        is_purchased: false,
+        created_at: createdAt,
+      }))
+      h5PreviewBasketItems = [...createdBasketItems, ...h5PreviewBasketItems]
+      const totalAmount = payload.items.reduce((sum, item) => sum + ((item.unit_price || 0) * item.quantity), 0)
+      return ok({
+        id: `h5-order-${Date.now()}`,
+        creator_id: 'h5-preview-user',
+        table_id: payload.table_id,
+        dine_mode: payload.dine_mode,
+        status: payload.dine_mode === 'together' ? 'pending' : 'confirmed',
+        total_amount: totalAmount,
+        calendar_record_id: `h5-record-${Date.now()}`,
+        order_items: payload.items.map((item, index) => ({
+          id: `h5-order-item-${index}`,
+          order_id: `h5-order-${Date.now()}`,
+          dish_id: item.dish_id,
+          quantity: item.quantity,
+          unit_price: item.unit_price,
+        })),
+        participants: [],
+        created_at: createdAt,
+      }) as ApiResponse<T>
+    }
     return ok(list([
       { id: 'h5-order-1', creator_id: 'h5-preview-user', table_id: 'h5-buddy-table', dine_mode: 'together', status: 'pending', total_amount: 58, order_items: [{ id: 'h5-order-item-1', order_id: 'h5-order-1', dish_id: 'h5-dish-1', quantity: 1, unit_price: 42 }], participants: [{ id: 'h5-order-participant-1', order_id: 'h5-order-1', user_id: 'h5-partner', status: 'invited', created_at: '2026-08-10T18:30:00Z', updated_at: '2026-08-10T18:30:00Z' }], created_at: '2026-08-10T18:30:00Z' },
     ])) as ApiResponse<T>
@@ -176,7 +213,7 @@ const createH5PreviewResponse = <T>(options: Taro.request.Option): ApiResponse<T
   }
   // 心愿、菜篮子、预算、积分和邀请 mock。
   if (url === '/wishes') return ok(list([{ id: 'h5-wish-1', user_id: 'h5-preview-user', table_id: 'h5-buddy-table', name: '想去吃巴斯克蛋糕', note: '周末下午茶', dish_id: null, is_completed: false, created_at: '2026-08-10T09:00:00Z' }])) as ApiResponse<T>
-  if (url === '/basket') return ok(list([{ id: 'h5-basket-1', user_id: 'h5-preview-user', table_id: 'h5-personal-table', name: '番茄', quantity: '3 个', is_purchased: false, created_at: '2026-08-10T09:00:00Z' }])) as ApiResponse<T>
+  if (url === '/basket') return ok(list(h5PreviewBasketItems)) as ApiResponse<T>
   if (url === '/budget') return ok({ id: 'h5-budget', user_id: 'h5-preview-user', table_id: 'h5-personal-table', month: '2026-08', budget: 1200, spent: 680 }) as ApiResponse<T>
   if (url === '/points/history') return ok(list([{ id: 'h5-point-1', user_id: 'h5-preview-user', points: 10, reason: '每日签到', created_at: '2026-08-10T09:00:00Z' }])) as ApiResponse<T>
   if (url.includes('/invite')) return ok({ code: 'H5FANDA', expires_at: '2026-08-10T10:00:00Z' }) as ApiResponse<T>

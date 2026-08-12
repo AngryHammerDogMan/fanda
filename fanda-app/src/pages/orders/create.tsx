@@ -24,6 +24,13 @@ interface DishScrollEvent {
   }
 }
 
+interface PurchaseCandidate {
+  key: string
+  name: string
+  quantity: string
+  sourceDishName: string
+}
+
 type CheckoutMode = 'solo' | 'together'
 
 const sticker = (name: string) => `/assets/stickers/${name}.png`
@@ -43,6 +50,8 @@ export default function CreateOrder() {
   const [showCheckoutSheet, setShowCheckoutSheet] = useState(false)
   const [checkoutMode, setCheckoutMode] = useState<CheckoutMode>('solo')
   const [selectedParticipantIds, setSelectedParticipantIds] = useState<string[]>([])
+  const [needPurchase, setNeedPurchase] = useState(false)
+  const [selectedPurchaseKeys, setSelectedPurchaseKeys] = useState<string[]>([])
   const [dishScrollIntoView, setDishScrollIntoView] = useState('')
   const [categoryScrollIntoView, setCategoryScrollIntoView] = useState('')
   const [loadingDishes, setLoadingDishes] = useState(false)
@@ -99,6 +108,26 @@ export default function CreateOrder() {
     return sum
   }, 0)
 
+  const purchaseCandidates = useMemo<PurchaseCandidate[]>(() => {
+    const candidateMap = new Map<string, PurchaseCandidate>()
+    selectedDishes.forEach(selected => {
+      selected.dish.ingredients?.forEach(ingredient => {
+        const name = ingredient.name.trim()
+        if (!name) return
+        const quantity = ingredient.amount?.trim() || '适量'
+        const key = `${name}-${quantity}`
+        if (candidateMap.has(key)) return
+        candidateMap.set(key, {
+          key,
+          name,
+          quantity,
+          sourceDishName: selected.dish.name,
+        })
+      })
+    })
+    return Array.from(candidateMap.values())
+  }, [selectedDishes])
+
   const chooseInitialTable = (list: Table[]): string => {
     const lastTableId = Taro.getStorageSync(LAST_ORDER_TABLE_KEY)
     if (typeof lastTableId === 'string' && list.some(table => table.id === lastTableId)) {
@@ -145,6 +174,8 @@ export default function CreateOrder() {
     }
     setActiveTableId(tableId)
     setSelectedDishes([])
+    setNeedPurchase(false)
+    setSelectedPurchaseKeys([])
     setKeyword('')
     setActiveCategory(ALL_CATEGORY)
     setDishScrollIntoView('')
@@ -230,12 +261,10 @@ export default function CreateOrder() {
       return
     }
     const members = getInvitableMembers()
-    if (members.length === 0) {
-      submitOrder('solo', [])
-      return
-    }
     setCheckoutMode('solo')
     setSelectedParticipantIds(members.map(member => member.user_id))
+    setNeedPurchase(false)
+    setSelectedPurchaseKeys([])
     setShowCheckoutSheet(true)
   }
 
@@ -255,14 +284,21 @@ export default function CreateOrder() {
         table_id: activeTableId,
         dine_mode: mode,
         participant_ids: mode === 'together' ? participantIds : [],
-        order_items: selectedDishes.map(item => ({
+        items: selectedDishes.map(item => ({
           dish_id: item.dish.id,
           quantity: item.quantity,
           unit_price: item.dish.price,
         })),
+        basket_items: needPurchase
+          ? purchaseCandidates
+            .filter(item => selectedPurchaseKeys.includes(item.key))
+            .map(item => ({ name: item.name, quantity: item.quantity }))
+          : [],
       })
       setSelectedDishes([])
       setShowCheckoutSheet(false)
+      setNeedPurchase(false)
+      setSelectedPurchaseKeys([])
       Taro.showToast({ title: '下单成功', icon: 'success' })
     } catch (err: unknown) {
       Taro.showToast({ title: getErrorMessage(err, '下单失败'), icon: 'none' })
@@ -276,6 +312,21 @@ export default function CreateOrder() {
       prev.includes(userId)
         ? prev.filter(id => id !== userId)
         : [...prev, userId]
+    )
+  }
+
+  const toggleNeedPurchase = () => {
+    setNeedPurchase(prev => {
+      if (prev) setSelectedPurchaseKeys([])
+      return !prev
+    })
+  }
+
+  const togglePurchaseCandidate = (key: string) => {
+    setSelectedPurchaseKeys(prev =>
+      prev.includes(key)
+        ? prev.filter(item => item !== key)
+        : [...prev, key]
     )
   }
 
@@ -462,22 +513,77 @@ export default function CreateOrder() {
       {showCheckoutSheet && (
         <View className='sheet-mask' onClick={() => setShowCheckoutSheet(false)}>
           <View className='sheet-panel checkout-sheet' onClick={event => event.stopPropagation()}>
-            <View className='sheet-title'>这单怎么吃？</View>
+            <View className='sheet-title'>确认本餐</View>
+            <View className='sheet-desc'>
+              {activeTable?.name || '当前餐桌'} · 已选 {totalQuantity} 道 · {totalAmount > 0 ? `¥${totalAmount.toFixed(2)}` : '待估价'}
+            </View>
+            <View className='confirm-section'>
+              <View className='confirm-section-head'>
+                <Text>已选菜品</Text>
+                <Text className='confirm-section-note'>可返回调整</Text>
+              </View>
+              {selectedDishes.map(item => (
+                <View key={item.dish.id} className='confirm-dish-row'>
+                  <Text>{item.dish.name} × {item.quantity}</Text>
+                  <Text className='confirm-price'>
+                    {item.dish.price != null ? `¥${(item.dish.price * item.quantity).toFixed(2)}` : '待估价'}
+                  </Text>
+                </View>
+              ))}
+            </View>
+            <View className='confirm-section'>
+              <View className='confirm-section-head'>
+                <Text>菜篮子</Text>
+                <Text className='confirm-section-note'>默认不采购</Text>
+              </View>
+              <View className='purchase-switch' onClick={toggleNeedPurchase}>
+                <View>
+                  <Text className='purchase-title'>需要采购</Text>
+                  <Text className='purchase-desc'>开启后从本餐食材里勾选要买的</Text>
+                </View>
+                <View className={`switch-pill ${needPurchase ? 'on' : ''}`}>
+                  <View className='switch-dot' />
+                </View>
+              </View>
+              {needPurchase && (
+                purchaseCandidates.length > 0 ? (
+                  <View className='purchase-list'>
+                    {purchaseCandidates.map(item => (
+                      <View
+                        key={item.key}
+                        className={`purchase-item ${selectedPurchaseKeys.includes(item.key) ? 'active' : ''}`}
+                        onClick={() => togglePurchaseCandidate(item.key)}
+                      >
+                        <View>
+                          <Text className='purchase-name'>{item.name}</Text>
+                          <Text className='purchase-source'>来自 {item.sourceDishName}</Text>
+                        </View>
+                        <Text className='purchase-quantity'>{item.quantity}</Text>
+                      </View>
+                    ))}
+                  </View>
+                ) : (
+                  <View className='purchase-empty'>已选菜品暂未填写食材，确认后不会同步菜篮子</View>
+                )
+              )}
+            </View>
             <View className='checkout-mode-row'>
               <View
                 className={`checkout-mode ${checkoutMode === 'solo' ? 'active' : ''}`}
                 onClick={() => setCheckoutMode('solo')}
               >
-                <Text className='mode-title'>单人下单</Text>
+                <Text className='mode-title'>自己记一餐</Text>
                 <Text className='mode-desc'>只记录我自己</Text>
               </View>
-              <View
-                className={`checkout-mode ${checkoutMode === 'together' ? 'active' : ''}`}
-                onClick={() => setCheckoutMode('together')}
-              >
-                <Text className='mode-title'>邀请一起吃</Text>
-                <Text className='mode-desc'>发送给餐桌成员</Text>
-              </View>
+              {getInvitableMembers().length > 0 && (
+                <View
+                  className={`checkout-mode ${checkoutMode === 'together' ? 'active' : ''}`}
+                  onClick={() => setCheckoutMode('together')}
+                >
+                  <Text className='mode-title'>邀请一起吃</Text>
+                  <Text className='mode-desc'>发送给餐桌成员</Text>
+                </View>
+              )}
             </View>
             {checkoutMode === 'together' && (
               <View className='member-list'>
@@ -497,7 +603,7 @@ export default function CreateOrder() {
               className={`sheet-submit ${submitting ? 'disabled' : ''}`}
               onClick={() => submitOrder(checkoutMode, checkoutMode === 'together' ? selectedParticipantIds : [])}
             >
-              {submitting ? '提交中...' : checkoutMode === 'together' ? '邀请并下单' : '单人直接下单'}
+              {submitting ? '提交中...' : checkoutMode === 'together' ? '邀请并下单' : needPurchase && selectedPurchaseKeys.length > 0 ? '确认下单 · 同步到菜篮子' : '确认下单'}
             </View>
           </View>
         </View>

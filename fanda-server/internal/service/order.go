@@ -41,6 +41,11 @@ func (s *OrderService) CreateOrder(ctx context.Context, uid uuid.UUID, req Creat
 			}
 		}
 	}
+	for _, basketItem := range req.BasketItems {
+		if basketItem.Name == "" {
+			return nil, errors.New("采购项名称不能为空")
+		}
+	}
 
 	order := model.Order{
 		ID:        uuid.New(),
@@ -116,6 +121,24 @@ func (s *OrderService) CreateOrder(ctx context.Context, uid uuid.UUID, req Creat
 				tx.Rollback()
 				return nil, fmt.Errorf("添加参与人失败: %w", err)
 			}
+		}
+	}
+	for _, basketItem := range req.BasketItems {
+		quantity := basketItem.Quantity
+		if quantity == "" {
+			quantity = "1"
+		}
+		item := model.ShoppingBasket{
+			ID:          uuid.New(),
+			UserID:      uid,
+			TableID:     req.TableID,
+			Name:        basketItem.Name,
+			Quantity:    quantity,
+			IsPurchased: false,
+		}
+		if err := tx.Create(&item).Error; err != nil {
+			tx.Rollback()
+			return nil, fmt.Errorf("添加采购项失败: %w", err)
 		}
 	}
 
@@ -298,14 +321,20 @@ func (s *OrderService) GetOrderVotes(ctx context.Context, uid uuid.UUID, orderID
 // ---- 请求结构：订单创建请求由餐桌、就餐模式和至少一个订单项组成 ----
 
 type CreateOrderReq struct {
-	TableID        uuid.UUID      `json:"table_id" binding:"required"`
-	DineMode       string         `json:"dine_mode" binding:"required,oneof=together solo"`
-	ParticipantIDs []uuid.UUID    `json:"participant_ids"`
-	Items          []OrderItemReq `json:"items" binding:"required,min=1"`
+	TableID        uuid.UUID            `json:"table_id" binding:"required"`
+	DineMode       string               `json:"dine_mode" binding:"required,oneof=together solo"`
+	ParticipantIDs []uuid.UUID          `json:"participant_ids"`
+	Items          []OrderItemReq       `json:"items" binding:"required,min=1"`
+	BasketItems    []OrderBasketItemReq `json:"basket_items"`
 }
 
 type OrderItemReq struct {
 	DishID    uuid.UUID `json:"dish_id" binding:"required"`
 	Quantity  int       `json:"quantity" binding:"required,min=1"`
 	UnitPrice *float64  `json:"unit_price"`
+}
+
+type OrderBasketItemReq struct {
+	Name     string `json:"name" binding:"required,max=100"`
+	Quantity string `json:"quantity"`
 }
