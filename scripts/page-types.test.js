@@ -220,6 +220,23 @@ test('calendar page uses compact mobile calendar proportions', () => {
   assert(todayStyle.includes('width: 30px'), 'today badge must not force tall calendar cells')
 })
 
+test('calendar date record cards stay inside the mobile page width', () => {
+  const calendarStyle = fs.readFileSync(
+    path.join(process.cwd(), 'fanda-app/src/pages/calendar/index.scss'),
+    'utf8'
+  )
+  const recordsSectionStyle = calendarStyle.match(/\.records-section\s*\{[\s\S]*?\n\}/)?.[0] || ''
+  const recordCardStyle = calendarStyle.match(/\.record-card\s*\{[\s\S]*?\n\}/)?.[0] || ''
+  const recordBodyStyle = calendarStyle.match(/\.record-body\s*\{[\s\S]*?\n\s*\}/)?.[0] || ''
+  const restaurantStyle = calendarStyle.match(/\.record-restaurant\s*\{[\s\S]*?\n\s*\}/)?.[0] || ''
+
+  assert(recordsSectionStyle.includes('box-sizing: border-box'), 'date records section must include margins inside the mobile width')
+  assert(recordCardStyle.includes('width: 100%'), 'date record cards must not overflow their section')
+  assert(recordCardStyle.includes('box-sizing: border-box'), 'date record cards must include padding and border in their width')
+  assert(recordBodyStyle.includes('min-width: 0'), 'date record row must allow text truncation in flex layout')
+  assert(restaurantStyle.includes('min-width: 0'), 'date record restaurant text must shrink instead of pushing amount outside')
+})
+
 test('calendar record page shows a manual meal form when opened without id', () => {
   const recordContent = fs.readFileSync(
     path.join(process.cwd(), 'fanda-app/src/pages/calendar/record.tsx'),

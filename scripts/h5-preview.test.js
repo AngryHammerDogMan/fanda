@@ -43,6 +43,15 @@ test('H5 global styles define variables and constrain the preview shell', () => 
   assert.match(appScss, /margin:\s*0 auto/)
 })
 
+test('H5 global styles prevent horizontal overflow in the mobile shell', () => {
+  const appScss = fs.readFileSync(path.join(process.cwd(), 'fanda-app/src/app.scss'), 'utf8')
+
+  assert.match(appScss, /\*,\s*\*::before,\s*\*::after\s*\{[\s\S]*box-sizing:\s*border-box/)
+  assert.match(appScss, /html,\s*body\s*\{[\s\S]*overflow-x:\s*hidden/)
+  assert.match(appScss, /body\s*>\s*#app,\s*body\s*>\s*#container\.taro-tabbar__container\s*\{[\s\S]*overflow-x:\s*hidden/)
+  assert.match(appScss, /body\s*>\s*#container\.taro-tabbar__container\s*>\s*\.taro-tabbar__panel\s*\{[\s\S]*overflow-x:\s*hidden/)
+})
+
 test('H5 tabbar remains visible inside the mobile preview shell', () => {
   const appScss = fs.readFileSync(path.join(process.cwd(), 'fanda-app/src/app.scss'), 'utf8')
 
