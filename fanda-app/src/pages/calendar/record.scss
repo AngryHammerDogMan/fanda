@@ -6,6 +6,117 @@
   padding-bottom: 40px;
 }
 
+.record-form-header {
+  padding: 34px 28px 18px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.form-sticker {
+  width: 96px;
+  height: 96px;
+  margin-bottom: 12px;
+  filter: drop-shadow(0 10px 16px var(--color-sticker-shadow));
+}
+
+.form-title {
+  font-size: 24px;
+  font-weight: 800;
+  color: var(--color-text);
+  margin-bottom: 8px;
+}
+
+.form-subtitle {
+  font-size: var(--font-sm);
+  color: var(--color-text-secondary);
+  line-height: 1.5;
+}
+
+.record-form {
+  margin: 0 24px 18px;
+  padding: 8px 24px;
+  border-radius: var(--radius-card);
+  border: 1px solid var(--color-border);
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: var(--shadow-sm);
+}
+
+.form-row {
+  min-height: 58px;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  border-bottom: 1px solid var(--color-border);
+
+  &:last-child {
+    border-bottom: none;
+  }
+
+  &.vertical {
+    align-items: flex-start;
+    padding: 18px 0;
+    flex-direction: column;
+    gap: 10px;
+  }
+}
+
+.form-label {
+  width: 92px;
+  flex: none;
+  color: var(--color-text-secondary);
+  font-size: var(--font-sm);
+}
+
+.form-picker,
+.form-input {
+  flex: 1;
+  min-width: 0;
+  color: var(--color-text);
+  font-size: var(--font-sm);
+}
+
+.form-picker {
+  min-height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.form-input {
+  height: 40px;
+  text-align: right;
+}
+
+.form-row.vertical .form-input {
+  width: 100%;
+  text-align: left;
+  border-radius: var(--radius-sm);
+  background: var(--color-bg);
+  padding: 0 14px;
+  box-sizing: border-box;
+}
+
+.form-submit {
+  height: 48px;
+  margin: 0 24px;
+  border-radius: 999px;
+  border: none;
+  background: linear-gradient(135deg, var(--color-primary), var(--color-primary-light));
+  color: #fff;
+  font-size: var(--font-md);
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  &[disabled] {
+    opacity: 0.62;
+    color: #fff;
+  }
+}
+
 // 加载和空状态
 .loading-state,
 .empty-state {

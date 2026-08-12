@@ -167,3 +167,16 @@ test('calendar floating add button stays inside the mobile preview width', () =>
   assert(fabStyle.includes('margin-left: 151px'), 'calendar FAB must sit near the right edge of the 430px mobile preview')
   assert(!fabStyle.includes('right: 16px'), 'calendar FAB must not pin to the browser right edge')
 })
+
+test('calendar record page shows a manual meal form when opened without id', () => {
+  const recordContent = fs.readFileSync(
+    path.join(process.cwd(), 'fanda-app/src/pages/calendar/record.tsx'),
+    'utf8'
+  )
+
+  assert(recordContent.includes('isCreateMode'), 'record page must distinguish create mode from detail mode')
+  assert(recordContent.includes('补记一餐'), 'record page must show manual meal form title when no id is provided')
+  assert(recordContent.includes('calendarAPI.create'), 'record page must create calendar records from the manual form')
+  assert(recordContent.includes('loadCreateTables'), 'record page must load available tables for manual records')
+  assert(recordContent.includes('record-form'), 'record page must render a form instead of the missing-record empty state')
+})

@@ -1,28 +1,68 @@
-import { View, Text, Image, Input, Button } from '@tarojs/components'
+import { View, Text, Image, Input, Button, Picker } from '@tarojs/components'
 import Taro, { useRouter, useDidShow } from '@tarojs/taro'
 import { useState } from 'react'
-import { calendarAPI } from '@/services/api'
-import type { CalendarRecord } from '@/types'
+import { calendarAPI, tableAPI } from '@/services/api'
+import type { CalendarRecord, PickerChangeEvent, Table } from '@/types'
+import { getStoredTableId, getTableDisplayName, rememberTableId } from '@/utils/table'
 import './record.scss'
 
 const MEAL_LABELS: Record<string, string> = { cook: '做饭', takeout: '外卖', dineout: '外出' }
 const MEAL_COLORS: Record<string, string> = { cook: '#52C41A', takeout: '#FF6B35', dineout: '#1890FF' }
+const MEAL_TYPES = [
+  { label: '做饭', value: 'cook' },
+  { label: '外卖', value: 'takeout' },
+  { label: '外出', value: 'dineout' },
+]
+const MEAL_PERIODS = ['早餐', '午餐', '晚餐', '夜宵']
 const sticker = (name: string) => `/assets/stickers/${name}.png`
+
+const getToday = () => {
+  const now = new Date()
+  const year = now.getFullYear()
+  const month = String(now.getMonth() + 1).padStart(2, '0')
+  const day = String(now.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
 
 export default function RecordDetail() {
   const router = useRouter()
   const recordId = router.params?.id as string | undefined
+  const isCreateMode = !recordId
 
   const [record, setRecord] = useState<CalendarRecord | null>(null)
   const [loading, setLoading] = useState(false)
   const [commentText, setCommentText] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const [tables, setTables] = useState<Table[]>([])
+  const [activeTableId, setActiveTableId] = useState('')
+  const [recordDate, setRecordDate] = useState(getToday())
+  const [mealType, setMealType] = useState(MEAL_TYPES[0].value)
+  const [mealPeriod, setMealPeriod] = useState(MEAL_PERIODS[2])
+  const [restaurant, setRestaurant] = useState('')
+  const [amount, setAmount] = useState('')
+  const [content, setContent] = useState('')
 
   useDidShow(() => {
-    if (recordId) {
+    if (isCreateMode) {
+      loadCreateTables()
+    } else {
       loadRecord()
     }
   })
+
+  const loadCreateTables = async () => {
+    try {
+      const res = await tableAPI.list()
+      const list = res.data || []
+      const nextTableId = activeTableId || getStoredTableId(list)
+      setTables(list)
+      setActiveTableId(nextTableId)
+      rememberTableId(nextTableId)
+    } catch (err) {
+      console.error('加载餐桌失败', err)
+      Taro.showToast({ title: '加载餐桌失败', icon: 'none' })
+    }
+  }
 
   const loadRecord = async () => {
     if (!recordId) return
@@ -36,6 +76,55 @@ export default function RecordDetail() {
     } finally {
       setLoading(false)
     }
+  }
+
+  const handleCreateRecord = async () => {
+    if (!activeTableId) {
+      Taro.showToast({ title: '请选择餐桌', icon: 'none' })
+      return
+    }
+    setSubmitting(true)
+    try {
+      await calendarAPI.create({
+        table_id: activeTableId,
+        record_date: recordDate,
+        meal_type: mealType,
+        meal_period: mealPeriod,
+        restaurant: restaurant.trim(),
+        amount: amount ? Number(amount) : null,
+        content: content.trim(),
+      })
+      rememberTableId(activeTableId)
+      Taro.showToast({ title: '补记成功', icon: 'success' })
+      setTimeout(() => {
+        Taro.navigateBack()
+      }, 800)
+    } catch (err) {
+      console.error('补记失败', err)
+      Taro.showToast({ title: '补记失败', icon: 'none' })
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const handleTableChange = (event: PickerChangeEvent) => {
+    const index = Number(event.detail.value)
+    const table = tables[index]
+    if (!table) return
+    setActiveTableId(table.id)
+    rememberTableId(table.id)
+  }
+
+  const handleMealTypeChange = (event: PickerChangeEvent) => {
+    const index = Number(event.detail.value)
+    const nextType = MEAL_TYPES[index]
+    if (nextType) setMealType(nextType.value)
+  }
+
+  const handleMealPeriodChange = (event: PickerChangeEvent) => {
+    const index = Number(event.detail.value)
+    const nextPeriod = MEAL_PERIODS[index]
+    if (nextPeriod) setMealPeriod(nextPeriod)
   }
 
   const handleAddComment = async () => {
@@ -84,6 +173,66 @@ export default function RecordDetail() {
     if (!dateStr) return ''
     const parts = dateStr.slice(0, 10).split('-')
     return `${parts[0]}年${parts[1]}月${parts[2]}日`
+  }
+
+  const activeTableIndex = Math.max(0, tables.findIndex(table => table.id === activeTableId))
+  const activeMealTypeIndex = Math.max(0, MEAL_TYPES.findIndex(type => type.value === mealType))
+  const activeMealPeriodIndex = Math.max(0, MEAL_PERIODS.findIndex(period => period === mealPeriod))
+
+  if (isCreateMode) {
+    return (
+      <View className='page-record'>
+        <View className='record-form-header'>
+          <Image className='form-sticker' src={sticker('calendar')} mode='aspectFit' />
+          <Text className='form-title'>补记一餐</Text>
+          <Text className='form-subtitle'>把今天或之前漏掉的一顿饭补到日历里</Text>
+        </View>
+
+        <View className='record-form'>
+          <View className='form-row'>
+            <Text className='form-label'>餐桌</Text>
+            <Picker mode='selector' range={tables.map(table => getTableDisplayName(table))} value={activeTableIndex} onChange={handleTableChange}>
+              <View className='form-picker'>{getTableDisplayName(tables[activeTableIndex] || null)}</View>
+            </Picker>
+          </View>
+          <View className='form-row'>
+            <Text className='form-label'>日期</Text>
+            <Picker mode='date' value={recordDate} onChange={(event: PickerChangeEvent<string>) => setRecordDate(event.detail.value)}>
+              <View className='form-picker'>{recordDate}</View>
+            </Picker>
+          </View>
+          <View className='form-row'>
+            <Text className='form-label'>类型</Text>
+            <Picker mode='selector' range={MEAL_TYPES.map(type => type.label)} value={activeMealTypeIndex} onChange={handleMealTypeChange}>
+              <View className='form-picker'>{MEAL_TYPES[activeMealTypeIndex]?.label || '做饭'}</View>
+            </Picker>
+          </View>
+          <View className='form-row'>
+            <Text className='form-label'>餐次</Text>
+            <Picker mode='selector' range={MEAL_PERIODS} value={activeMealPeriodIndex} onChange={handleMealPeriodChange}>
+              <View className='form-picker'>{mealPeriod}</View>
+            </Picker>
+          </View>
+          <View className='form-row'>
+            <Text className='form-label'>餐厅/备注</Text>
+            <Input className='form-input' value={restaurant} onInput={(event) => setRestaurant(event.detail.value)} placeholder='例如：家里 / 小区门口面馆' />
+          </View>
+          <View className='form-row'>
+            <Text className='form-label'>金额</Text>
+            <Input className='form-input' type='digit' value={amount} onInput={(event) => setAmount(event.detail.value)} placeholder='可不填' />
+          </View>
+          <View className='form-row vertical'>
+            <Text className='form-label'>这一餐</Text>
+            <Input className='form-input' value={content} onInput={(event) => setContent(event.detail.value)} placeholder='简单写写吃了什么' />
+          </View>
+        </View>
+
+        <Button className='form-submit' loading={submitting} disabled={submitting} onClick={handleCreateRecord}>
+          保存到日历
+        </Button>
+        <View className='safe-bottom' />
+      </View>
+    )
   }
 
   if (loading) {
