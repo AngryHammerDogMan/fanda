@@ -61,3 +61,14 @@ test('H5 tabbar remains visible inside the mobile preview shell', () => {
   assert.match(appScss, /body\s*>\s*#container\.taro-tabbar__container\s*>\s*taro-tabbar\s*\{[\s\S]*flex:\s*0 0 50px/)
   assert.doesNotMatch(appScss, /(^|\n)#app\s*\{[^}]*overflow:\s*hidden/)
 })
+
+test('H5 login page can force-hide the tabbar shell', () => {
+  const appScss = fs.readFileSync(path.join(process.cwd(), 'fanda-app/src/app.scss'), 'utf8')
+  const loginContent = fs.readFileSync(path.join(process.cwd(), 'fanda-app/src/pages/login/index.tsx'), 'utf8')
+
+  assert.match(loginContent, /LOGIN_BODY_CLASS\s*=\s*'fanda-login-active'/)
+  assert.match(loginContent, /document\.body\.classList\.add\(LOGIN_BODY_CLASS\)/)
+  assert.match(loginContent, /document\.body\.classList\.remove\(LOGIN_BODY_CLASS\)/)
+  assert.match(appScss, /body\.fanda-login-active\s*>\s*#container\.taro-tabbar__container\s*>\s*taro-tabbar\s*\{[\s\S]*display:\s*none !important/)
+  assert.match(appScss, /body\.fanda-login-active\s*>\s*#container\.taro-tabbar__container\s*>\s*\.taro-tabbar__panel\s*\{[\s\S]*height:\s*100vh/)
+})

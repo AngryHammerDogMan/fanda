@@ -264,6 +264,34 @@ test('home recent orders empty icon renders fully', () => {
   assert(emptyOrderIconStyle.includes('background-position: center'), 'home empty background icon must stay centered')
 })
 
+test('login page hides tabbar and renders logo without image clipping', () => {
+  const appConfig = fs.readFileSync(
+    path.join(process.cwd(), 'fanda-app/src/app.config.ts'),
+    'utf8'
+  )
+  const loginContent = fs.readFileSync(
+    path.join(process.cwd(), 'fanda-app/src/pages/login/index.tsx'),
+    'utf8'
+  )
+  const loginStyle = fs.readFileSync(
+    path.join(process.cwd(), 'fanda-app/src/pages/login/index.scss'),
+    'utf8'
+  )
+  const logoIconStyle = loginStyle.match(/\.logo-icon\s*\{[\s\S]*?\n\s*\}/)?.[0] || ''
+  const loginHeroStyle = loginStyle.match(/\.login-hero\s*\{[\s\S]*?\n\}/)?.[0] || ''
+
+  assert(!appConfig.match(/tabBar:\s*\{[\s\S]*pagePath:\s*'pages\/login\/index'/), 'login page must not be a tabbar page')
+  assert(loginContent.includes('Taro.hideTabBar'), 'login page must explicitly hide tabbar in H5 and mini program runtimes')
+  assert(loginContent.includes('Taro.showTabBar'), 'login flow must restore tabbar before entering the main tab page')
+  assert(loginContent.includes("className='logo-icon'"), 'login logo must use a stable background container')
+  assert(!loginContent.includes("className='logo-icon' src={sticker('home')}"), 'login logo must avoid Taro Image clipping')
+  assert(logoIconStyle.includes("background-image: url('../../assets/stickers/home.png')"), 'login logo must render as a background image')
+  assert(logoIconStyle.includes('background-size: contain'), 'login logo background must show the full sticker')
+  assert(logoIconStyle.includes('background-repeat: no-repeat'), 'login logo background must not tile')
+  assert(logoIconStyle.includes('background-position: center'), 'login logo background must stay centered')
+  assert(loginHeroStyle.includes('margin-bottom: 88px'), 'login hero must leave enough space before the login button when the tabbar is hidden')
+})
+
 test('calendar record page shows a manual meal form when opened without id', () => {
   const recordContent = fs.readFileSync(
     path.join(process.cwd(), 'fanda-app/src/pages/calendar/record.tsx'),

@@ -103,6 +103,15 @@ body > #container.taro-tabbar__container > taro-tabbar {
   z-index: 500;
 }
 
+body.fanda-login-active > #container.taro-tabbar__container > taro-tabbar {
+  display: none !important;
+}
+
+body.fanda-login-active > #container.taro-tabbar__container > .taro-tabbar__panel {
+  height: 100vh;
+  min-height: 100vh;
+}
+
 @media (max-width: 430px) {
   body > #app,
   body > #container.taro-tabbar__container {

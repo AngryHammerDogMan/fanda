@@ -1,5 +1,5 @@
 import { View, Text, Button, Input, Image } from '@tarojs/components'
-import Taro, { useDidShow } from '@tarojs/taro'
+import Taro, { useDidHide, useDidShow } from '@tarojs/taro'
 import { useState } from 'react'
 import { authAPI } from '@/services/api'
 import { getErrorMessage } from '@/utils/error'
@@ -11,6 +11,24 @@ const IS_H5_PREVIEW = process.env.TARO_ENV === 'h5'
 const CURRENT_PLATFORM = process.env.TARO_ENV === 'weapp' ? 'wechat' : 'douyin'
 const PLATFORM_NAME = IS_H5_PREVIEW ? '浏览器预览' : CURRENT_PLATFORM === 'wechat' ? '微信' : '抖音'
 const sticker = (name: string) => `/assets/stickers/${name}.png`
+const LOGIN_BODY_CLASS = 'fanda-login-active'
+
+const markLoginPageActive = () => {
+  if (typeof document !== 'undefined') {
+    document.body.classList.add(LOGIN_BODY_CLASS)
+  }
+}
+
+const clearLoginPageActive = () => {
+  if (typeof document !== 'undefined') {
+    document.body.classList.remove(LOGIN_BODY_CLASS)
+  }
+}
+
+const restoreMainTabbar = () => {
+  clearLoginPageActive()
+  Taro.showTabBar({ animation: false })
+}
 
 export default function Login() {
   const [loading, setLoading] = useState(false)
@@ -21,10 +39,17 @@ export default function Login() {
 
   // 已登录用户自动跳转首页
   useDidShow(() => {
+    markLoginPageActive()
+    Taro.hideTabBar({ animation: false })
     const token = Taro.getStorageSync('token')
     if (token) {
+      restoreMainTabbar()
       Taro.switchTab({ url: '/pages/index/index' })
     }
+  })
+
+  useDidHide(() => {
+    clearLoginPageActive()
   })
 
   const handleH5MockLogin = () => {
@@ -41,6 +66,7 @@ export default function Login() {
     })
     Taro.showToast({ title: '已进入预览模式', icon: 'success' })
     setTimeout(() => {
+      restoreMainTabbar()
       Taro.switchTab({ url: '/pages/index/index' })
     }, 500)
   }
@@ -76,6 +102,7 @@ export default function Login() {
         // 老用户已绑定手机号：直接进入
         Taro.showToast({ title: '欢迎回来', icon: 'success' })
         setTimeout(() => {
+          restoreMainTabbar()
           Taro.switchTab({ url: '/pages/index/index' })
         }, 800)
       }
@@ -114,6 +141,7 @@ export default function Login() {
       await authAPI.bindPhone(phone)
       Taro.showToast({ title: '绑定成功', icon: 'success' })
       setTimeout(() => {
+        restoreMainTabbar()
         Taro.switchTab({ url: '/pages/index/index' })
       }, 1000)
     } catch (err: unknown) {
@@ -132,7 +160,7 @@ export default function Login() {
         <View className='login-container'>
           {/* Logo */}
           <View className='logo-section login-hero'>
-            <Image className='logo-icon' src={sticker('home')} mode='aspectFit' />
+            <View className='logo-icon' />
             <Text className='logo-title'>饭搭</Text>
             <Text className='logo-subtitle'>和喜欢的人一起吃饭</Text>
           </View>
@@ -242,9 +270,9 @@ export default function Login() {
     <View className='page-login'>
       <View className='login-container'>
         <View className='logo-section'>
-          <Image className='logo-icon' src={sticker('home')} mode='aspectFit' />
+          <View className='logo-icon' />
           <Text className='logo-title'>饭搭</Text>
-          <Text className='logo-subtitle'>正在登录...</Text>
+          <Text className='logo-subtitle'>正在登录…</Text>
         </View>
       </View>
     </View>
