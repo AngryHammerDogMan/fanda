@@ -12,9 +12,25 @@ interface SelectedDish {
   quantity: number
 }
 
+interface DishCategoryGroup {
+  name: string
+  anchorId: string
+  dishes: Dish[]
+}
+
+interface DishScrollEvent {
+  detail: {
+    scrollTop: number
+  }
+}
+
 type CheckoutMode = 'solo' | 'together'
 
 const sticker = (name: string) => `/assets/stickers/${name}.png`
+const DEFAULT_CATEGORY = '未分类'
+const ALL_CATEGORY = '全部'
+const CATEGORY_SECTION_TITLE_HEIGHT = 42
+const DISH_CARD_SCROLL_HEIGHT = 166
 
 export default function CreateOrder() {
   const [tables, setTables] = useState<Table[]>([])
@@ -27,6 +43,8 @@ export default function CreateOrder() {
   const [showCheckoutSheet, setShowCheckoutSheet] = useState(false)
   const [checkoutMode, setCheckoutMode] = useState<CheckoutMode>('solo')
   const [selectedParticipantIds, setSelectedParticipantIds] = useState<string[]>([])
+  const [dishScrollIntoView, setDishScrollIntoView] = useState('')
+  const [categoryScrollIntoView, setCategoryScrollIntoView] = useState('')
   const [loadingDishes, setLoadingDishes] = useState(false)
   const [submitting, setSubmitting] = useState(false)
 
@@ -41,24 +59,36 @@ export default function CreateOrder() {
 
   const activeTable = tables.find(table => table.id === activeTableId)
 
-  const categories = useMemo(() => {
-    const dishCategories = dishes
-      .map(dish => dish.category)
-      .filter(category => category && category.trim().length > 0)
-    return ['全部', ...Array.from(new Set(dishCategories))]
-  }, [dishes])
-
-  const filteredDishes = useMemo(() => {
+  const keywordFilteredDishes = useMemo(() => {
     const normalizedKeyword = keyword.trim().toLowerCase()
     return dishes.filter(dish => {
-      const matchesCategory = activeCategory === '全部' || dish.category === activeCategory
       const matchesKeyword = !normalizedKeyword
         || dish.name.toLowerCase().includes(normalizedKeyword)
         || dish.category.toLowerCase().includes(normalizedKeyword)
         || dish.restaurant.toLowerCase().includes(normalizedKeyword)
-      return matchesCategory && matchesKeyword
+      return matchesKeyword
     })
-  }, [activeCategory, dishes, keyword])
+  }, [dishes, keyword])
+
+  const dishCategoryGroups = useMemo<DishCategoryGroup[]>(() => {
+    const groups: DishCategoryGroup[] = []
+    keywordFilteredDishes.forEach(dish => {
+      const categoryName = dish.category?.trim() || DEFAULT_CATEGORY
+      const existingGroup = groups.find(group => group.name === categoryName)
+      if (existingGroup) {
+        existingGroup.dishes.push(dish)
+        return
+      }
+      groups.push({
+        name: categoryName,
+        anchorId: `dish-section-${groups.length}`,
+        dishes: [dish],
+      })
+    })
+    return groups
+  }, [keywordFilteredDishes])
+
+  const categories = useMemo(() => [ALL_CATEGORY, ...dishCategoryGroups.map(group => group.name)], [dishCategoryGroups])
 
   const totalQuantity = selectedDishes.reduce((sum, item) => sum + item.quantity, 0)
 
@@ -116,10 +146,49 @@ export default function CreateOrder() {
     setActiveTableId(tableId)
     setSelectedDishes([])
     setKeyword('')
-    setActiveCategory('全部')
+    setActiveCategory(ALL_CATEGORY)
+    setDishScrollIntoView('')
+    setCategoryScrollIntoView('')
     setShowTableSheet(false)
     Taro.setStorageSync(LAST_ORDER_TABLE_KEY, tableId)
     Taro.showToast({ title: '已切换餐桌，购物车已清空', icon: 'none' })
+  }
+
+  const handleCategorySelect = (category: string) => {
+    setActiveCategory(category)
+    const categoryIndex = categories.findIndex(item => item === category)
+    setCategoryScrollIntoView(`category-item-${Math.max(categoryIndex, 0)}`)
+    if (category === ALL_CATEGORY) {
+      setDishScrollIntoView('dish-list-top')
+      return
+    }
+    const targetGroup = dishCategoryGroups.find(group => group.name === category)
+    setDishScrollIntoView(targetGroup?.anchorId || 'dish-list-top')
+  }
+
+  const handleDishScroll = (event: DishScrollEvent) => {
+    if (dishCategoryGroups.length === 0) return
+    const scrollTop = event.detail.scrollTop
+    if (scrollTop < CATEGORY_SECTION_TITLE_HEIGHT) {
+      if (activeCategory !== ALL_CATEGORY) setActiveCategory(ALL_CATEGORY)
+      setCategoryScrollIntoView('category-item-0')
+      return
+    }
+
+    let nextActiveCategory = dishCategoryGroups[0].name
+    let accumulatedHeight = 0
+    dishCategoryGroups.forEach(group => {
+      const sectionHeight = CATEGORY_SECTION_TITLE_HEIGHT + group.dishes.length * DISH_CARD_SCROLL_HEIGHT
+      if (scrollTop + CATEGORY_SECTION_TITLE_HEIGHT >= accumulatedHeight) {
+        nextActiveCategory = group.name
+      }
+      accumulatedHeight += sectionHeight
+    })
+    if (nextActiveCategory !== activeCategory) {
+      setActiveCategory(nextActiveCategory)
+      const categoryIndex = categories.findIndex(item => item === nextActiveCategory)
+      setCategoryScrollIntoView(`category-item-${Math.max(categoryIndex, 0)}`)
+    }
   }
 
   const handleAddDish = (dish: Dish) => {
@@ -250,74 +319,91 @@ export default function CreateOrder() {
         />
       </View>
 
-      <ScrollView className='category-rail' scrollX>
-        {categories.map(category => (
-          <View
-            key={category}
-            className={`category-pill ${activeCategory === category ? 'active' : ''}`}
-            onClick={() => setActiveCategory(category)}
-          >
-            {category}
-          </View>
-        ))}
-      </ScrollView>
+      <View className='menu-body'>
+        <ScrollView className='category-sidebar' scrollY scrollIntoView={categoryScrollIntoView}>
+          {categories.map((category, index) => (
+            <View
+              id={`category-item-${index}`}
+              key={category}
+              className={`category-item ${activeCategory === category ? 'active' : ''}`}
+              onClick={() => handleCategorySelect(category)}
+            >
+              <Text>{category}</Text>
+            </View>
+          ))}
+          <View className='category-bottom-space' />
+        </ScrollView>
 
-      <ScrollView className='dish-scroll' scrollY>
-        {loadingDishes ? (
-          <View className='state-card'>加载菜品中...</View>
-        ) : !activeTableId ? (
-          <View className='state-card'>
-            <Image className='state-icon' src={sticker('menu-muted')} mode='aspectFit' />
-            <Text>暂无可用餐桌，请先在我的页面创建关系</Text>
-          </View>
-        ) : filteredDishes.length === 0 ? (
-          <View className='state-card'>
-            <Image className='state-icon' src={sticker('basket-muted')} mode='aspectFit' />
-            <Text>{dishes.length === 0 ? '当前餐桌还没有菜品' : '没有匹配的菜品'}</Text>
-          </View>
-        ) : (
-          <View className='dish-list'>
-            {filteredDishes.map(dish => {
-              const selected = selectedDishes.find(item => item.dish.id === dish.id)
-              return (
-                <View key={dish.id} className='dish-card'>
-                  <View className='dish-cover'>
-                    <Image className='dish-sticker' src={sticker(dish.dish_type === 'takeout' ? 'order' : 'menu')} mode='aspectFit' />
+        <ScrollView
+          className='dish-scroll'
+          scrollY
+          scrollIntoView={dishScrollIntoView}
+          onScroll={handleDishScroll}
+        >
+          <View id='dish-list-top' />
+          {loadingDishes ? (
+            <View className='state-card'>加载菜品中...</View>
+          ) : !activeTableId ? (
+            <View className='state-card'>
+              <Image className='state-icon' src={sticker('menu-muted')} mode='aspectFit' />
+              <Text>暂无可用餐桌，请先在我的页面创建关系</Text>
+            </View>
+          ) : dishCategoryGroups.length === 0 ? (
+            <View className='state-card'>
+              <Image className='state-icon' src={sticker('basket-muted')} mode='aspectFit' />
+              <Text>{dishes.length === 0 ? '当前餐桌还没有菜品' : '没有匹配的菜品'}</Text>
+            </View>
+          ) : (
+            <View className='dish-list'>
+              {dishCategoryGroups.map(group => (
+                <View id={group.anchorId} key={group.name} className='dish-section'>
+                  <View className='dish-section-title'>
+                    <Text>{group.name}</Text>
+                    <Text className='dish-section-count'>{group.dishes.length} 道</Text>
                   </View>
-                  <View className='dish-info'>
-                    <View className='dish-title-row'>
-                      <Text className='dish-name'>{dish.name}</Text>
-                      <Text className='dish-type'>{getDishTypeText(dish)}</Text>
-                    </View>
-                    <Text className='dish-desc'>
-                      {dish.restaurant || dish.restaurant_note || dish.tags?.join(' · ') || '餐桌常备菜单'}
-                    </Text>
-                    <View className='dish-meta'>
-                      {dish.category && <Text className='dish-category'>{dish.category}</Text>}
-                      {dish.duration ? <Text className='dish-category'>{dish.duration} 分钟</Text> : null}
-                    </View>
-                    <View className='dish-bottom'>
-                      <Text className='dish-price'>
-                        {dish.price != null ? `¥${dish.price.toFixed(2)}` : '待估价'}
-                      </Text>
-                      {selected ? (
-                        <View className='quantity-control'>
-                          <View className='qty-btn' onClick={() => handleQuantityChange(dish.id, -1)}>-</View>
-                          <Text className='qty-value'>{selected.quantity}</Text>
-                          <View className='qty-btn plus' onClick={() => handleQuantityChange(dish.id, 1)}>+</View>
+                  {group.dishes.map(dish => {
+                    const selected = selectedDishes.find(item => item.dish.id === dish.id)
+                    return (
+                      <View key={dish.id} className='dish-card'>
+                        <View className='dish-cover'>
+                          <Image className='dish-sticker' src={sticker(dish.dish_type === 'takeout' ? 'order' : 'menu')} mode='aspectFit' />
                         </View>
-                      ) : (
-                        <View className='add-btn' onClick={() => handleAddDish(dish)}>加入</View>
-                      )}
-                    </View>
-                  </View>
+                        <View className='dish-info'>
+                          <View className='dish-title-row'>
+                            <Text className='dish-name'>{dish.name}</Text>
+                            <Text className='dish-type'>{getDishTypeText(dish)}</Text>
+                          </View>
+                          <Text className='dish-desc'>
+                            {dish.restaurant || dish.restaurant_note || dish.tags?.join(' · ') || '餐桌常备菜单'}
+                          </Text>
+                          <View className='dish-meta'>
+                            {dish.duration ? <Text className='dish-category'>{dish.duration} 分钟</Text> : null}
+                          </View>
+                          <View className='dish-bottom'>
+                            <Text className='dish-price'>
+                              {dish.price != null ? `¥${dish.price.toFixed(2)}` : '待估价'}
+                            </Text>
+                            {selected ? (
+                              <View className='quantity-control'>
+                                <View className='qty-btn' onClick={() => handleQuantityChange(dish.id, -1)}>-</View>
+                                <Text className='qty-value'>{selected.quantity}</Text>
+                                <View className='qty-btn plus' onClick={() => handleQuantityChange(dish.id, 1)}>+</View>
+                              </View>
+                            ) : (
+                              <View className='add-btn' onClick={() => handleAddDish(dish)}>加入</View>
+                            )}
+                          </View>
+                        </View>
+                      </View>
+                    )
+                  })}
                 </View>
-              )
-            })}
-            <View className='bottom-placeholder' />
-          </View>
-        )}
-      </ScrollView>
+              ))}
+              <View className='bottom-placeholder' />
+            </View>
+          )}
+        </ScrollView>
+      </View>
 
       <View className='cart-bar'>
         {selectedDishes.length > 0 && (

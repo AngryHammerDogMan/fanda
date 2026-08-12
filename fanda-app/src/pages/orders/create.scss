@@ -83,60 +83,99 @@
   }
 }
 
-.category-rail {
-  white-space: nowrap;
-  padding: 0 24px 14px;
+.menu-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  gap: 14px;
+  padding: 0 18px;
   box-sizing: border-box;
+}
+
+.category-sidebar {
+  width: 92px;
   flex: none;
+  min-height: 0;
+  border-radius: 26px;
+  background: rgba(255, 255, 255, 0.64);
+  border: 1px solid rgba(234, 218, 199, 0.72);
+  box-shadow: var(--shadow-sm);
+}
 
-  .category-pill {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    margin-right: 12px;
-    padding: 10px 20px;
-    border-radius: 999px;
-    background: rgba(255, 255, 255, 0.86);
-    border: 1px solid var(--color-border);
-    color: var(--color-text-secondary);
-    font-size: 13px;
-    font-weight: 600;
+.category-item {
+  min-height: 56px;
+  padding: 12px 10px;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  line-height: 1.25;
+  font-weight: 700;
+  text-align: center;
+  border-left: 5px solid transparent;
+  transition: background-color 0.18s ease, color 0.18s ease, border-color 0.18s ease;
 
-    &.active {
-      background: var(--color-primary);
-      border-color: var(--color-primary);
-      color: #FFFFFF;
-      box-shadow: 0 8px 18px rgba(255, 107, 53, 0.24);
-    }
+  &.active {
+    color: var(--color-primary);
+    background: rgba(255, 107, 53, 0.08);
+    border-left-color: var(--color-primary);
   }
+}
+
+.category-bottom-space {
+  height: 120px;
 }
 
 .dish-scroll {
   flex: 1;
   min-height: 0;
-  padding: 0 24px;
-  box-sizing: border-box;
+  width: 0;
 }
 
 .dish-list {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 14px;
+}
+
+.dish-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.dish-section-title {
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 4px;
+  color: var(--color-ink);
+  font-size: 15px;
+  font-weight: 800;
+
+  .dish-section-count {
+    color: var(--color-text-light);
+    font-size: 11px;
+    font-weight: 600;
+  }
 }
 
 .dish-card {
   display: flex;
-  gap: 18px;
-  padding: 18px;
-  border-radius: 28px;
+  gap: 12px;
+  padding: 12px;
+  border-radius: 24px;
   background: rgba(255, 255, 255, 0.92);
   border: 1px solid var(--color-border);
   box-shadow: var(--shadow-sm);
 
   .dish-cover {
-    width: 132px;
-    height: 132px;
-    border-radius: 24px;
+    width: 78px;
+    height: 78px;
+    border-radius: 20px;
     background:
       radial-gradient(circle at 50% 38%, rgba(255, 179, 71, 0.26), transparent 48px),
       var(--color-cream);
@@ -147,8 +186,8 @@
   }
 
   .dish-sticker {
-    width: 90px;
-    height: 90px;
+    width: 56px;
+    height: 56px;
     filter: drop-shadow(0 10px 14px var(--color-sticker-shadow));
   }
 
@@ -161,13 +200,13 @@
     display: flex;
     align-items: flex-start;
     gap: 8px;
-    margin-bottom: 8px;
+    margin-bottom: 6px;
   }
 
   .dish-name {
     flex: 1;
     min-width: 0;
-    font-size: 16px;
+    font-size: 14px;
     line-height: 1.25;
     font-weight: 800;
     color: var(--color-ink);
@@ -188,8 +227,8 @@
 
   .dish-desc {
     display: block;
-    min-height: 34px;
-    font-size: 12px;
+    min-height: 20px;
+    font-size: 11px;
     line-height: 1.4;
     color: var(--color-text-secondary);
     overflow: hidden;
@@ -201,7 +240,7 @@
     display: flex;
     gap: 8px;
     flex-wrap: wrap;
-    margin: 10px 0 14px;
+    margin: 6px 0 10px;
   }
 
   .dish-category {
@@ -221,7 +260,7 @@
 
   .dish-price {
     color: var(--color-danger);
-    font-size: 18px;
+    font-size: 15px;
     font-weight: 800;
   }
 }
@@ -238,7 +277,8 @@
 }
 
 .add-btn {
-  padding: 0 20px;
+  height: 36px;
+  padding: 0 16px;
   background: var(--color-primary);
   color: #FFFFFF;
   font-size: 12px;
@@ -251,6 +291,9 @@
   gap: 12px;
 
   .qty-btn {
+    width: 34px;
+    min-width: 34px;
+    height: 34px;
     background: #F4EEE6;
     color: var(--color-primary);
     font-size: 18px;

@@ -57,3 +57,15 @@ test('ordering page uses table flow instead of group selector steps', () => {
     'orders/create must remember last table'
   )
 })
+
+test('ordering page uses vertical category navigation with dish scroll sync', () => {
+  const ordersCreateContent = fs.readFileSync(
+    path.join(process.cwd(), 'fanda-app/src/pages/orders/create.tsx'),
+    'utf8'
+  )
+
+  assert(ordersCreateContent.includes('category-sidebar'), 'orders/create must render a left category sidebar')
+  assert(ordersCreateContent.includes('dish-section'), 'orders/create must render grouped dish sections')
+  assert(ordersCreateContent.includes('scrollIntoView'), 'orders/create must scroll dishes when a category is selected')
+  assert(ordersCreateContent.includes('onScroll={handleDishScroll}'), 'orders/create must sync active category while dishes scroll')
+})
