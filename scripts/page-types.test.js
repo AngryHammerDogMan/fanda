@@ -114,3 +114,16 @@ test('ordering page uses invite switch only for multi-member tables', () => {
   assert(!ordersCreateContent.includes('checkout-mode-row'), 'orders/create must not use dining mode choice cards')
   assert(!ordersCreateContent.includes('自己记一餐'), 'orders/create must not show self-record as an explicit feature')
 })
+
+test('ordering page opens cart detail sheet for item editing', () => {
+  const ordersCreateContent = fs.readFileSync(
+    path.join(process.cwd(), 'fanda-app/src/pages/orders/create.tsx'),
+    'utf8'
+  )
+
+  assert(ordersCreateContent.includes('showCartSheet'), 'orders/create must keep cart detail sheet state')
+  assert(ordersCreateContent.includes('cart-detail-sheet'), 'orders/create must render a cart detail sheet')
+  assert(ordersCreateContent.includes('handleClearCart'), 'orders/create must support clearing the cart')
+  assert(ordersCreateContent.includes('购物车明细'), 'orders/create must label the cart detail sheet')
+  assert(ordersCreateContent.includes("handleQuantityChange(item.dish.id, -1)"), 'cart detail must allow quantity decrease and removal')
+})

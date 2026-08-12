@@ -46,6 +46,7 @@ export default function CreateOrder() {
   const [activeCategory, setActiveCategory] = useState('全部')
   const [showTableSheet, setShowTableSheet] = useState(false)
   const [showCheckoutSheet, setShowCheckoutSheet] = useState(false)
+  const [showCartSheet, setShowCartSheet] = useState(false)
   const [needInvite, setNeedInvite] = useState(false)
   const [selectedParticipantIds, setSelectedParticipantIds] = useState<string[]>([])
   const [needPurchase, setNeedPurchase] = useState(false)
@@ -174,6 +175,7 @@ export default function CreateOrder() {
     setSelectedDishes([])
     setNeedPurchase(false)
     setSelectedPurchaseKeys([])
+    setShowCartSheet(false)
     setKeyword('')
     setActiveCategory(ALL_CATEGORY)
     setDishScrollIntoView('')
@@ -264,6 +266,13 @@ export default function CreateOrder() {
     setNeedPurchase(false)
     setSelectedPurchaseKeys([])
     setShowCheckoutSheet(true)
+  }
+
+  const handleClearCart = () => {
+    setSelectedDishes([])
+    setShowCartSheet(false)
+    setNeedPurchase(false)
+    setSelectedPurchaseKeys([])
   }
 
   const submitOrder = async () => {
@@ -486,15 +495,20 @@ export default function CreateOrder() {
           </ScrollView>
         )}
         <View className='cart-main'>
-          <View className='cart-icon-wrap'>
-            <Image className='cart-icon' src={sticker(selectedDishes.length > 0 ? 'basket' : 'basket-muted')} mode='aspectFit' />
-            {totalQuantity > 0 && <Text className='cart-badge'>{totalQuantity}</Text>}
-          </View>
-          <View className='cart-summary'>
-            <Text className='cart-title'>购物车</Text>
-            <Text className='cart-amount'>
-              {totalAmount > 0 ? `¥${totalAmount.toFixed(2)}` : '还没有选择菜品'}
-            </Text>
+          <View
+            className='cart-open-area'
+            onClick={() => selectedDishes.length > 0 && setShowCartSheet(true)}
+          >
+            <View className='cart-icon-wrap'>
+              <Image className='cart-icon' src={sticker(selectedDishes.length > 0 ? 'basket' : 'basket-muted')} mode='aspectFit' />
+              {totalQuantity > 0 && <Text className='cart-badge'>{totalQuantity}</Text>}
+            </View>
+            <View className='cart-summary'>
+              <Text className='cart-title'>购物车</Text>
+              <Text className='cart-amount'>
+                {totalAmount > 0 ? `¥${totalAmount.toFixed(2)}` : '还没有选择菜品'}
+              </Text>
+            </View>
           </View>
           <View
             className={`checkout-btn ${selectedDishes.length === 0 || submitting ? 'disabled' : ''}`}
@@ -504,6 +518,44 @@ export default function CreateOrder() {
           </View>
         </View>
       </View>
+
+      {showCartSheet && (
+        <View className='sheet-mask' onClick={() => setShowCartSheet(false)}>
+          <View className='sheet-panel cart-detail-sheet' onClick={event => event.stopPropagation()}>
+            <View className='sheet-title-row'>
+              <View>
+                <View className='sheet-title'>购物车明细</View>
+                <View className='sheet-desc'>数量减到 0 会自动移除菜品</View>
+              </View>
+              <View className='clear-cart-btn' onClick={handleClearCart}>清空</View>
+            </View>
+            {selectedDishes.map(item => (
+              <View key={item.dish.id} className='cart-detail-row'>
+                <View className='cart-detail-info'>
+                  <Text className='cart-detail-name'>{item.dish.name}</Text>
+                  <Text className='cart-detail-meta'>
+                    {item.dish.price != null ? `¥${item.dish.price.toFixed(2)}` : '待估价'}
+                  </Text>
+                </View>
+                <View className='quantity-control'>
+                  <View className='qty-btn' onClick={() => handleQuantityChange(item.dish.id, -1)}>-</View>
+                  <Text className='qty-value'>{item.quantity}</Text>
+                  <View className='qty-btn plus' onClick={() => handleQuantityChange(item.dish.id, 1)}>+</View>
+                </View>
+              </View>
+            ))}
+            <View
+              className='sheet-submit cart-submit'
+              onClick={() => {
+                setShowCartSheet(false)
+                handleCheckoutClick()
+              }}
+            >
+              去下单 · {totalAmount > 0 ? `¥${totalAmount.toFixed(2)}` : '待估价'}
+            </View>
+          </View>
+        </View>
+      )}
 
       {showTableSheet && (
         <View className='sheet-mask' onClick={() => setShowTableSheet(false)}>
