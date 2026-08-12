@@ -168,6 +168,40 @@ test('calendar floating add button stays inside the mobile preview width', () =>
   assert(!fabStyle.includes('right: 16px'), 'calendar FAB must not pin to the browser right edge')
 })
 
+test('floating page actions stay inside the mobile preview width', () => {
+  const checks = [
+    {
+      file: 'fanda-app/src/pages/dishes/index.scss',
+      selector: '.fab',
+      required: ['position: fixed', 'left: 50%', 'margin-left: 151px'],
+      forbidden: ['right: 16px', 'right: 0'],
+    },
+    {
+      file: 'fanda-app/src/pages/dishes/detail.scss',
+      selector: '.bottom-actions',
+      required: ['position: fixed', 'bottom: 50px', 'left: 50%', 'max-width: 430px', 'transform: translateX(-50%)'],
+      forbidden: ['bottom: 0', 'left: 0', 'right: 0'],
+    },
+    {
+      file: 'fanda-app/src/pages/orders/index.scss',
+      selector: '.create-btn-wrapper',
+      required: ['position: fixed', 'bottom: 50px', 'left: 50%', 'max-width: 430px', 'transform: translateX(-50%)'],
+      forbidden: ['bottom: 0', 'left: 0', 'right: 0'],
+    },
+  ]
+
+  for (const check of checks) {
+    const style = fs.readFileSync(path.join(process.cwd(), check.file), 'utf8')
+    const block = style.match(new RegExp(`${check.selector.replace('.', '\\.')}\\s*\\{[\\s\\S]*?\\n\\}`))?.[0] || ''
+    for (const rule of check.required) {
+      assert(block.includes(rule), `${check.file} ${check.selector} must include ${rule}`)
+    }
+    for (const rule of check.forbidden) {
+      assert(!block.includes(rule), `${check.file} ${check.selector} must not include ${rule}`)
+    }
+  }
+})
+
 test('calendar page uses compact mobile calendar proportions', () => {
   const calendarStyle = fs.readFileSync(
     path.join(process.cwd(), 'fanda-app/src/pages/calendar/index.scss'),

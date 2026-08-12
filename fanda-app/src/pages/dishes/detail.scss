@@ -3,7 +3,7 @@
   background:
     radial-gradient(circle at 10% 0%, rgba(255, 107, 53, 0.12), transparent 280px),
     linear-gradient(180deg, var(--color-paper), var(--color-cream));
-  padding-bottom: 120px;
+  padding-bottom: 170px;
 }
 
 .loading-wrap {
@@ -298,9 +298,11 @@
 // 底部操作栏
 .bottom-actions {
   position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
+  bottom: 50px;
+  left: 50%;
+  width: 100%;
+  max-width: 430px;
+  transform: translateX(-50%);
   display: flex;
   gap: 16px;
   padding: 16px 24px;
