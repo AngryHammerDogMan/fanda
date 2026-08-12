@@ -69,3 +69,21 @@ test('ordering page uses vertical category navigation with dish scroll sync', ()
   assert(ordersCreateContent.includes('scrollIntoView'), 'orders/create must scroll dishes when a category is selected')
   assert(ordersCreateContent.includes('onScroll={handleDishScroll}'), 'orders/create must sync active category while dishes scroll')
 })
+
+test('ordering page uses integrated delivery-style visual structure', () => {
+  const ordersCreateContent = fs.readFileSync(
+    path.join(process.cwd(), 'fanda-app/src/pages/orders/create.tsx'),
+    'utf8'
+  )
+  const ordersCreateStyle = fs.readFileSync(
+    path.join(process.cwd(), 'fanda-app/src/pages/orders/create.scss'),
+    'utf8'
+  )
+
+  assert(ordersCreateContent.includes('order-table-strip'), 'orders/create must use a lightweight table strip')
+  assert(ordersCreateContent.includes('order-menu-panel'), 'orders/create must wrap categories and dishes in one menu panel')
+  assert(ordersCreateContent.includes('dish-row'), 'orders/create must render dishes as continuous rows')
+  assert(!ordersCreateContent.includes("className='dish-card'"), 'orders/create must not render dish cards in the ordering list')
+  assert(!ordersCreateStyle.includes('.table-card'), 'orders/create style must not keep the heavy table card')
+  assert(!ordersCreateStyle.includes('box-shadow: var(--shadow-sm);\\n}'), 'orders/create must avoid card-like shadow on the main menu modules')
+})

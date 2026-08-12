@@ -3,29 +3,20 @@
   display: flex;
   flex-direction: column;
   background:
-    radial-gradient(circle at 92% 0%, rgba(255, 179, 71, 0.18), transparent 260px),
-    linear-gradient(180deg, var(--color-paper), var(--color-cream));
+    radial-gradient(circle at 92% 0%, rgba(255, 179, 71, 0.16), transparent 260px),
+    linear-gradient(180deg, #FFF5E8 0%, var(--color-cream) 34%, var(--color-cream) 100%);
 }
 
 .order-header {
-  padding: 24px 24px 12px;
+  padding: 24px 24px 6px;
 }
 
-.table-card {
+.order-table-strip {
   display: flex;
-  align-items: center;
-  gap: 18px;
-  padding: 20px;
-  border-radius: 28px;
-  background: linear-gradient(135deg, rgba(255, 107, 53, 0.96), rgba(255, 179, 71, 0.94));
-  color: #FFFFFF;
-  box-shadow: 0 16px 36px rgba(255, 107, 53, 0.22);
-
-  .table-sticker {
-    width: 72px;
-    height: 72px;
-    filter: drop-shadow(0 10px 14px rgba(156, 75, 36, 0.22));
-  }
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  color: var(--color-ink);
 
   .table-info {
     flex: 1;
@@ -35,24 +26,34 @@
   .table-label {
     display: block;
     font-size: 12px;
-    opacity: 0.82;
-    margin-bottom: 6px;
+    color: var(--color-text-secondary);
+    font-weight: 700;
+    letter-spacing: 1px;
+    margin-bottom: 4px;
   }
 
   .table-name {
     display: block;
-    font-size: 20px;
-    line-height: 1.2;
+    font-size: 24px;
+    line-height: 1.08;
     font-weight: 800;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
 
+  .table-note {
+    display: block;
+    margin-top: 6px;
+    color: var(--color-text-secondary);
+    font-size: 12px;
+  }
+
   .table-switch {
-    padding: 8px 18px;
+    padding: 8px 16px;
     border-radius: 999px;
-    background: rgba(255, 255, 255, 0.22);
+    background: rgba(255, 107, 53, 0.1);
+    color: var(--color-primary);
     font-size: 12px;
     font-weight: 700;
   }
@@ -64,11 +65,10 @@
   gap: 10px;
   margin: 8px 24px 12px;
   padding: 0 20px;
-  height: 72px;
-  border: 1px solid var(--color-border);
+  height: 54px;
+  border: 1px solid rgba(234, 218, 199, 0.58);
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.9);
-  box-shadow: var(--shadow-sm);
+  background: rgba(255, 255, 255, 0.78);
 
   .search-icon {
     font-size: 20px;
@@ -83,23 +83,24 @@
   }
 }
 
-.menu-body {
+.order-menu-panel {
   flex: 1;
   min-height: 0;
   display: flex;
-  gap: 14px;
-  padding: 0 18px;
+  margin: 0 18px;
   box-sizing: border-box;
+  overflow: hidden;
+  border: 1px solid rgba(234, 218, 199, 0.68);
+  border-radius: 28px;
+  background: rgba(255, 255, 255, 0.86);
 }
 
 .category-sidebar {
   width: 92px;
   flex: none;
   min-height: 0;
-  border-radius: 26px;
-  background: rgba(255, 255, 255, 0.64);
-  border: 1px solid rgba(234, 218, 199, 0.72);
-  box-shadow: var(--shadow-sm);
+  background: #FFF2E5;
+  border-right: 1px solid rgba(234, 218, 199, 0.68);
 }
 
 .category-item {
@@ -119,7 +120,7 @@
 
   &.active {
     color: var(--color-primary);
-    background: rgba(255, 107, 53, 0.08);
+    background: rgba(255, 255, 255, 0.78);
     border-left-color: var(--color-primary);
   }
 }
@@ -132,22 +133,22 @@
   flex: 1;
   min-height: 0;
   width: 0;
+  padding: 8px 14px 0;
+  box-sizing: border-box;
 }
 
 .dish-list {
   display: flex;
   flex-direction: column;
-  gap: 14px;
 }
 
 .dish-section {
   display: flex;
   flex-direction: column;
-  gap: 12px;
 }
 
 .dish-section-title {
-  height: 34px;
+  height: 42px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -163,19 +164,23 @@
   }
 }
 
-.dish-card {
+.dish-row {
   display: flex;
   gap: 12px;
-  padding: 12px;
-  border-radius: 24px;
-  background: rgba(255, 255, 255, 0.92);
-  border: 1px solid var(--color-border);
-  box-shadow: var(--shadow-sm);
+  padding: 14px 0;
+  border-bottom: 1px solid rgba(234, 218, 199, 0.58);
 
-  .dish-cover {
+  &.selected {
+    margin: 0 -8px;
+    padding: 14px 8px;
+    border-radius: 18px;
+    background: linear-gradient(90deg, rgba(255, 240, 226, 0.72), rgba(255, 255, 255, 0));
+  }
+
+  .dish-row-thumb {
     width: 78px;
     height: 78px;
-    border-radius: 20px;
+    border-radius: 18px;
     background:
       radial-gradient(circle at 50% 38%, rgba(255, 179, 71, 0.26), transparent 48px),
       var(--color-cream);
@@ -185,13 +190,13 @@
     flex: none;
   }
 
-  .dish-sticker {
+  .dish-row-sticker {
     width: 56px;
     height: 56px;
     filter: drop-shadow(0 10px 14px var(--color-sticker-shadow));
   }
 
-  .dish-info {
+  .dish-row-main {
     flex: 1;
     min-width: 0;
   }

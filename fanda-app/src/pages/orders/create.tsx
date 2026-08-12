@@ -299,17 +299,19 @@ export default function CreateOrder() {
   return (
     <View className='page-create-order'>
       <View className='order-header'>
-        <View className='table-card' onClick={() => setShowTableSheet(true)}>
-          <Image className='table-sticker' src={sticker(activeTable?.type === 'buddy' ? 'buddy' : activeTable?.type === 'couple' ? 'couple' : 'menu')} mode='aspectFit' />
+        <View className='order-table-strip' onClick={() => setShowTableSheet(true)}>
           <View className='table-info'>
             <Text className='table-label'>当前餐桌</Text>
             <Text className='table-name'>{activeTable?.name || '选择餐桌'}</Text>
+            <Text className='table-note'>
+              {activeTable ? `${dishes.length} 道可点 · ${activeTable.members.length} 人餐桌` : '选择餐桌后开始点单'}
+            </Text>
           </View>
           <Text className='table-switch'>切换</Text>
         </View>
       </View>
 
-      <View className='search-bar'>
+      <View className='search-bar order-search-soft'>
         <Text className='search-icon'>⌕</Text>
         <Input
           className='search-input'
@@ -319,7 +321,7 @@ export default function CreateOrder() {
         />
       </View>
 
-      <View className='menu-body'>
+      <View className='order-menu-panel'>
         <ScrollView className='category-sidebar' scrollY scrollIntoView={categoryScrollIntoView}>
           {categories.map((category, index) => (
             <View
@@ -364,11 +366,11 @@ export default function CreateOrder() {
                   {group.dishes.map(dish => {
                     const selected = selectedDishes.find(item => item.dish.id === dish.id)
                     return (
-                      <View key={dish.id} className='dish-card'>
-                        <View className='dish-cover'>
-                          <Image className='dish-sticker' src={sticker(dish.dish_type === 'takeout' ? 'order' : 'menu')} mode='aspectFit' />
+                      <View key={dish.id} className={`dish-row ${selected ? 'selected' : ''}`}>
+                        <View className='dish-row-thumb'>
+                          <Image className='dish-row-sticker' src={sticker(dish.dish_type === 'takeout' ? 'order' : 'menu')} mode='aspectFit' />
                         </View>
-                        <View className='dish-info'>
+                        <View className='dish-row-main'>
                           <View className='dish-title-row'>
                             <Text className='dish-name'>{dish.name}</Text>
                             <Text className='dish-type'>{getDishTypeText(dish)}</Text>
