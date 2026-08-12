@@ -100,3 +100,16 @@ test('ordering page confirms basket purchase items before submitting', () => {
   assert(ordersCreateContent.includes('selectedPurchaseKeys'), 'orders/create must submit only checked purchase items')
   assert(ordersCreateContent.includes('basket_items'), 'orders/create must send selected purchase items in order payload')
 })
+
+test('ordering page uses invite switch only for multi-member tables', () => {
+  const ordersCreateContent = fs.readFileSync(
+    path.join(process.cwd(), 'fanda-app/src/pages/orders/create.tsx'),
+    'utf8'
+  )
+
+  assert(ordersCreateContent.includes('needInvite'), 'orders/create must model invite as a switch')
+  assert(ordersCreateContent.includes('canInviteMembers'), 'orders/create must only show invite controls for multi-member tables')
+  assert(ordersCreateContent.includes('setNeedInvite(members.length > 0)'), 'orders/create must enable invite by default only when members exist')
+  assert(!ordersCreateContent.includes('checkout-mode-row'), 'orders/create must not use dining mode choice cards')
+  assert(!ordersCreateContent.includes('自己记一餐'), 'orders/create must not show self-record as an explicit feature')
+})

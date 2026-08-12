@@ -31,8 +31,6 @@ interface PurchaseCandidate {
   sourceDishName: string
 }
 
-type CheckoutMode = 'solo' | 'together'
-
 const sticker = (name: string) => `/assets/stickers/${name}.png`
 const DEFAULT_CATEGORY = '未分类'
 const ALL_CATEGORY = '全部'
@@ -48,7 +46,7 @@ export default function CreateOrder() {
   const [activeCategory, setActiveCategory] = useState('全部')
   const [showTableSheet, setShowTableSheet] = useState(false)
   const [showCheckoutSheet, setShowCheckoutSheet] = useState(false)
-  const [checkoutMode, setCheckoutMode] = useState<CheckoutMode>('solo')
+  const [needInvite, setNeedInvite] = useState(false)
   const [selectedParticipantIds, setSelectedParticipantIds] = useState<string[]>([])
   const [needPurchase, setNeedPurchase] = useState(false)
   const [selectedPurchaseKeys, setSelectedPurchaseKeys] = useState<string[]>([])
@@ -261,16 +259,19 @@ export default function CreateOrder() {
       return
     }
     const members = getInvitableMembers()
-    setCheckoutMode('solo')
+    setNeedInvite(members.length > 0)
     setSelectedParticipantIds(members.map(member => member.user_id))
     setNeedPurchase(false)
     setSelectedPurchaseKeys([])
     setShowCheckoutSheet(true)
   }
 
-  const submitOrder = async (mode: CheckoutMode, participantIds: string[]) => {
+  const submitOrder = async () => {
     if (!activeTableId || submitting) return
-    if (mode === 'together' && participantIds.length === 0) {
+    const canInviteMembers = getInvitableMembers()
+    const shouldInvite = needInvite && canInviteMembers.length > 0
+    const participantIds = shouldInvite ? selectedParticipantIds : []
+    if (shouldInvite && participantIds.length === 0) {
       Taro.showToast({ title: '请选择一起吃的成员', icon: 'none' })
       return
     }
@@ -282,8 +283,8 @@ export default function CreateOrder() {
     try {
       await orderAPI.create({
         table_id: activeTableId,
-        dine_mode: mode,
-        participant_ids: mode === 'together' ? participantIds : [],
+        dine_mode: shouldInvite ? 'together' : 'solo',
+        participant_ids: participantIds,
         items: selectedDishes.map(item => ({
           dish_id: item.dish.id,
           quantity: item.quantity,
@@ -313,6 +314,18 @@ export default function CreateOrder() {
         ? prev.filter(id => id !== userId)
         : [...prev, userId]
     )
+  }
+
+  const toggleNeedInvite = () => {
+    const members = getInvitableMembers()
+    setNeedInvite(prev => {
+      if (prev) {
+        setSelectedParticipantIds([])
+        return false
+      }
+      setSelectedParticipantIds(members.map(member => member.user_id))
+      return members.length > 0
+    })
   }
 
   const toggleNeedPurchase = () => {
@@ -513,6 +526,10 @@ export default function CreateOrder() {
       {showCheckoutSheet && (
         <View className='sheet-mask' onClick={() => setShowCheckoutSheet(false)}>
           <View className='sheet-panel checkout-sheet' onClick={event => event.stopPropagation()}>
+            {(() => {
+              const canInviteMembers = getInvitableMembers()
+              return (
+                <>
             <View className='sheet-title'>确认本餐</View>
             <View className='sheet-desc'>
               {activeTable?.name || '当前餐桌'} · 已选 {totalQuantity} 道 · {totalAmount > 0 ? `¥${totalAmount.toFixed(2)}` : '待估价'}
@@ -567,44 +584,46 @@ export default function CreateOrder() {
                 )
               )}
             </View>
-            <View className='checkout-mode-row'>
-              <View
-                className={`checkout-mode ${checkoutMode === 'solo' ? 'active' : ''}`}
-                onClick={() => setCheckoutMode('solo')}
-              >
-                <Text className='mode-title'>自己记一餐</Text>
-                <Text className='mode-desc'>只记录我自己</Text>
-              </View>
-              {getInvitableMembers().length > 0 && (
-                <View
-                  className={`checkout-mode ${checkoutMode === 'together' ? 'active' : ''}`}
-                  onClick={() => setCheckoutMode('together')}
-                >
-                  <Text className='mode-title'>邀请一起吃</Text>
-                  <Text className='mode-desc'>发送给餐桌成员</Text>
+            {canInviteMembers.length > 0 && (
+              <View className='confirm-section invite-section'>
+                <View className='confirm-section-head'>
+                  <Text>邀请</Text>
+                  <Text className='confirm-section-note'>默认邀请全部成员</Text>
                 </View>
-              )}
-            </View>
-            {checkoutMode === 'together' && (
-              <View className='member-list'>
-                {getInvitableMembers().map((member, index) => (
-                  <View
-                    key={member.id}
-                    className={`member-option ${selectedParticipantIds.includes(member.user_id) ? 'active' : ''}`}
-                    onClick={() => toggleParticipant(member.user_id)}
-                  >
-                    <Text>{getMemberLabel(member, index)}</Text>
-                    <Text className='member-status'>{selectedParticipantIds.includes(member.user_id) ? '已选择' : '可邀请'}</Text>
+                <View className='invite-switch' onClick={toggleNeedInvite}>
+                  <View>
+                    <Text className='invite-title'>邀请一起吃</Text>
+                    <Text className='invite-desc'>关闭后就是本次只记录自己</Text>
                   </View>
-                ))}
+                  <View className={`switch-pill ${needInvite ? 'on' : ''}`}>
+                    <View className='switch-dot' />
+                  </View>
+                </View>
+                {needInvite && (
+                  <View className='member-list invite-member-list'>
+                    {canInviteMembers.map((member, index) => (
+                      <View
+                        key={member.id}
+                        className={`member-option ${selectedParticipantIds.includes(member.user_id) ? 'active' : ''}`}
+                        onClick={() => toggleParticipant(member.user_id)}
+                      >
+                        <Text>{getMemberLabel(member, index)}</Text>
+                        <Text className='member-status'>{selectedParticipantIds.includes(member.user_id) ? '已勾选' : '可邀请'}</Text>
+                      </View>
+                    ))}
+                  </View>
+                )}
               </View>
             )}
             <View
               className={`sheet-submit ${submitting ? 'disabled' : ''}`}
-              onClick={() => submitOrder(checkoutMode, checkoutMode === 'together' ? selectedParticipantIds : [])}
+              onClick={submitOrder}
             >
-              {submitting ? '提交中...' : checkoutMode === 'together' ? '邀请并下单' : needPurchase && selectedPurchaseKeys.length > 0 ? '确认下单 · 同步到菜篮子' : '确认下单'}
+              {submitting ? '提交中...' : needInvite && canInviteMembers.length > 0 ? '确认下单 · 邀请一起吃' : needPurchase && selectedPurchaseKeys.length > 0 ? '确认下单 · 同步到菜篮子' : '确认下单'}
             </View>
+                </>
+              )
+            })()}
           </View>
         </View>
       )}
