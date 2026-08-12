@@ -264,6 +264,8 @@
   }
 
   .dish-price {
+    flex: 1;
+    min-width: 0;
     color: var(--color-danger);
     font-size: 15px;
     font-weight: 800;
@@ -294,6 +296,9 @@
   display: flex;
   align-items: center;
   gap: 12px;
+  flex: none;
+  position: relative;
+  z-index: 3;
 
   .qty-btn {
     width: 34px;
@@ -315,6 +320,16 @@
     font-size: 15px;
     font-weight: 800;
     color: var(--color-ink);
+  }
+}
+
+.dish-list-quantity-control {
+  margin-right: -4px;
+
+  .qty-btn {
+    width: 40px;
+    min-width: 40px;
+    height: 40px;
   }
 }
 

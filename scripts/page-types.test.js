@@ -129,6 +129,8 @@ test('ordering page opens cart detail sheet for item editing', () => {
   assert(ordersCreateContent.includes('cart-detail-sheet'), 'orders/create must render a cart detail sheet')
   assert(ordersCreateContent.includes('handleClearCart'), 'orders/create must support clearing the cart')
   assert(ordersCreateContent.includes('购物车明细'), 'orders/create must label the cart detail sheet')
+  assert(ordersCreateContent.includes('dish-list-quantity-control'), 'dish list must use a dedicated quantity control')
+  assert(ordersCreateContent.includes('event.stopPropagation()'), 'quantity buttons must stop event propagation in scroll rows')
   assert(ordersCreateContent.includes("handleQuantityChange(item.dish.id, -1)"), 'cart detail must allow quantity decrease and removal')
   assert(ordersCreateStyle.includes('\n}\n\n.cart-open-area {'), 'cart open area styles must not be nested inside quantity button styles')
 })

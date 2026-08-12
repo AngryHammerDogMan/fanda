@@ -248,6 +248,15 @@ export default function CreateOrder() {
     })
   }
 
+  const handleDishListQuantityClick = (
+    event: { stopPropagation: () => void },
+    dishId: string,
+    delta: number
+  ) => {
+    event.stopPropagation()
+    handleQuantityChange(dishId, delta)
+  }
+
   const getInvitableMembers = (): TableMember[] => {
     const table = tables.find(item => item.id === activeTableId)
     if (!table) return []
@@ -463,10 +472,10 @@ export default function CreateOrder() {
                               {dish.price != null ? `¥${dish.price.toFixed(2)}` : '待估价'}
                             </Text>
                             {selected ? (
-                              <View className='quantity-control'>
-                                <View className='qty-btn' onClick={() => handleQuantityChange(dish.id, -1)}>-</View>
+                              <View className='quantity-control dish-list-quantity-control'>
+                                <View className='qty-btn minus' onClick={(event) => handleDishListQuantityClick(event, dish.id, -1)}>-</View>
                                 <Text className='qty-value'>{selected.quantity}</Text>
-                                <View className='qty-btn plus' onClick={() => handleQuantityChange(dish.id, 1)}>+</View>
+                                <View className='qty-btn plus' onClick={(event) => handleDishListQuantityClick(event, dish.id, 1)}>+</View>
                               </View>
                             ) : (
                               <View className='add-btn' onClick={() => handleAddDish(dish)}>加入</View>
