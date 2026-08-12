@@ -138,7 +138,9 @@ export default function Index() {
           <Text className='section-more' onClick={() => navigateTo('/pages/orders/index')}>查看全部</Text>
         </View>
         <View className='empty-state fanda-empty'>
-          <Image className='sticker-icon' src={sticker('order')} mode='aspectFit' />
+          <View className='empty-icon-wrap'>
+            <Image className='sticker-icon' src={sticker('order')} mode='aspectFit' />
+          </View>
           <Text className='empty-text'>暂无订单记录</Text>
         </View>
       </View>

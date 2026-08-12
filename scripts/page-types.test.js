@@ -249,11 +249,16 @@ test('home recent orders empty icon renders fully', () => {
     'utf8'
   )
   const emptyStateStyle = homeStyle.match(/\.empty-state\s*\{[\s\S]*?\n\}/)?.[0] || ''
+  const emptyIconWrapStyle = homeStyle.match(/\.empty-icon-wrap\s*\{[\s\S]*?\n\}/)?.[0] || ''
 
   assert(homeContent.includes("className='empty-state fanda-empty'"), 'home recent orders must use the empty-state block')
+  assert(homeContent.includes("className='empty-icon-wrap'"), 'home recent orders empty icon must use a stable wrapper')
+  assert(emptyIconWrapStyle.includes('width: 72px'), 'home empty icon wrapper must reserve full icon width')
+  assert(emptyIconWrapStyle.includes('height: 72px'), 'home empty icon wrapper must reserve full icon height')
+  assert(emptyIconWrapStyle.includes('overflow: visible'), 'home empty icon wrapper must not clip the sticker')
   assert(emptyStateStyle.includes('.sticker-icon'), 'home empty state must size its icon locally')
-  assert(emptyStateStyle.includes('display: block'), 'home empty icon must render as a full block image')
-  assert(emptyStateStyle.includes('margin: 0 auto'), 'home empty icon must be centered without clipping')
+  assert(emptyStateStyle.includes('width: 100%'), 'home empty icon must fill its stable wrapper')
+  assert(emptyStateStyle.includes('height: 100%'), 'home empty icon must fill its stable wrapper')
 })
 
 test('calendar record page shows a manual meal form when opened without id', () => {
