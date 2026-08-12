@@ -361,13 +361,12 @@
 }
 
 .cart-bar {
-  position: fixed;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  flex: none;
+  position: relative;
   z-index: 80;
   padding: 10px 24px 20px;
   background: linear-gradient(180deg, rgba(255, 248, 238, 0), rgba(255, 248, 238, 0.98) 18%);
+  box-sizing: border-box;
 }
 
 .cart-items {
@@ -828,5 +827,5 @@
 }
 
 .bottom-placeholder {
-  height: 180px;
+  height: 24px;
 }

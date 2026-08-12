@@ -134,3 +134,16 @@ test('ordering page opens cart detail sheet for item editing', () => {
   assert(ordersCreateContent.includes("handleQuantityChange(item.dish.id, -1)"), 'cart detail must allow quantity decrease and removal')
   assert(ordersCreateStyle.includes('\n}\n\n.cart-open-area {'), 'cart open area styles must not be nested inside quantity button styles')
 })
+
+test('ordering cart bar stays inside the mobile preview width', () => {
+  const ordersCreateStyle = fs.readFileSync(
+    path.join(process.cwd(), 'fanda-app/src/pages/orders/create.scss'),
+    'utf8'
+  )
+  const cartBarStyle = ordersCreateStyle.match(/\.cart-bar\s*\{[\s\S]*?\n\}/)?.[0] || ''
+
+  assert(cartBarStyle.includes('flex: none'), 'cart bar must remain in page layout instead of viewport layout')
+  assert(!cartBarStyle.includes('position: fixed'), 'cart bar must not be fixed to the browser viewport')
+  assert(!cartBarStyle.includes('left: 0'), 'cart bar must not pin to browser left edge')
+  assert(!cartBarStyle.includes('right: 0'), 'cart bar must not pin to browser right edge')
+})
