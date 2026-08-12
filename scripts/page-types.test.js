@@ -168,6 +168,24 @@ test('calendar floating add button stays inside the mobile preview width', () =>
   assert(!fabStyle.includes('right: 16px'), 'calendar FAB must not pin to the browser right edge')
 })
 
+test('calendar page uses compact mobile calendar proportions', () => {
+  const calendarStyle = fs.readFileSync(
+    path.join(process.cwd(), 'fanda-app/src/pages/calendar/index.scss'),
+    'utf8'
+  )
+  const heroStickerStyle = calendarStyle.match(/\.hero-sticker\s*\{[\s\S]*?\n\s*\}/)?.[0] || ''
+  const monthNavStyle = calendarStyle.match(/\.month-nav\s*\{[\s\S]*?\n\}/)?.[0] || ''
+  const weekHeaderStyle = calendarStyle.match(/\.week-header\s*\{[\s\S]*?\n\}/)?.[0] || ''
+  const calendarCellStyle = calendarStyle.match(/\.calendar-cell\s*\{[\s\S]*?\n\}/)?.[0] || ''
+  const todayStyle = calendarStyle.match(/&\.today\s*\{[\s\S]*?\n\s*\}/)?.[0] || ''
+
+  assert(heroStickerStyle.includes('width: 56px'), 'calendar hero sticker must be compact on mobile')
+  assert(monthNavStyle.includes('padding: 12px 16px'), 'month navigation must use compact vertical spacing')
+  assert(weekHeaderStyle.includes('padding: 6px 10px'), 'week header must not add excessive height')
+  assert(calendarCellStyle.includes('min-height: 52px'), 'calendar date cells must fit mobile screens')
+  assert(todayStyle.includes('width: 30px'), 'today badge must not force tall calendar cells')
+})
+
 test('calendar record page shows a manual meal form when opened without id', () => {
   const recordContent = fs.readFileSync(
     path.join(process.cwd(), 'fanda-app/src/pages/calendar/record.tsx'),

@@ -1,14 +1,14 @@
 .page-calendar {
   min-height: 100vh;
   background: var(--color-paper);
-  padding-bottom: 120px;
+  padding-bottom: 96px;
 }
 
 .calendar-hero {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 36px 28px 18px;
+  padding: 22px 24px 12px;
 
   .fanda-title,
   .fanda-subtitle {
@@ -16,15 +16,15 @@
   }
 
   .hero-sticker {
-    width: 92px;
-    height: 92px;
+    width: 56px;
+    height: 56px;
     filter: drop-shadow(0 10px 16px var(--color-sticker-shadow));
   }
 }
 
 .budget-banner {
-  margin: 0 28px 18px;
-  padding: 18px 22px;
+  margin: 0 24px 12px;
+  padding: 12px 16px;
   display: flex;
   align-items: center;
   gap: 16px;
@@ -58,12 +58,12 @@
 .group-selector {
   display: flex;
   justify-content: center;
-  padding: 0 28px 18px;
-  gap: 16px;
+  padding: 0 24px 12px;
+  gap: 10px;
   background: transparent;
 
   .group-tab {
-    padding: 10px 32px;
+    padding: 8px 20px;
     border-radius: 20px;
     font-size: var(--font-sm);
     color: var(--color-text-secondary);
@@ -84,15 +84,15 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin: 0 28px;
-  padding: 22px 24px;
+  margin: 0 24px;
+  padding: 12px 16px;
   background: var(--color-card);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-card) var(--radius-card) 0 0;
 
   .nav-arrow {
-    width: 40px;
-    height: 40px;
+    width: 32px;
+    height: 32px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -122,8 +122,8 @@
 .week-header {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
-  margin: 0 28px;
-  padding: 12px 14px;
+  margin: 0 24px;
+  padding: 6px 10px;
   background: var(--color-card);
   border-left: 1px solid var(--color-border);
   border-right: 1px solid var(--color-border);
@@ -133,7 +133,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 8px 0;
+    padding: 4px 0;
 
     .week-text {
       font-size: var(--font-xs);
@@ -147,13 +147,13 @@
 .calendar-grid {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
-  margin: 0 28px;
-  padding: 10px 14px 16px;
+  margin: 0 24px;
+  padding: 8px 10px 10px;
   background: var(--color-card);
   border: 1px solid var(--color-border);
   border-top: none;
   border-radius: 0 0 var(--radius-card) var(--radius-card);
-  gap: 6px;
+  gap: 4px;
   box-shadow: var(--shadow-sm);
 }
 
@@ -162,9 +162,9 @@
   flex-direction: column;
   align-items: center;
   justify-content: flex-start;
-  padding: 10px 4px 8px;
-  border-radius: 14px;
-  min-height: 80px;
+  padding: 6px 2px 5px;
+  border-radius: 12px;
+  min-height: 52px;
   position: relative;
   transition: background 0.15s;
 
@@ -193,8 +193,8 @@
     &.today {
       background: var(--color-primary);
       color: #fff;
-      width: 44px;
-      height: 44px;
+      width: 30px;
+      height: 30px;
       border-radius: var(--radius-round);
       display: flex;
       align-items: center;
@@ -205,12 +205,12 @@
 
   .dots-row {
     display: flex;
-    gap: 4px;
-    margin-top: 6px;
+    gap: 3px;
+    margin-top: 4px;
 
     .dot {
-      width: 10px;
-      height: 10px;
+      width: 7px;
+      height: 7px;
       border-radius: var(--radius-round);
     }
   }
@@ -218,8 +218,8 @@
 
 // 记录列表区域
 .records-section {
-  max-height: 520px;
-  margin: 20px 28px;
+  max-height: 420px;
+  margin: 16px 24px;
 }
 
 .records-header {
@@ -244,7 +244,7 @@
   background: var(--color-card);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-card);
-  padding: 20px;
+  padding: 16px;
   margin-bottom: 12px;
   box-shadow: var(--shadow-sm);
 
@@ -328,11 +328,11 @@
 
 // 统计区域
 .stats-section {
-  margin: 24px 28px;
+  margin: 18px 24px;
   background: var(--color-card);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-card);
-  padding: 24px;
+  padding: 18px;
   box-shadow: var(--shadow-sm);
 
   .stats-header {
