@@ -330,8 +330,12 @@ export default function CreateOrder() {
 
   const toggleNeedPurchase = () => {
     setNeedPurchase(prev => {
-      if (prev) setSelectedPurchaseKeys([])
-      return !prev
+      if (prev) {
+        setSelectedPurchaseKeys([])
+        return false
+      }
+      setSelectedPurchaseKeys(purchaseCandidates.map(item => item.key))
+      return true
     })
   }
 

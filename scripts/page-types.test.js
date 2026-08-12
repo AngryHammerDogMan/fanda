@@ -98,6 +98,7 @@ test('ordering page confirms basket purchase items before submitting', () => {
   assert(ordersCreateContent.includes('needPurchase'), 'orders/create must default purchase requirement to off')
   assert(ordersCreateContent.includes('purchaseCandidates'), 'orders/create must derive purchase candidates from selected dishes')
   assert(ordersCreateContent.includes('selectedPurchaseKeys'), 'orders/create must submit only checked purchase items')
+  assert(ordersCreateContent.includes('setSelectedPurchaseKeys(purchaseCandidates.map(item => item.key))'), 'orders/create must select all purchase candidates when purchase is enabled')
   assert(ordersCreateContent.includes('basket_items'), 'orders/create must send selected purchase items in order payload')
 })
 
