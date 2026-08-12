@@ -143,6 +143,7 @@ test('ordering cart bar is fixed inside the mobile preview width', () => {
   const cartBarStyle = ordersCreateStyle.match(/\.cart-bar\s*\{[\s\S]*?\n\}/)?.[0] || ''
 
   assert(cartBarStyle.includes('position: fixed'), 'cart bar must stay visible like the bottom tab bar')
+  assert(cartBarStyle.includes('bottom: 50px'), 'cart bar must sit above the bottom tab bar')
   assert(cartBarStyle.includes('max-width: 430px'), 'cart bar must be constrained to the mobile preview width')
   assert(cartBarStyle.includes('left: 50%'), 'cart bar must be centered in the browser viewport')
   assert(cartBarStyle.includes('transform: translateX(-50%)'), 'cart bar must use centering transform instead of browser-wide edges')

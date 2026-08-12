@@ -363,7 +363,7 @@
 .cart-bar {
   position: fixed;
   left: 50%;
-  bottom: 0;
+  bottom: 50px;
   width: 100%;
   max-width: 430px;
   transform: translateX(-50%);
@@ -831,5 +831,5 @@
 }
 
 .bottom-placeholder {
-  height: 180px;
+  height: 230px;
 }
