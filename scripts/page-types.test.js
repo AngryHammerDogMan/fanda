@@ -149,3 +149,21 @@ test('ordering cart bar is fixed inside the mobile preview width', () => {
   assert(cartBarStyle.includes('transform: translateX(-50%)'), 'cart bar must use centering transform instead of browser-wide edges')
   assert(!cartBarStyle.includes('right: 0'), 'cart bar must not pin to browser right edge')
 })
+
+test('calendar floating add button stays inside the mobile preview width', () => {
+  const calendarContent = fs.readFileSync(
+    path.join(process.cwd(), 'fanda-app/src/pages/calendar/index.tsx'),
+    'utf8'
+  )
+  const calendarStyle = fs.readFileSync(
+    path.join(process.cwd(), 'fanda-app/src/pages/calendar/index.scss'),
+    'utf8'
+  )
+  const fabStyle = calendarStyle.match(/\.fab\s*\{[\s\S]*?\n\}/)?.[0] || ''
+
+  assert(calendarContent.includes("Taro.navigateTo({ url: '/pages/calendar/record' })"), 'calendar FAB must open the manual meal record page')
+  assert(fabStyle.includes('position: fixed'), 'calendar FAB must remain fixed')
+  assert(fabStyle.includes('left: 50%'), 'calendar FAB must anchor from the centered mobile preview')
+  assert(fabStyle.includes('margin-left: 151px'), 'calendar FAB must sit near the right edge of the 430px mobile preview')
+  assert(!fabStyle.includes('right: 16px'), 'calendar FAB must not pin to the browser right edge')
+})
