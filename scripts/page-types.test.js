@@ -120,10 +120,15 @@ test('ordering page opens cart detail sheet for item editing', () => {
     path.join(process.cwd(), 'fanda-app/src/pages/orders/create.tsx'),
     'utf8'
   )
+  const ordersCreateStyle = fs.readFileSync(
+    path.join(process.cwd(), 'fanda-app/src/pages/orders/create.scss'),
+    'utf8'
+  )
 
   assert(ordersCreateContent.includes('showCartSheet'), 'orders/create must keep cart detail sheet state')
   assert(ordersCreateContent.includes('cart-detail-sheet'), 'orders/create must render a cart detail sheet')
   assert(ordersCreateContent.includes('handleClearCart'), 'orders/create must support clearing the cart')
   assert(ordersCreateContent.includes('购物车明细'), 'orders/create must label the cart detail sheet')
   assert(ordersCreateContent.includes("handleQuantityChange(item.dish.id, -1)"), 'cart detail must allow quantity decrease and removal')
+  assert(ordersCreateStyle.includes('\n}\n\n.cart-open-area {'), 'cart open area styles must not be nested inside quantity button styles')
 })
