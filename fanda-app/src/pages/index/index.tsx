@@ -139,7 +139,7 @@ export default function Index() {
         </View>
         <View className='empty-state fanda-empty'>
           <View className='empty-icon-wrap'>
-            <Image className='sticker-icon' src={sticker('order')} mode='aspectFit' />
+            <View className='empty-order-icon' />
           </View>
           <Text className='empty-text'>暂无订单记录</Text>
         </View>

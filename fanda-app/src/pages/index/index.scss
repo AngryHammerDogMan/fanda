@@ -188,11 +188,14 @@
     overflow: visible;
   }
 
-  .sticker-icon {
-    display: block;
+  .empty-order-icon {
     width: 100%;
     height: 100%;
-    margin: 0;
+    background-image: url('../../assets/stickers/order.png');
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+    filter: drop-shadow(0 8px 12px var(--color-sticker-shadow));
   }
 
   .empty-text {

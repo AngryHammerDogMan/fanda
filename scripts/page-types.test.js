@@ -250,15 +250,18 @@ test('home recent orders empty icon renders fully', () => {
   )
   const emptyStateStyle = homeStyle.match(/\.empty-state\s*\{[\s\S]*?\n\}/)?.[0] || ''
   const emptyIconWrapStyle = homeStyle.match(/\.empty-icon-wrap\s*\{[\s\S]*?\n\}/)?.[0] || ''
+  const emptyOrderIconStyle = homeStyle.match(/\.empty-order-icon\s*\{[\s\S]*?\n\}/)?.[0] || ''
 
   assert(homeContent.includes("className='empty-state fanda-empty'"), 'home recent orders must use the empty-state block')
   assert(homeContent.includes("className='empty-icon-wrap'"), 'home recent orders empty icon must use a stable wrapper')
+  assert(homeContent.includes("className='empty-order-icon'"), 'home recent orders empty icon must avoid Taro Image clipping')
   assert(emptyIconWrapStyle.includes('width: 72px'), 'home empty icon wrapper must reserve full icon width')
   assert(emptyIconWrapStyle.includes('height: 72px'), 'home empty icon wrapper must reserve full icon height')
   assert(emptyIconWrapStyle.includes('overflow: visible'), 'home empty icon wrapper must not clip the sticker')
-  assert(emptyStateStyle.includes('.sticker-icon'), 'home empty state must size its icon locally')
-  assert(emptyStateStyle.includes('width: 100%'), 'home empty icon must fill its stable wrapper')
-  assert(emptyStateStyle.includes('height: 100%'), 'home empty icon must fill its stable wrapper')
+  assert(emptyOrderIconStyle.includes("background-image: url('../../assets/stickers/order.png')"), 'home empty icon must render as a background image')
+  assert(emptyOrderIconStyle.includes('background-size: contain'), 'home empty background icon must show the full sticker')
+  assert(emptyOrderIconStyle.includes('background-repeat: no-repeat'), 'home empty background icon must not tile')
+  assert(emptyOrderIconStyle.includes('background-position: center'), 'home empty background icon must stay centered')
 })
 
 test('calendar record page shows a manual meal form when opened without id', () => {
