@@ -173,10 +173,17 @@ test('calendar record page shows a manual meal form when opened without id', () 
     path.join(process.cwd(), 'fanda-app/src/pages/calendar/record.tsx'),
     'utf8'
   )
+  const recordStyle = fs.readFileSync(
+    path.join(process.cwd(), 'fanda-app/src/pages/calendar/record.scss'),
+    'utf8'
+  )
+  const submitStyle = recordStyle.match(/\.form-submit\s*\{[\s\S]*?\n\}/)?.[0] || ''
 
   assert(recordContent.includes('isCreateMode'), 'record page must distinguish create mode from detail mode')
   assert(recordContent.includes('补记一餐'), 'record page must show manual meal form title when no id is provided')
   assert(recordContent.includes('calendarAPI.create'), 'record page must create calendar records from the manual form')
   assert(recordContent.includes('loadCreateTables'), 'record page must load available tables for manual records')
   assert(recordContent.includes('record-form'), 'record page must render a form instead of the missing-record empty state')
+  assert(submitStyle.includes('width: calc(100% - 48px)'), 'manual record submit button must stay inside the mobile page width')
+  assert(submitStyle.includes('box-sizing: border-box'), 'manual record submit button must include its border in the constrained width')
 })
