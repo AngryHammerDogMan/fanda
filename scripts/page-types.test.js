@@ -230,11 +230,30 @@ test('calendar date record cards stay inside the mobile page width', () => {
   const recordBodyStyle = calendarStyle.match(/\.record-body\s*\{[\s\S]*?\n\s*\}/)?.[0] || ''
   const restaurantStyle = calendarStyle.match(/\.record-restaurant\s*\{[\s\S]*?\n\s*\}/)?.[0] || ''
 
+  assert(recordsSectionStyle.includes('width: calc(100% - 48px)'), 'date records section must subtract horizontal page margins from its width')
   assert(recordsSectionStyle.includes('box-sizing: border-box'), 'date records section must include margins inside the mobile width')
+  assert(recordsSectionStyle.includes('overflow-x: hidden'), 'date records section must not scroll horizontally')
   assert(recordCardStyle.includes('width: 100%'), 'date record cards must not overflow their section')
   assert(recordCardStyle.includes('box-sizing: border-box'), 'date record cards must include padding and border in their width')
   assert(recordBodyStyle.includes('min-width: 0'), 'date record row must allow text truncation in flex layout')
   assert(restaurantStyle.includes('min-width: 0'), 'date record restaurant text must shrink instead of pushing amount outside')
+})
+
+test('home recent orders empty icon renders fully', () => {
+  const homeContent = fs.readFileSync(
+    path.join(process.cwd(), 'fanda-app/src/pages/index/index.tsx'),
+    'utf8'
+  )
+  const homeStyle = fs.readFileSync(
+    path.join(process.cwd(), 'fanda-app/src/pages/index/index.scss'),
+    'utf8'
+  )
+  const emptyStateStyle = homeStyle.match(/\.empty-state\s*\{[\s\S]*?\n\}/)?.[0] || ''
+
+  assert(homeContent.includes("className='empty-state fanda-empty'"), 'home recent orders must use the empty-state block')
+  assert(emptyStateStyle.includes('.sticker-icon'), 'home empty state must size its icon locally')
+  assert(emptyStateStyle.includes('display: block'), 'home empty icon must render as a full block image')
+  assert(emptyStateStyle.includes('margin: 0 auto'), 'home empty icon must be centered without clipping')
 })
 
 test('calendar record page shows a manual meal form when opened without id', () => {

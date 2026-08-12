@@ -218,9 +218,11 @@
 
 // 记录列表区域
 .records-section {
+  width: calc(100% - 48px);
   max-height: 420px;
   margin: 16px 24px;
   box-sizing: border-box;
+  overflow-x: hidden;
 }
 
 .records-header {
@@ -307,8 +309,12 @@
     display: flex;
     gap: 8px;
     margin-top: 12px;
+    max-width: 100%;
+    overflow-x: auto;
+    overflow-y: hidden;
 
     .record-photo-thumb {
+      flex: 0 0 80px;
       width: 80px;
       height: 80px;
       border-radius: var(--radius-sm);
@@ -318,6 +324,7 @@
     }
 
     .photo-more {
+      flex: 0 0 80px;
       width: 80px;
       height: 80px;
       border-radius: var(--radius-sm);

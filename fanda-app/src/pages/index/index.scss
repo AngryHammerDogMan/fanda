@@ -178,6 +178,11 @@
 .empty-state {
   text-align: center;
 
+  .sticker-icon {
+    display: block;
+    margin: 0 auto;
+  }
+
   .empty-text {
     display: block;
     margin-top: 12px;
