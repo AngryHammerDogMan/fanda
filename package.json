@@ -5,6 +5,7 @@
   "description": "饭搭项目根目录启动入口",
   "scripts": {
     "postinstall": "node scripts/install-deps.js",
+    "setup:registry": "node scripts/setup-npm-registry.js",
     "start": "node scripts/start.js",
     "test": "node --test scripts/*.test.js",
     "dev:h5": "npm --prefix fanda-app run dev:h5",

@@ -10,22 +10,25 @@ test('install steps cover frontend npm dependencies and backend Go modules', () 
 
   assert.deepEqual(
     steps.map((step) => step.label),
-    ['安装前端依赖', '下载后端 Go 依赖']
+    ['初始化前端 npm 源', '安装前端依赖', '下载后端 Go 依赖']
   )
-  assert.deepEqual(steps[0].command, 'npm')
-  assert.deepEqual(steps[0].args, ['--prefix', 'fanda-app', 'install'])
-  assert.deepEqual(steps[1].command, 'go')
-  assert.deepEqual(steps[1].args, ['-C', 'fanda-server', 'mod', 'download'])
+  assert.deepEqual(steps[0].command, 'node')
+  assert.deepEqual(steps[0].args, ['scripts/setup-npm-registry.js'])
+  assert.deepEqual(steps[1].command, 'npm')
+  assert.deepEqual(steps[1].args, ['--prefix', 'fanda-app', 'install'])
+  assert.deepEqual(steps[2].command, 'go')
+  assert.deepEqual(steps[2].args, ['-C', 'fanda-server', 'mod', 'download'])
 })
 
 test('start menu exposes the common local development tasks', () => {
   const taskKeys = getMenuItems().map((item) => item.key)
 
-  assert.deepEqual(taskKeys, ['h5', 'server', 'postgres', 'redis', 'migrate'])
+  assert.deepEqual(taskKeys, ['registry', 'h5', 'server', 'postgres', 'redis', 'migrate'])
 })
 
 test('resolveTask accepts menu numbers and task keys', () => {
-  assert.equal(resolveTask('1').key, 'h5')
+  assert.equal(resolveTask('1').key, 'registry')
+  assert.equal(resolveTask('h5').key, 'h5')
   assert.equal(resolveTask('server').key, 'server')
   assert.equal(resolveTask('postgres').key, 'postgres')
   assert.equal(resolveTask('unknown'), undefined)

@@ -37,6 +37,12 @@ psql -U postgres -d fanda -f fanda-server/migrations/002_add_phone.sql
 
 const TASKS = [
   {
+    key: 'registry',
+    label: '初始化前端 npm 源',
+    command: 'node',
+    args: ['scripts/setup-npm-registry.js'],
+  },
+  {
     key: 'h5',
     label: '启动前端 H5 预览',
     command: 'npm',

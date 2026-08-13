@@ -4,6 +4,11 @@ const { spawn } = require('node:child_process')
 
 const INSTALL_STEPS = [
   {
+    label: '初始化前端 npm 源',
+    command: 'node',
+    args: ['scripts/setup-npm-registry.js'],
+  },
+  {
     label: '安装前端依赖',
     command: 'npm',
     args: ['--prefix', 'fanda-app', 'install'],

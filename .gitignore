@@ -54,6 +54,9 @@ fanda-app/.env
 fanda-app/.env.local
 fanda-app/.env.*.local
 
+# 本机 npm 源配置
+fanda-app/.npmrc
+
 # ===================
 # 文档输出
 # ===================
