@@ -18,6 +18,7 @@ function createNpmrcContent(registry) {
     '# 本文件由 npm run setup:registry 自动生成，仅用于本机安装依赖。',
     '# 不要提交到 Git；仓库锁文件应保持使用公开镜像源。',
     `registry=${normalizeRegistry(registry)}`,
+    'replace-registry-host=always',
     '',
   ].join('\n')
 }

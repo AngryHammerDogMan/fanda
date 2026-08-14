@@ -37,6 +37,7 @@ test('creates local npmrc content with generated-file warning', () => {
   assert.match(content, /自动生成/)
   assert.match(content, /不要提交到 Git/)
   assert.match(content, new RegExp(`registry=${PUBLIC_REGISTRY}`))
+  assert.match(content, /^replace-registry-host=always$/m)
 })
 
 test('writes project npmrc to target path', () => {
