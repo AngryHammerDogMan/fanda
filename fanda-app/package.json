@@ -14,7 +14,14 @@
     "dev:weapp": "npm run build:weapp -- --watch",
     "dev:tt": "npm run build:tt -- --watch",
     "dev:h5": "taro build --type h5 --watch",
-    "test": "jest"
+    "test": "jest",
+    "lint": "eslint --ext .ts,.tsx,.js,.jsx \"src/**/*.{ts,tsx,js,jsx}\"",
+    "lint:fix": "eslint --ext .ts,.tsx,.js,.jsx --fix \"src/**/*.{ts,tsx,js,jsx}\""
+  },
+  "lint-staged": {
+    "src/**/*.{ts,tsx,js,jsx}": [
+      "eslint --fix"
+    ]
   },
   "browserslist": [
     "last 3 versions",
@@ -46,6 +53,11 @@
     "babel-preset-taro": "4.2.1",
     "eslint": "^8.41.0",
     "eslint-config-taro": "4.2.1",
+    "eslint-import-resolver-alias": "^1.1.2",
+    "eslint-plugin-react": "^7.37.5",
+    "eslint-plugin-react-hooks": "^4.6.2",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.4.0",
     "postcss": "^8.4.35",
     "react-refresh": "^0.14.0",
     "sass": "^1.71.0",

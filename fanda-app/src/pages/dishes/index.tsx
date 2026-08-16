@@ -133,6 +133,10 @@ export default function DishesIndex() {
 
   const handleSearchClear = () => {
     setSearchKeyword('')
+    setDishes([])
+    setPage(1)
+    setHasMore(true)
+    loadDishes(1, false)
   }
 
   const handleDishClick = (id: string) => {
@@ -179,39 +183,40 @@ export default function DishesIndex() {
         </ScrollView>
       </View>
 
-      {/* 搜索栏 */}
-      <View className='search-bar'>
-        <View className='search-input-wrap'>
-          <Text className='search-icon'>搜索</Text>
-          <Input
-            className='search-input'
-            placeholder='搜索菜品名称…'
-            value={searchKeyword}
-            onInput={(e) => setSearchKeyword(e.detail.value)}
-            onConfirm={handleSearch}
-            confirmType='search'
-          />
-          {searchKeyword && (
-            <Text className='search-clear' onClick={handleSearchClear}>✕</Text>
-          )}
-        </View>
-      </View>
-
-      {/* 分类标签栏 */}
-      <View className='tab-bar fanda-filter'>
-        <ScrollView className='tab-scroll' scrollX scrollWithAnimation>
-          <View className='tab-list'>
-            {DISH_TYPES.map(item => (
-              <View
-                key={item.key}
-                className={`tab-item ${activeTab === item.key ? 'active' : ''}`}
-                onClick={() => handleTabChange(item.key)}
-              >
-                <Text className='tab-label'>{item.label}</Text>
-              </View>
-            ))}
+      {/* 搜索栏 + 分类标签栏 — 吸顶 */}
+      <View className='sticky-header'>
+        <View className='search-bar'>
+          <View className='search-input-wrap'>
+            <Text className='search-icon'>搜索</Text>
+            <Input
+              className='search-input'
+              placeholder='搜索菜品名称…'
+              value={searchKeyword}
+              onInput={(e) => setSearchKeyword(e.detail.value)}
+              onConfirm={handleSearch}
+              confirmType='search'
+            />
+            {searchKeyword && (
+              <Text className='search-clear' onClick={handleSearchClear}>✕</Text>
+            )}
           </View>
-        </ScrollView>
+        </View>
+
+        <View className='tab-bar fanda-filter'>
+          <View className='tab-scroll'>
+            <View className='tab-list'>
+              {DISH_TYPES.map(item => (
+                <View
+                  key={item.key}
+                  className={`tab-item ${activeTab === item.key ? 'active' : ''}`}
+                  onClick={() => handleTabChange(item.key)}
+                >
+                  <Text className='tab-label'>{item.label}</Text>
+                </View>
+              ))}
+            </View>
+          </View>
+        </View>
       </View>
 
       {/* 菜品列表 */}
@@ -271,26 +276,26 @@ export default function DishesIndex() {
               </View>
             </View>
           ))}
-        </View>
 
-        {/* 加载状态 */}
-        {loading && (
-          <View className='loading-wrap'>
-            <Text className='loading-text'>加载中…</Text>
-          </View>
-        )}
-        {!hasMore && dishes.length > 0 && (
-          <View className='loading-wrap'>
-            <Text className='loading-text'>没有更多了</Text>
-          </View>
-        )}
-        {!loading && dishes.length === 0 && (
-          <View className='empty-wrap'>
-            <Image className='sticker-icon' src={sticker('menu')} mode='aspectFit' />
-            <Text className='empty-text'>暂无菜品</Text>
-            <Text className='empty-hint'>点击右下角按钮添加菜品</Text>
-          </View>
-        )}
+          {/* 加载状态 */}
+          {loading && (
+            <View className='loading-wrap'>
+              <Text className='loading-text'>加载中…</Text>
+            </View>
+          )}
+          {!hasMore && dishes.length > 0 && (
+            <View className='loading-wrap'>
+              <Text className='loading-text'>没有更多了</Text>
+            </View>
+          )}
+          {!loading && dishes.length === 0 && (
+            <View className='empty-wrap'>
+              <Image className='sticker-icon' src={sticker('menu')} mode='aspectFit' />
+              <Text className='empty-text'>暂无菜品</Text>
+              <Text className='empty-hint'>点击右下角按钮添加菜品</Text>
+            </View>
+          )}
+        </View>
       </ScrollView>
 
       {/* 悬浮添加按钮 */}

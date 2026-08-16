@@ -24,9 +24,18 @@
   }
 }
 
+// 吸顶容器：搜索栏 + 分类标签
+.sticky-header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: var(--color-paper);
+  padding-bottom: 8px;
+}
+
 // 搜索栏
 .search-bar {
-  padding: 0 28px 16px;
+  padding: 0 28px 12px;
   background: transparent;
   flex-shrink: 0;
 }
@@ -67,13 +76,14 @@
 // 分类标签栏
 .tab-bar {
   background: transparent;
-  padding: 0 28px 18px;
+  padding: 0 28px 0;
   flex-shrink: 0;
 }
 
 .tab-scroll {
   width: 100%;
   white-space: nowrap;
+  overflow-x: auto;
 }
 
 .tab-list {
@@ -115,7 +125,7 @@
 }
 
 .dish-list {
-  padding: 0 28px;
+  padding: 0 28px 100px;
 }
 
 .dish-card {

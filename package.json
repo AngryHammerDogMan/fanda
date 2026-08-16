@@ -12,7 +12,8 @@
     "build:h5": "npm --prefix fanda-app run build:h5",
     "dev:server": "go -C fanda-server run cmd/server/main.go",
     "db:start": "node scripts/start.js postgres",
-    "db:migrate": "node scripts/start.js migrate"
+    "db:migrate": "node scripts/start.js migrate",
+    "prepare": "husky"
   },
   "engines": {
     "node": ">=18"

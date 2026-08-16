@@ -96,47 +96,126 @@ const h5Tables: Table[] = [
 ]
 
 const h5Dishes: Dish[] = [
+  // 家常菜
   {
-    id: 'h5-dish-1',
-    owner_id: 'h5-preview-user',
-    table_id: 'h5-personal-table',
-    dish_type: 'dish',
-    name: '番茄牛腩煲',
-    category: '家常菜',
-    difficulty: 2,
-    duration: 45,
-    price: 42,
+    id: 'h5-dish-1', owner_id: 'h5-preview-user', table_id: 'h5-personal-table',
+    dish_type: 'dish', name: '番茄牛腩煲', category: '家常菜', difficulty: 2, duration: 45, price: 42,
     ingredients: [{ name: '牛腩', amount: '500g' }, { name: '番茄', amount: '3 个' }],
     steps: [{ order: 1, description: '牛腩焯水后和番茄慢炖。' }],
-    photos: null,
-    tags: ['暖胃', '晚餐'],
-    restaurant: '',
-    restaurant_note: '',
-    source: 'manual',
-    is_deleted: false,
-    created_at: '2026-08-10T09:00:00Z',
-    updated_at: '2026-08-10T09:00:00Z',
+    photos: null, tags: ['暖胃', '晚餐'], restaurant: '', restaurant_note: '',
+    source: 'manual', is_deleted: false, created_at: '2026-08-10T09:00:00Z', updated_at: '2026-08-10T09:00:00Z',
   },
   {
-    id: 'h5-dish-2',
-    owner_id: 'h5-preview-user',
-    table_id: 'h5-buddy-table',
-    dish_type: 'takeout',
-    name: '牛油果鸡胸沙拉',
-    category: '轻食',
-    difficulty: null,
-    duration: 28,
-    price: 36,
-    ingredients: null,
-    steps: null,
-    photos: null,
-    tags: ['外卖', '预算内'],
-    restaurant: '轻食研究所',
-    restaurant_note: '适合工作日晚餐',
-    source: 'manual',
-    is_deleted: false,
-    created_at: '2026-08-10T09:00:00Z',
-    updated_at: '2026-08-10T09:00:00Z',
+    id: 'h5-dish-2', owner_id: 'h5-preview-user', table_id: 'h5-personal-table',
+    dish_type: 'dish', name: '麻婆豆腐', category: '川菜', difficulty: 1, duration: 20, price: 18,
+    ingredients: [{ name: '嫩豆腐', amount: '1 盒' }, { name: '猪肉末', amount: '100g' }],
+    steps: [{ order: 1, description: '豆腐焯水，肉末炒香加豆瓣酱，与豆腐同烧。' }],
+    photos: null, tags: ['下饭', '快手菜'], restaurant: '', restaurant_note: '',
+    source: 'manual', is_deleted: false, created_at: '2026-08-09T09:00:00Z', updated_at: '2026-08-09T09:00:00Z',
+  },
+  {
+    id: 'h5-dish-3', owner_id: 'h5-preview-user', table_id: 'h5-personal-table',
+    dish_type: 'dish', name: '蒜蓉西兰花', category: '家常菜', difficulty: 1, duration: 12, price: 10,
+    ingredients: [{ name: '西兰花', amount: '1 颗' }, { name: '蒜', amount: '5 瓣' }],
+    steps: [{ order: 1, description: '西兰花焯水，蒜末爆香后翻炒调味。' }],
+    photos: null, tags: ['素菜', '低卡'], restaurant: '', restaurant_note: '',
+    source: 'manual', is_deleted: false, created_at: '2026-08-08T09:00:00Z', updated_at: '2026-08-08T09:00:00Z',
+  },
+  {
+    id: 'h5-dish-4', owner_id: 'h5-preview-user', table_id: 'h5-personal-table',
+    dish_type: 'dish', name: '糖醋排骨', category: '家常菜', difficulty: 3, duration: 50, price: 48,
+    ingredients: [{ name: '猪小排', amount: '500g' }, { name: '冰糖', amount: '30g' }, { name: '醋', amount: '3 勺' }],
+    steps: [{ order: 1, description: '排骨焯水，炒糖色后加醋和调料慢炖收汁。' }],
+    photos: null, tags: ['酸甜', '聚餐'], restaurant: '', restaurant_note: '',
+    source: 'manual', is_deleted: false, created_at: '2026-08-07T09:00:00Z', updated_at: '2026-08-07T09:00:00Z',
+  },
+  // 外卖
+  {
+    id: 'h5-dish-5', owner_id: 'h5-preview-user', table_id: 'h5-buddy-table',
+    dish_type: 'takeout', name: '牛油果鸡胸沙拉', category: '轻食', difficulty: null, duration: 28, price: 36,
+    ingredients: null, steps: null, photos: null,
+    tags: ['外卖', '预算内'], restaurant: '轻食研究所', restaurant_note: '适合工作日晚餐',
+    source: 'manual', is_deleted: false, created_at: '2026-08-10T09:00:00Z', updated_at: '2026-08-10T09:00:00Z',
+  },
+  {
+    id: 'h5-dish-6', owner_id: 'h5-preview-user', table_id: 'h5-buddy-table',
+    dish_type: 'takeout', name: '经典牛肉汉堡', category: '西餐', difficulty: null, duration: 25, price: 45,
+    ingredients: null, steps: null, photos: null,
+    tags: ['外卖', '午餐'], restaurant: '汉堡研究所', restaurant_note: '肉饼厚实，推荐搭配薯条',
+    source: 'manual', is_deleted: false, created_at: '2026-08-09T09:00:00Z', updated_at: '2026-08-09T09:00:00Z',
+  },
+  {
+    id: 'h5-dish-7', owner_id: 'h5-preview-user', table_id: 'h5-buddy-table',
+    dish_type: 'takeout', name: '寿司拼盘', category: '日料', difficulty: null, duration: 35, price: 88,
+    ingredients: null, steps: null, photos: null,
+    tags: ['外卖', '聚餐'], restaurant: '樱花寿司', restaurant_note: '新鲜三文鱼，性价比高',
+    source: 'manual', is_deleted: false, created_at: '2026-08-08T09:00:00Z', updated_at: '2026-08-08T09:00:00Z',
+  },
+  {
+    id: 'h5-dish-8', owner_id: 'h5-preview-user', table_id: 'h5-buddy-table',
+    dish_type: 'takeout', name: '酸菜鱼', category: '川菜', difficulty: null, duration: 30, price: 68,
+    ingredients: null, steps: null, photos: null,
+    tags: ['外卖', '聚餐'], restaurant: '太二酸菜鱼', restaurant_note: '酸辣适中，鱼肉嫩滑',
+    source: 'manual', is_deleted: false, created_at: '2026-08-07T09:00:00Z', updated_at: '2026-08-07T09:00:00Z',
+  },
+  {
+    id: 'h5-dish-9', owner_id: 'h5-preview-user', table_id: 'h5-buddy-table',
+    dish_type: 'takeout', name: '麻辣香锅', category: '川菜', difficulty: null, duration: 35, price: 72,
+    ingredients: null, steps: null, photos: null,
+    tags: ['外卖', '重口味'], restaurant: '川味香锅', restaurant_note: '自选配菜，辣度可调',
+    source: 'manual', is_deleted: false, created_at: '2026-08-06T09:00:00Z', updated_at: '2026-08-06T09:00:00Z',
+  },
+  // 外食
+  {
+    id: 'h5-dish-10', owner_id: 'h5-preview-user', table_id: 'h5-buddy-table',
+    dish_type: 'dineout', name: '烧鸟拼盘', category: '日料', difficulty: null, duration: 60, price: 128,
+    ingredients: null, steps: null, photos: null,
+    tags: ['外食', '约会'], restaurant: '烧鸟小馆', restaurant_note: '氛围好，适合情侣约会',
+    source: 'manual', is_deleted: false, created_at: '2026-08-10T09:00:00Z', updated_at: '2026-08-10T09:00:00Z',
+  },
+  {
+    id: 'h5-dish-11', owner_id: 'h5-preview-user', table_id: 'h5-buddy-table',
+    dish_type: 'dineout', name: '重庆老火锅', category: '火锅', difficulty: null, duration: 90, price: 168,
+    ingredients: null, steps: null, photos: null,
+    tags: ['外食', '聚餐', '重口味'], restaurant: '重庆老灶火锅', restaurant_note: '毛肚和鸭血必点',
+    source: 'manual', is_deleted: false, created_at: '2026-08-09T09:00:00Z', updated_at: '2026-08-09T09:00:00Z',
+  },
+  {
+    id: 'h5-dish-12', owner_id: 'h5-preview-user', table_id: 'h5-buddy-table',
+    dish_type: 'dineout', name: '战斧牛排', category: '西餐', difficulty: null, duration: 60, price: 298,
+    ingredients: null, steps: null, photos: null,
+    tags: ['外食', '纪念日'], restaurant: '牛排家', restaurant_note: '五分熟最佳，配红酒',
+    source: 'manual', is_deleted: false, created_at: '2026-08-08T09:00:00Z', updated_at: '2026-08-08T09:00:00Z',
+  },
+  {
+    id: 'h5-dish-13', owner_id: 'h5-preview-user', table_id: 'h5-buddy-table',
+    dish_type: 'dineout', name: '广式早茶套餐', category: '粤菜', difficulty: null, duration: 75, price: 138,
+    ingredients: null, steps: null, photos: null,
+    tags: ['外食', '周末'], restaurant: '点都德', restaurant_note: '虾饺和凤爪一绝',
+    source: 'manual', is_deleted: false, created_at: '2026-08-07T09:00:00Z', updated_at: '2026-08-07T09:00:00Z',
+  },
+  {
+    id: 'h5-dish-14', owner_id: 'h5-preview-user', table_id: 'h5-buddy-table',
+    dish_type: 'dineout', name: '烤羊排', category: '烧烤', difficulty: null, duration: 50, price: 158,
+    ingredients: null, steps: null, photos: null,
+    tags: ['外食', '聚餐'], restaurant: '很久以前羊肉串', restaurant_note: '外焦里嫩，孜然味足',
+    source: 'manual', is_deleted: false, created_at: '2026-08-06T09:00:00Z', updated_at: '2026-08-06T09:00:00Z',
+  },
+  // 面食小吃
+  {
+    id: 'h5-dish-15', owner_id: 'h5-preview-user', table_id: 'h5-personal-table',
+    dish_type: 'dish', name: '番茄鸡蛋面', category: '面食', difficulty: 1, duration: 15, price: 12,
+    ingredients: [{ name: '面条', amount: '200g' }, { name: '番茄', amount: '2 个' }, { name: '鸡蛋', amount: '2 个' }],
+    steps: [{ order: 1, description: '炒蛋备用，番茄炒出汁加水煮面，放入炒蛋。' }],
+    photos: null, tags: ['快手菜', '一人食'], restaurant: '', restaurant_note: '',
+    source: 'manual', is_deleted: false, created_at: '2026-08-06T09:00:00Z', updated_at: '2026-08-06T09:00:00Z',
+  },
+  {
+    id: 'h5-dish-16', owner_id: 'h5-preview-user', table_id: 'h5-buddy-table',
+    dish_type: 'takeout', name: '芒果糯米饭', category: '甜品', difficulty: null, duration: 20, price: 32,
+    ingredients: null, steps: null, photos: null,
+    tags: ['外卖', '甜品'], restaurant: '泰式甜品屋', restaurant_note: '椰浆浓郁，芒果新鲜',
+    source: 'manual', is_deleted: false, created_at: '2026-08-05T09:00:00Z', updated_at: '2026-08-05T09:00:00Z',
   },
 ]
 
@@ -157,7 +236,7 @@ const createH5PreviewResponse = <T>(options: Taro.request.Option): ApiResponse<T
   if (url === '/auth/profile') return ok(h5User) as ApiResponse<T>
   if (url === '/tables') return ok(h5Tables) as ApiResponse<T>
   if (url === '/checkin/status') return ok({ today_checked: false, month_count: 18, streak: 7 }) as ApiResponse<T>
-  if (url === '/checkin') return ok({ today_checked: true, month_count: 19, streak: 8 }) as ApiResponse<T>
+  if (url === '/checkin') return ok({ points: 2, checkin_date: '2026-08-14' }) as ApiResponse<T>
   // 菜品/广场 mock。
   if (url === '/dishes') return ok(list(h5Dishes)) as ApiResponse<T>
   if (url.startsWith('/dishes/')) return ok(h5Dishes[0]) as ApiResponse<T>
@@ -215,7 +294,20 @@ const createH5PreviewResponse = <T>(options: Taro.request.Option): ApiResponse<T
   if (url === '/wishes') return ok(list([{ id: 'h5-wish-1', user_id: 'h5-preview-user', table_id: 'h5-buddy-table', name: '想去吃巴斯克蛋糕', note: '周末下午茶', dish_id: null, is_completed: false, created_at: '2026-08-10T09:00:00Z' }])) as ApiResponse<T>
   if (url === '/basket') return ok(list(h5PreviewBasketItems)) as ApiResponse<T>
   if (url === '/budget') return ok({ id: 'h5-budget', user_id: 'h5-preview-user', table_id: 'h5-personal-table', month: '2026-08', budget: 1200, spent: 680 }) as ApiResponse<T>
-  if (url === '/points/history') return ok(list([{ id: 'h5-point-1', user_id: 'h5-preview-user', points: 10, reason: '每日签到', created_at: '2026-08-10T09:00:00Z' }])) as ApiResponse<T>
+  if (url === '/points') return ok(list([
+    { id: 'h5-point-1', user_id: 'h5-preview-user', points: 10, reason: '每日签到', created_at: '2026-08-14T09:00:00Z' },
+    { id: 'h5-point-2', user_id: 'h5-preview-user', points: 5, reason: '连续签到奖励', created_at: '2026-08-13T08:30:00Z' },
+    { id: 'h5-point-3', user_id: 'h5-preview-user', points: -20, reason: '兑换优惠券', created_at: '2026-08-12T14:20:00Z' },
+    { id: 'h5-point-4', user_id: 'h5-preview-user', points: 10, reason: '每日签到', created_at: '2026-08-12T09:00:00Z' },
+    { id: 'h5-point-5', user_id: 'h5-preview-user', points: 30, reason: '邀请好友注册', created_at: '2026-08-11T16:45:00Z' },
+    { id: 'h5-point-6', user_id: 'h5-preview-user', points: -15, reason: '消费抵扣', created_at: '2026-08-10T12:30:00Z' },
+    { id: 'h5-point-7', user_id: 'h5-preview-user', points: 10, reason: '每日签到', created_at: '2026-08-10T09:00:00Z' },
+    { id: 'h5-point-8', user_id: 'h5-preview-user', points: 50, reason: '新用户注册奖励', created_at: '2026-08-09T10:00:00Z' },
+    { id: 'h5-point-9', user_id: 'h5-preview-user', points: 10, reason: '每日签到', created_at: '2026-08-09T09:00:00Z' },
+    { id: 'h5-point-10', user_id: 'h5-preview-user', points: 20, reason: '完善个人资料', created_at: '2026-08-08T15:00:00Z' },
+    { id: 'h5-point-11', user_id: 'h5-preview-user', points: 10, reason: '每日签到', created_at: '2026-08-08T09:00:00Z' },
+    { id: 'h5-point-12', user_id: 'h5-preview-user', points: -5, reason: '消费抵扣', created_at: '2026-08-07T18:30:00Z' },
+  ])) as ApiResponse<T>
   if (url.includes('/invite')) return ok({ code: 'H5FANDA', expires_at: '2026-08-10T10:00:00Z' }) as ApiResponse<T>
 
   return ok({}) as ApiResponse<T>

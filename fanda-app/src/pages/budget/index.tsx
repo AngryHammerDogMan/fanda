@@ -91,7 +91,7 @@ export default function Budget() {
 
   const handleSetBudget = async () => {
     const amount = parseFloat(budgetAmount)
-    if (isNaN(amount) || amount <= 0) {
+    if (Number.isNaN(amount) || amount <= 0) {
       Taro.showToast({ title: '请输入有效的预算金额', icon: 'none' })
       return
     }

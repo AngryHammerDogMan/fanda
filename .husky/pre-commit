@@ -1,0 +1,1 @@
+cd fanda-app && npx lint-staged

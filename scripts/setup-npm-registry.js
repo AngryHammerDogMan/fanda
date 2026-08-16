@@ -27,17 +27,20 @@ function probeRegistry(registry, timeoutMs = DEFAULT_TIMEOUT_MS) {
   const pingUrl = new URL('-/ping', normalizeRegistry(registry))
 
   return new Promise((resolve) => {
-    const request = https.get(pingUrl, { timeout: timeoutMs }, (response) => {
+    const controller = new AbortController()
+    const timer = setTimeout(() => {
+      controller.abort()
+      resolve(false)
+    }, timeoutMs)
+
+    const request = https.get(pingUrl, { signal: controller.signal }, (response) => {
+      clearTimeout(timer)
       response.resume()
       resolve(response.statusCode !== undefined && response.statusCode < 500)
     })
 
-    request.on('timeout', () => {
-      request.destroy()
-      resolve(false)
-    })
-
     request.on('error', () => {
+      clearTimeout(timer)
       resolve(false)
     })
   })

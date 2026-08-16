@@ -1,6 +1,6 @@
 import { View, Text, ScrollView, Image, Input } from '@tarojs/components'
 import Taro from '@tarojs/taro'
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { dishAPI, orderAPI, tableAPI } from '@/services/api'
 import type { Dish, Table, TableMember } from '@/types'
 import { getErrorMessage } from '@/utils/error'
@@ -14,7 +14,6 @@ interface SelectedDish {
 
 interface DishCategoryGroup {
   name: string
-  anchorId: string
   dishes: Dish[]
 }
 
@@ -35,7 +34,6 @@ const sticker = (name: string) => `/assets/stickers/${name}.png`
 const DEFAULT_CATEGORY = '未分类'
 const ALL_CATEGORY = '全部'
 const CATEGORY_SECTION_TITLE_HEIGHT = 42
-const DISH_CARD_SCROLL_HEIGHT = 166
 
 export default function CreateOrder() {
   const [tables, setTables] = useState<Table[]>([])
@@ -51,10 +49,16 @@ export default function CreateOrder() {
   const [selectedParticipantIds, setSelectedParticipantIds] = useState<string[]>([])
   const [needPurchase, setNeedPurchase] = useState(false)
   const [selectedPurchaseKeys, setSelectedPurchaseKeys] = useState<string[]>([])
-  const [dishScrollIntoView, setDishScrollIntoView] = useState('')
+  const [dishScrollTop, setDishScrollTop] = useState(0)
   const [categoryScrollIntoView, setCategoryScrollIntoView] = useState('')
   const [loadingDishes, setLoadingDishes] = useState(false)
   const [submitting, setSubmitting] = useState(false)
+  const scrollingByClick = useRef(false)
+  const scrollLockTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const sectionPositionsRef = useRef<{ name: string; top: number }[]>([])
+  const latestScrollTopRef = useRef(0)
+  const measureTokenRef = useRef(0)
+  const measuringRef = useRef(false)
 
   useEffect(() => {
     loadTables()
@@ -89,7 +93,6 @@ export default function CreateOrder() {
       }
       groups.push({
         name: categoryName,
-        anchorId: `dish-section-${groups.length}`,
         dishes: [dish],
       })
     })
@@ -97,6 +100,36 @@ export default function CreateOrder() {
   }, [keywordFilteredDishes])
 
   const categories = useMemo(() => [ALL_CATEGORY, ...dishCategoryGroups.map(group => group.name)], [dishCategoryGroups])
+
+  // 实测各分类区块在滚动容器中的位置，避免用估算高度导致左右联动错位
+  const measureSectionPositions = useCallback(() => {
+    const token = ++measureTokenRef.current
+    const query = Taro.createSelectorQuery()
+    query.selectAll('.dish-section').boundingClientRect()
+    query.select('.dish-scroll').boundingClientRect()
+    query.select('.dish-scroll').scrollOffset()
+    query.exec(res => {
+      if (token !== measureTokenRef.current) return
+      const sectionRects = res?.[0] as Array<{ top: number }> | undefined
+      const scrollRect = res?.[1] as { top: number } | undefined
+      const scrollOffset = res?.[2] as { scrollTop: number } | undefined
+      // 渲染未完成时区块数对不上，视为本次测量失败，等滚动时补测
+      if (!scrollRect || !Array.isArray(sectionRects) || sectionRects.length !== dishCategoryGroups.length) {
+        return
+      }
+      const scrollTop = scrollOffset?.scrollTop ?? latestScrollTopRef.current
+      sectionPositionsRef.current = sectionRects.map((rect, index) => ({
+        name: dishCategoryGroups[index]?.name || '',
+        top: rect.top - scrollRect.top + scrollTop,
+      }))
+    })
+  }, [dishCategoryGroups])
+
+  useEffect(() => {
+    sectionPositionsRef.current = []
+    if (dishCategoryGroups.length === 0) return
+    Taro.nextTick(measureSectionPositions)
+  }, [dishCategoryGroups, measureSectionPositions])
 
   const totalQuantity = selectedDishes.reduce((sum, item) => sum + item.quantity, 0)
 
@@ -178,7 +211,7 @@ export default function CreateOrder() {
     setShowCartSheet(false)
     setKeyword('')
     setActiveCategory(ALL_CATEGORY)
-    setDishScrollIntoView('')
+    setDishScrollTop(0)
     setCategoryScrollIntoView('')
     setShowTableSheet(false)
     Taro.setStorageSync(LAST_ORDER_TABLE_KEY, tableId)
@@ -189,32 +222,50 @@ export default function CreateOrder() {
     setActiveCategory(category)
     const categoryIndex = categories.findIndex(item => item === category)
     setCategoryScrollIntoView(`category-item-${Math.max(categoryIndex, 0)}`)
+    scrollingByClick.current = true
+    if (scrollLockTimer.current) clearTimeout(scrollLockTimer.current)
+    scrollLockTimer.current = setTimeout(() => { scrollingByClick.current = false }, 500)
     if (category === ALL_CATEGORY) {
-      setDishScrollIntoView('dish-list-top')
+      setDishScrollTop(0)
       return
     }
-    const targetGroup = dishCategoryGroups.find(group => group.name === category)
-    setDishScrollIntoView(targetGroup?.anchorId || 'dish-list-top')
+    const sectionPositions = sectionPositionsRef.current
+    const targetPosition = sectionPositions.find(p => p.name === category)
+    if (targetPosition) {
+      setDishScrollTop(targetPosition.top)
+    }
   }
 
   const handleDishScroll = (event: DishScrollEvent) => {
+    latestScrollTopRef.current = event.detail.scrollTop
+    if (scrollingByClick.current) return
+    setDishScrollTop(event.detail.scrollTop)
     if (dishCategoryGroups.length === 0) return
-    const scrollTop = event.detail.scrollTop
-    if (scrollTop < CATEGORY_SECTION_TITLE_HEIGHT) {
-      if (activeCategory !== ALL_CATEGORY) setActiveCategory(ALL_CATEGORY)
-      setCategoryScrollIntoView('category-item-0')
+    const sectionPositions = sectionPositionsRef.current
+    // 位置还没测好（或列表刚变化）时先补测，下一次滚动事件再联动
+    if (sectionPositions.length !== dishCategoryGroups.length) {
+      if (!measuringRef.current) {
+        measuringRef.current = true
+        measureSectionPositions()
+      }
       return
     }
-
-    let nextActiveCategory = dishCategoryGroups[0].name
-    let accumulatedHeight = 0
-    dishCategoryGroups.forEach(group => {
-      const sectionHeight = CATEGORY_SECTION_TITLE_HEIGHT + group.dishes.length * DISH_CARD_SCROLL_HEIGHT
-      if (scrollTop + CATEGORY_SECTION_TITLE_HEIGHT >= accumulatedHeight) {
-        nextActiveCategory = group.name
+    measuringRef.current = false
+    const scrollTop = latestScrollTopRef.current
+    const triggerLine = scrollTop + CATEGORY_SECTION_TITLE_HEIGHT
+    let nextActiveCategory: string
+    if (triggerLine < sectionPositions[0].top) {
+      nextActiveCategory = ALL_CATEGORY
+    } else {
+      nextActiveCategory = sectionPositions[sectionPositions.length - 1].name
+      for (const position of sectionPositions) {
+        if (triggerLine >= position.top) {
+          nextActiveCategory = position.name
+        } else {
+          break
+        }
       }
-      accumulatedHeight += sectionHeight
-    })
+    }
     if (nextActiveCategory !== activeCategory) {
       setActiveCategory(nextActiveCategory)
       const categoryIndex = categories.findIndex(item => item === nextActiveCategory)
@@ -425,10 +476,9 @@ export default function CreateOrder() {
         <ScrollView
           className='dish-scroll'
           scrollY
-          scrollIntoView={dishScrollIntoView}
+          scrollTop={dishScrollTop}
           onScroll={handleDishScroll}
         >
-          <View id='dish-list-top' />
           {loadingDishes ? (
             <View className='state-card'>加载菜品中...</View>
           ) : !activeTableId ? (
@@ -444,7 +494,7 @@ export default function CreateOrder() {
           ) : (
             <View className='dish-list'>
               {dishCategoryGroups.map(group => (
-                <View id={group.anchorId} key={group.name} className='dish-section'>
+                <View key={group.name} className='dish-section'>
                   <View className='dish-section-title'>
                     <Text>{group.name}</Text>
                     <Text className='dish-section-count'>{group.dishes.length} 道</Text>

@@ -52,14 +52,19 @@ export default function Profile() {
     }
   }
 
-  const loadPointHistory = async () => {
+  const togglePointHistory = async () => {
+    if (showPointHistory) {
+      setShowPointHistory(false)
+      return
+    }
     try {
-      // 积分记录不是首屏必需数据，点击“积分明细”后再取第一页。
       const res = await featureAPI.getPointHistory(1, 20)
       setPointHistory(res.data?.list || res.data || [])
       setShowPointHistory(true)
     } catch (err) {
       console.error('加载积分历史失败', err)
+      // 即使请求失败也展开面板，让用户看到空状态
+      setShowPointHistory(true)
     }
   }
 
@@ -277,7 +282,7 @@ export default function Profile() {
       <View className='section'>
         <View className='section-title'>积分与签到</View>
         <View className='menu-list'>
-          <View className='menu-item' onClick={loadPointHistory}>
+          <View className={`menu-item ${showPointHistory ? 'expanded' : ''}`} onClick={togglePointHistory}>
             <View className='menu-left'>
               <Image className='menu-icon' src={sticker('checkin')} mode='aspectFit' />
               <View className='menu-text'>
@@ -287,34 +292,29 @@ export default function Profile() {
             </View>
             <Text className='menu-arrow'>&gt;</Text>
           </View>
+          <View className={`point-collapse ${showPointHistory ? 'open' : ''}`}>
+            <View className='point-collapse-inner'>
+              {pointHistory.length === 0 ? (
+                <View className='point-empty'>
+                  <Text className='point-empty-text'>暂无积分记录</Text>
+                </View>
+              ) : (
+                pointHistory.map(record => (
+                  <View key={record.id} className='point-record'>
+                    <View className='point-record-info'>
+                      <Text className='point-record-reason'>{record.reason}</Text>
+                      <Text className='point-record-date'>{record.created_at}</Text>
+                    </View>
+                    <Text className={`point-record-value ${record.points >= 0 ? 'positive' : 'negative'}`}>
+                      {record.points >= 0 ? '+' : ''}{record.points}
+                    </Text>
+                  </View>
+                ))
+              )}
+            </View>
+          </View>
         </View>
       </View>
-
-      {/* 积分历史 */}
-      {showPointHistory && (
-        <View className='section'>
-          <View className='section-title'>积分记录</View>
-          {pointHistory.length === 0 ? (
-            <View className='empty-history'>
-              <Text className='empty-text'>暂无积分记录</Text>
-            </View>
-          ) : (
-            <View className='history-list'>
-              {pointHistory.map(record => (
-                <View key={record.id} className='history-item'>
-                  <View className='history-info'>
-                    <Text className='history-reason'>{record.reason}</Text>
-                    <Text className='history-date'>{record.created_at}</Text>
-                  </View>
-                  <Text className={`history-points ${record.points >= 0 ? 'positive' : 'negative'}`}>
-                    {record.points >= 0 ? '+' : ''}{record.points}
-                  </Text>
-                </View>
-              ))}
-            </View>
-          )}
-        </View>
-      )}
 
       {/* 设置 */}
       <View className='section'>

@@ -289,58 +289,56 @@
       font-size: 14px;
       color: var(--color-text-light);
       flex-shrink: 0;
+      transition: transform 0.25s ease;
+    }
+
+    &.expanded .menu-arrow {
+      transform: rotate(90deg);
     }
   }
 }
 
-// 积分历史
-.empty-history {
-  background: var(--color-card);
-  border: 1px dashed var(--color-border);
-  border-radius: var(--radius-card);
-  padding: 40px;
-  text-align: center;
-  box-shadow: var(--shadow-sm);
-
-  .empty-text {
-    font-size: 13px;
-    color: var(--color-text-light);
-  }
-}
-
-.history-list {
-  background: var(--color-card);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-card);
+// 积分折叠面板（嵌在 menu-list 卡片内）
+.point-collapse {
+  max-height: 0;
   overflow: hidden;
-  box-shadow: var(--shadow-sm);
+  transition: max-height 0.35s ease;
 
-  .history-item {
+  &.open {
+    max-height: 400px;
+  }
+
+  .point-collapse-inner {
+    max-height: 330px;
+    overflow-y: auto;
+  }
+
+  .point-record {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 20px 24px;
+    padding: 16px 24px;
     border-bottom: 1px solid var(--color-border);
 
     &:last-child {
       border-bottom: none;
     }
 
-    .history-info {
-      .history-reason {
+    .point-record-info {
+      .point-record-reason {
         display: block;
         font-size: 13px;
         color: var(--color-text);
         margin-bottom: 4px;
       }
 
-      .history-date {
+      .point-record-date {
         font-size: 11px;
         color: var(--color-text-light);
       }
     }
 
-    .history-points {
+    .point-record-value {
       font-size: 15px;
       font-weight: 600;
 
@@ -351,6 +349,16 @@
       &.negative {
         color: var(--color-danger);
       }
+    }
+  }
+
+  .point-empty {
+    padding: 32px 24px;
+    text-align: center;
+
+    .point-empty-text {
+      font-size: 13px;
+      color: var(--color-text-light);
     }
   }
 }

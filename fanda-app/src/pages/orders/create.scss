@@ -1,14 +1,16 @@
 .page-create-order {
-  min-height: 100vh;
+  height: 100%;
   display: flex;
   flex-direction: column;
   background:
     radial-gradient(circle at 92% 0%, rgba(255, 179, 71, 0.16), transparent 260px),
     linear-gradient(180deg, #FFF5E8 0%, var(--color-cream) 34%, var(--color-cream) 100%);
+  overflow: hidden;
 }
 
 .order-header {
   padding: 24px 24px 6px;
+  flex-shrink: 0;
 }
 
 .order-table-strip {
@@ -69,6 +71,7 @@
   border: 1px solid rgba(234, 218, 199, 0.58);
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.78);
+  flex-shrink: 0;
 
   .search-icon {
     font-size: 20px;
