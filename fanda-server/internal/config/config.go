@@ -99,6 +99,18 @@ func (c *Config) Validate() error {
 	if c.AdminPassword == "" || c.AdminPassword == "admin123" || len(c.AdminPassword) < 12 {
 		problems = append(problems, "ADMIN_PASSWORD 必须设置为至少 12 位的非默认密码")
 	}
+	if isMissingPlatformCredential(c.WxAppID, "your_wx_appid") {
+		problems = append(problems, "WX_APPID 必须设置为真实微信小程序 appid")
+	}
+	if isMissingPlatformCredential(c.WxSecret, "your_wx_secret") {
+		problems = append(problems, "WX_SECRET 必须设置为真实微信小程序 secret")
+	}
+	if isMissingPlatformCredential(c.DyAppID, "your_dy_appid") {
+		problems = append(problems, "DY_APPID 必须设置为真实抖音小程序 appid")
+	}
+	if isMissingPlatformCredential(c.DySecret, "your_dy_secret") {
+		problems = append(problems, "DY_SECRET 必须设置为真实抖音小程序 secret")
+	}
 	if len(problems) > 0 {
 		return errors.New("生产配置不安全: " + strings.Join(problems, "; "))
 	}
@@ -138,4 +150,9 @@ func getEnvInt(key string, fallback int) int {
 		}
 	}
 	return fallback
+}
+
+func isMissingPlatformCredential(value, placeholder string) bool {
+	trimmed := strings.TrimSpace(value)
+	return trimmed == "" || trimmed == placeholder
 }

@@ -1,5 +1,7 @@
 const assert = require('node:assert/strict')
+const { EventEmitter } = require('node:events')
 const fs = require('node:fs')
+const https = require('node:https')
 const os = require('node:os')
 const path = require('node:path')
 const test = require('node:test')
@@ -9,6 +11,7 @@ const {
   PUBLIC_REGISTRY,
   createNpmrcContent,
   normalizeRegistry,
+  probeRegistry,
   resolveForcedRegistry,
   selectRegistry,
   writeProjectNpmrc,
@@ -29,6 +32,43 @@ test('falls back to public registry when probe fails', async () => {
   const registry = await selectRegistry(async () => false)
 
   assert.equal(registry, PUBLIC_REGISTRY)
+})
+
+test('treats only 2xx and 3xx registry ping status as usable', async (t) => {
+  const originalGet = https.get
+  t.after(() => {
+    https.get = originalGet
+  })
+
+  for (const statusCode of [200, 204, 302, 304]) {
+    https.get = (_url, _options, callback) => {
+      const request = new EventEmitter()
+      process.nextTick(() => {
+        callback({
+          statusCode,
+          resume() {},
+        })
+      })
+      return request
+    }
+
+    assert.equal(await probeRegistry(INTERNAL_REGISTRY), true, `${statusCode} should be usable`)
+  }
+
+  for (const statusCode of [401, 403, 404, 500]) {
+    https.get = (_url, _options, callback) => {
+      const request = new EventEmitter()
+      process.nextTick(() => {
+        callback({
+          statusCode,
+          resume() {},
+        })
+      })
+      return request
+    }
+
+    assert.equal(await probeRegistry(INTERNAL_REGISTRY), false, `${statusCode} should not be usable`)
+  }
 })
 
 test('creates local npmrc content with generated-file warning', () => {

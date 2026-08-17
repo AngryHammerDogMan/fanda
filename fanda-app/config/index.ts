@@ -1,6 +1,8 @@
 import { defineConfig, type UserConfigExport } from '@tarojs/cli'
 import path from 'path'
 
+const H5_ENTRYPOINT_WARNING_LIMIT_KIB = 340
+
 export default defineConfig<'webpack5'>(async (merge, { command, mode }) => {
   const baseConfig: UserConfigExport = {
     projectName: 'fanda-app',
@@ -56,13 +58,36 @@ export default defineConfig<'webpack5'>(async (merge, { command, mode }) => {
     h5: {
       publicPath: '/',
       staticDirectory: 'static',
+      router: {
+        lazyload: true
+      },
       output: {
-        filename: 'js/[name].[hash:8].js',
+        filename: 'js/[name].[contenthash:8].js',
         chunkFilename: 'js/[name].[chunkhash:8].js'
+      },
+      webpackChain(chain) {
+        chain.optimization.runtimeChunk('single')
+        chain.optimization.splitChunks({
+          chunks: 'all',
+          maxSize: 220 * 1024,
+          cacheGroups: {
+            defaultVendors: {
+              test: /[\\/]node_modules[\\/]/,
+              priority: -10,
+              reuseExistingChunk: true
+            },
+            default: {
+              minChunks: 2,
+              priority: -20,
+              reuseExistingChunk: true
+            }
+          }
+        })
+        chain.performance.maxEntrypointSize(H5_ENTRYPOINT_WARNING_LIMIT_KIB * 1024)
       },
       miniCssExtractPluginOption: {
         ignoreOrder: true,
-        filename: 'css/[name].[hash].css',
+        filename: 'css/[name].[contenthash].css',
         chunkFilename: 'css/[name].[chunkhash].css'
       },
       postcss: {

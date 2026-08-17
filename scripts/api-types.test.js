@@ -3,12 +3,6 @@ const fs = require('node:fs')
 const path = require('node:path')
 const test = require('node:test')
 
-const extractInterface = (source, name) => {
-  const match = source.match(new RegExp(`export interface ${name} [\\s\\S]*?\\n}`))
-  assert.ok(match, `${name} interface must exist`)
-  return match[0]
-}
-
 test('api.ts uses concrete request and parameter types', () => {
   const apiContent = fs.readFileSync(path.join(process.cwd(), 'fanda-app/src/services/api.ts'), 'utf8')
   const typesSource = fs.readFileSync(path.join(process.cwd(), 'fanda-app/src/types/index.ts'), 'utf8')
@@ -19,13 +13,28 @@ test('api.ts uses concrete request and parameter types', () => {
   assert.doesNotMatch(typesSource, /Record<[^>]*any>/)
   assert(apiContent.includes('tableAPI'), 'api.ts must export tableAPI')
   assert.match(apiContent, /export const tableAPI = \{/)
-  assert.match(typesSource, /export interface Table\s*\{/)
-  assert.match(typesSource, /export interface TableMember\s*\{/)
-  assert.match(typesSource, /export interface OrderParticipant\s*\{/)
-  assert.match(typesSource, /export interface OrderBasketItemPayload\s*\{/)
-  assert.match(typesSource, /table_id: string/)
-  assert.match(extractInterface(typesSource, 'CreateOrderPayload'), /items: OrderItemPayload\[\]/)
-  assert.match(extractInterface(typesSource, 'CreateOrderPayload'), /basket_items\?: OrderBasketItemPayload\[\]/)
-  assert.doesNotMatch(extractInterface(typesSource, 'DishListParams'), /group_type|group_id/)
-  assert.doesNotMatch(extractInterface(typesSource, 'CreateOrderPayload'), /group_type|group_id|order_items/)
+  assert.match(typesSource, /export type TableMember = components\['schemas'\]\['TableMember'\]/)
+  assert.match(typesSource, /export type OrderParticipant = components\['schemas'\]\['OrderParticipant'\]/)
+  assert.match(typesSource, /export type OrderBasketItemPayload = components\['schemas'\]\['OrderBasketItemPayload'\]/)
+  assert.match(typesSource, /export type CreateOrderPayload = operations\['createOrder'\]\['requestBody'\]/)
+  assert.match(typesSource, /export type DishListParams = operations\['listDishes'\]\['parameters'\]\['query'\]/)
+  assert.match(typesSource, /export type BasketPayload = operations\['addToBasket'\]\['requestBody'\]/)
+  assert.doesNotMatch(typesSource, /group_type|group_id|order_items:/)
+})
+
+test('api service splits business API from request, auth session, and H5 preview mock', () => {
+  const servicesDir = path.join(process.cwd(), 'fanda-app/src/services')
+  const apiContent = fs.readFileSync(path.join(servicesDir, 'api.ts'), 'utf8')
+  const requestContent = fs.readFileSync(path.join(servicesDir, 'request.ts'), 'utf8')
+  const authSessionContent = fs.readFileSync(path.join(servicesDir, 'auth-session.ts'), 'utf8')
+  const h5PreviewContent = fs.readFileSync(path.join(servicesDir, 'h5-preview.ts'), 'utf8')
+
+  assert.match(apiContent, /import \{ request \} from ['"]\.\/request['"]/)
+  assert.doesNotMatch(apiContent, /Taro\.request|Taro\.getStorageSync|h5-preview-token|createH5PreviewResponse/)
+  assert.match(requestContent, /redirectToLoginOnce/)
+  assert.match(requestContent, /resetAuthRedirect/)
+  assert.match(requestContent, /createH5PreviewResponse/)
+  assert.match(authSessionContent, /export const resetAuthRedirect/)
+  assert.match(authSessionContent, /isRedirectingToLogin = false/)
+  assert.match(h5PreviewContent, /export const isH5PreviewRequest/)
 })

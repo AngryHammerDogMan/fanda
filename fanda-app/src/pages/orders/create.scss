@@ -483,7 +483,12 @@
 
 .sheet-mask {
   position: fixed;
-  inset: 0;
+  top: 0;
+  bottom: 50px;
+  left: 50%;
+  width: 100%;
+  max-width: 430px;
+  transform: translateX(-50%);
   z-index: 120;
   display: flex;
   align-items: flex-end;

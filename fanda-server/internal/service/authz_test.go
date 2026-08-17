@@ -142,7 +142,7 @@ func TestCompleteWishRejectsNonOwner(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err := NewFeatureService().CompleteWish(context.Background(), outsiderUID, wishID)
+	err := NewWishService().CompleteWish(context.Background(), outsiderUID, wishID)
 	if err == nil {
 		t.Fatal("非创建者不应完成他人的心愿")
 	}
@@ -179,7 +179,7 @@ func TestToggleBasketRejectsNonOwner(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err := NewFeatureService().ToggleBasketPurchased(context.Background(), outsiderUID, itemID)
+	err := NewBasketService().ToggleBasketPurchased(context.Background(), outsiderUID, itemID)
 	if err == nil {
 		t.Fatal("非创建者不应切换他人的菜篮子项")
 	}

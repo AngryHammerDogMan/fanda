@@ -1,4 +1,5 @@
 const assert = require('node:assert/strict')
+const fs = require('node:fs')
 const { spawnSync } = require('node:child_process')
 const test = require('node:test')
 
@@ -44,4 +45,14 @@ test('invalid explicit task exits without opening the interactive menu', () => {
   assert.equal(result.status, 1)
   assert.match(result.stderr, /未识别的选项/)
   assert.doesNotMatch(result.stdout, /请选择要启动的服务/)
+})
+
+test('migrate task runs all migrations with strict shell failure handling', () => {
+  const source = fs.readFileSync('scripts/start.js', 'utf8')
+
+  assert.match(source, /set -euo pipefail/)
+  assert.match(source, /001_init\.sql/)
+  assert.match(source, /002_add_phone\.sql/)
+  assert.match(source, /003_tables_refactor\.sql/)
+  assert.match(source, /004_finalize_table_model\.sql/)
 })

@@ -1,6 +1,6 @@
 import { View, Text, Input, Image } from '@tarojs/components'
 import Taro, { useDidShow } from '@tarojs/taro'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { featureAPI, tableAPI } from '@/services/api'
 import type { BasketItem, Table } from '@/types'
 import { getErrorMessage } from '@/utils/error'
@@ -37,7 +37,7 @@ export default function Basket() {
     }
   }
 
-  const loadItems = async () => {
+  const loadItems = useCallback(async () => {
     if (!activeTableId) return
     setLoading(true)
     try {
@@ -48,13 +48,13 @@ export default function Basket() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [activeTableId])
 
   useEffect(() => {
     if (activeTableId) {
       loadItems()
     }
-  }, [activeTableId])
+  }, [activeTableId, loadItems])
 
   const handleTableChange = (tableId: string) => {
     setActiveTableId(tableId)

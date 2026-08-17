@@ -1,6 +1,6 @@
 import { View, Text, Input, Image } from '@tarojs/components'
 import Taro, { useDidShow } from '@tarojs/taro'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { featureAPI, tableAPI } from '@/services/api'
 import type { WishItem, Table } from '@/types'
 import { getErrorMessage } from '@/utils/error'
@@ -40,7 +40,7 @@ export default function Wishes() {
     }
   }
 
-  const loadWishes = async () => {
+  const loadWishes = useCallback(async () => {
     if (!activeTableId) return
     setLoading(true)
     try {
@@ -53,13 +53,13 @@ export default function Wishes() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [activeTableId, filter])
 
   useEffect(() => {
     if (activeTableId) {
       loadWishes()
     }
-  }, [activeTableId, filter])
+  }, [activeTableId, filter, loadWishes])
 
   const handleTableChange = (tableId: string) => {
     setActiveTableId(tableId)

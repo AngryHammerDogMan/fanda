@@ -78,41 +78,41 @@ export default function Calendar() {
 
   // 当餐桌或月份变化时加载数据
   useEffect(() => {
+    const loadMonthRecords = async () => {
+      if (!activeTableId) return
+      try {
+        const res = await calendarAPI.listByMonth(activeTableId, currentYear, currentMonth)
+        const records: CalendarRecord[] = Array.isArray(res.data) ? res.data : res.data?.list || []
+        const map: Record<string, CalendarRecord[]> = {}
+        // 按日期聚合记录，供日历格子快速判断当天有哪些 meal_type 圆点。
+        records.forEach((r: CalendarRecord) => {
+          const date = r.record_date?.slice(0, 10)
+          if (date) {
+            if (!map[date]) map[date] = []
+            map[date].push(r)
+          }
+        })
+        setDateRecordsMap(map)
+      } catch (err) {
+        console.error('加载日历记录失败', err)
+      }
+    }
+
+    const loadStats = async () => {
+      if (!activeTableId) return
+      try {
+        const res = await calendarAPI.getStats(activeTableId, currentYear, currentMonth)
+        setMonthlyStats(res.data)
+      } catch (err) {
+        console.error('加载统计失败', err)
+      }
+    }
+
     if (activeTableId) {
       loadMonthRecords()
       loadStats()
     }
   }, [activeTableId, currentYear, currentMonth])
-
-  const loadMonthRecords = async () => {
-    if (!activeTableId) return
-    try {
-      const res = await calendarAPI.listByMonth(activeTableId, currentYear, currentMonth)
-      const records: CalendarRecord[] = Array.isArray(res.data) ? res.data : res.data?.list || []
-      const map: Record<string, CalendarRecord[]> = {}
-      // 按日期聚合记录，供日历格子快速判断当天有哪些 meal_type 圆点。
-      records.forEach((r: CalendarRecord) => {
-        const date = r.record_date?.slice(0, 10)
-        if (date) {
-          if (!map[date]) map[date] = []
-          map[date].push(r)
-        }
-      })
-      setDateRecordsMap(map)
-    } catch (err) {
-      console.error('加载日历记录失败', err)
-    }
-  }
-
-  const loadStats = async () => {
-    if (!activeTableId) return
-    try {
-      const res = await calendarAPI.getStats(activeTableId, currentYear, currentMonth)
-      setMonthlyStats(res.data)
-    } catch (err) {
-      console.error('加载统计失败', err)
-    }
-  }
 
   const loadDateRecords = async (date: string) => {
     if (!activeTableId) return

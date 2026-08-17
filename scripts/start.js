@@ -28,11 +28,15 @@ brew services start redis
 `
 
 const migrateCommand = `
-psql -U postgres -tc "SELECT 1 FROM pg_database WHERE datname = 'fanda'" | grep -q 1 \\
-  || psql -U postgres -c "CREATE DATABASE fanda;"
+set -euo pipefail
 
-psql -U postgres -d fanda -f fanda-server/migrations/001_init.sql
-psql -U postgres -d fanda -f fanda-server/migrations/002_add_phone.sql
+psql -v ON_ERROR_STOP=1 -U postgres -tc "SELECT 1 FROM pg_database WHERE datname = 'fanda'" | grep -q 1 \\
+  || psql -v ON_ERROR_STOP=1 -U postgres -c "CREATE DATABASE fanda;"
+
+psql -v ON_ERROR_STOP=1 -U postgres -d fanda -f fanda-server/migrations/001_init.sql
+psql -v ON_ERROR_STOP=1 -U postgres -d fanda -f fanda-server/migrations/002_add_phone.sql
+psql -v ON_ERROR_STOP=1 -U postgres -d fanda -f fanda-server/migrations/003_tables_refactor.sql
+psql -v ON_ERROR_STOP=1 -U postgres -d fanda -f fanda-server/migrations/004_finalize_table_model.sql
 `
 
 const TASKS = [

@@ -61,6 +61,28 @@ export default function CreateOrder() {
   const measuringRef = useRef(false)
 
   useEffect(() => {
+    const chooseInitialTable = (list: Table[]): string => {
+      const lastTableId = Taro.getStorageSync(LAST_ORDER_TABLE_KEY)
+      if (typeof lastTableId === 'string' && list.some(table => table.id === lastTableId)) {
+        return lastTableId
+      }
+      const primary = list.find(table => table.type === 'personal' || table.type === 'couple')
+      return primary?.id || list[0]?.id || ''
+    }
+
+    const loadTables = async () => {
+      try {
+        const res = await tableAPI.list()
+        const list = res.data || []
+        setTables(list)
+        const nextTableId = chooseInitialTable(list)
+        setActiveTableId(nextTableId)
+        if (nextTableId) Taro.setStorageSync(LAST_ORDER_TABLE_KEY, nextTableId)
+      } catch (err: unknown) {
+        Taro.showToast({ title: getErrorMessage(err, '加载餐桌失败'), icon: 'none' })
+      }
+    }
+
     loadTables()
   }, [])
 
@@ -159,28 +181,6 @@ export default function CreateOrder() {
     })
     return Array.from(candidateMap.values())
   }, [selectedDishes])
-
-  const chooseInitialTable = (list: Table[]): string => {
-    const lastTableId = Taro.getStorageSync(LAST_ORDER_TABLE_KEY)
-    if (typeof lastTableId === 'string' && list.some(table => table.id === lastTableId)) {
-      return lastTableId
-    }
-    const primary = list.find(table => table.type === 'personal' || table.type === 'couple')
-    return primary?.id || list[0]?.id || ''
-  }
-
-  const loadTables = async () => {
-    try {
-      const res = await tableAPI.list()
-      const list = res.data || []
-      setTables(list)
-      const nextTableId = chooseInitialTable(list)
-      setActiveTableId(nextTableId)
-      if (nextTableId) Taro.setStorageSync(LAST_ORDER_TABLE_KEY, nextTableId)
-    } catch (err: unknown) {
-      Taro.showToast({ title: getErrorMessage(err, '加载餐桌失败'), icon: 'none' })
-    }
-  }
 
   const loadDishes = async (tableId: string) => {
     setLoadingDishes(true)

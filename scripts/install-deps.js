@@ -35,6 +35,7 @@ const INSTALL_STEPS = [
     label: '安装前端依赖',
     command: 'npm',
     args: ['--prefix', 'fanda-app', 'install'],
+    heavy: true,
     isDone: () => isFileNotOlderThan(NODE_MODULES_LOCK, [
       PACKAGE_JSON_PATH,
       PACKAGE_LOCK_PATH,
@@ -44,12 +45,13 @@ const INSTALL_STEPS = [
     label: '下载后端 Go 依赖',
     command: 'go',
     args: ['-C', 'fanda-server', 'mod', 'download'],
+    heavy: true,
     isDone: () => false,
   },
 ]
 
-function getInstallSteps() {
-  return INSTALL_STEPS.map((step) => ({
+function getInstallSteps(options = {}) {
+  return INSTALL_STEPS.filter((step) => !options.skipHeavy || !step.heavy).map((step) => ({
     ...step,
     args: [...step.args],
   }))
@@ -78,9 +80,10 @@ function runStep(step) {
 
 async function main() {
   const force = process.argv.includes('--force')
+  const skipHeavy = process.argv.includes('--skip-heavy')
   let skipped = 0
 
-  for (const step of getInstallSteps()) {
+  for (const step of getInstallSteps({ skipHeavy })) {
     if (!force && step.isDone()) {
       console.log(`\n> ${step.label}（已就绪，跳过）`)
       skipped++
@@ -94,6 +97,10 @@ async function main() {
     console.log(`\n依赖安装完成（${skipped} 项已跳过，使用 --force 可强制重装）`)
   } else {
     console.log('\n依赖安装完成')
+  }
+
+  if (skipHeavy) {
+    console.log('已跳过前端依赖安装和后端 Go 依赖下载；如需完整初始化，请运行 npm run bootstrap')
   }
 }
 

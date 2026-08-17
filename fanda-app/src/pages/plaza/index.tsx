@@ -44,22 +44,24 @@ export default function Plaza() {
   const loadCategories = async () => {
     try {
       const res = await dishAPI.getPlazaCategories()
-      const list: string[] = res.data?.categories || res.data || []
+      const list: string[] = res.data || []
       setCategories(['全部', ...list])
     } catch (err) {
       console.error('加载分类失败', err)
     }
   }
 
-  const loadDishes = async (reset = false) => {
+  const loadDishes = async (reset = false, options?: { category?: string; keyword?: string }) => {
+    const nextCategory = options?.category ?? activeCategory
+    const nextKeyword = options?.keyword ?? keyword
     if (loading) return
     setLoading(true)
     const currentPage = reset ? 1 : page
     try {
       const params: PlazaSearchParams = { page: currentPage, page_size: 20 }
       // “全部”与空关键词不传给后端，避免误筛选公开菜品。
-      if (activeCategory !== '全部') params.category = activeCategory
-      if (keyword) params.keyword = keyword
+      if (nextCategory !== '全部') params.category = nextCategory
+      if (nextKeyword) params.keyword = nextKeyword
       const res = await dishAPI.searchPlaza(params)
       const list: PlazaDish[] = res.data?.list || res.data || []
       const total = res.data?.total || 0
@@ -81,15 +83,12 @@ export default function Plaza() {
   const handleCategoryChange = (cat: string) => {
     setActiveCategory(cat)
     setPage(1)
-    // 延迟加载，等待 activeCategory 更新后让 loadDishes 使用最新分类。
-    setTimeout(() => {
-      loadDishes(true)
-    }, 0)
+    loadDishes(true, { category: cat })
   }
 
   const handleSearch = () => {
     setPage(1)
-    loadDishes(true)
+    loadDishes(true, { keyword })
   }
 
   const handleImport = async (dish: PlazaDish) => {
@@ -184,7 +183,9 @@ export default function Plaza() {
       <ScrollView
         className='dish-list'
         scrollY
-        onScrollToLower={() => loadDishes()}
+        onScrollToLower={() => {
+          if (hasMore && !loading) loadDishes()
+        }}
       >
         {dishes.length === 0 && !loading ? (
           <View className='empty-state'>

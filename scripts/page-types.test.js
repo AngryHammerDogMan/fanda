@@ -3,6 +3,7 @@ const fs = require('node:fs')
 const path = require('node:path')
 const test = require('node:test')
 
+const srcDir = path.join(process.cwd(), 'fanda-app/src')
 const pagesDir = path.join(process.cwd(), 'fanda-app/src/pages')
 
 function collectSourceFiles(dir) {
@@ -15,6 +16,28 @@ function collectSourceFiles(dir) {
     return /\.(ts|tsx)$/.test(entry.name) ? [fullPath] : []
   })
 }
+
+function collectAppSourceFiles(dir) {
+  const entries = fs.readdirSync(dir, { withFileTypes: true })
+  return entries.flatMap((entry) => {
+    const fullPath = path.join(dir, entry.name)
+    if (entry.isDirectory()) {
+      return collectAppSourceFiles(fullPath)
+    }
+    return /\.(ts|tsx|js|jsx)$/.test(entry.name) ? [fullPath] : []
+  })
+}
+
+test('app source files do not contain production console logs', () => {
+  const offenders = collectAppSourceFiles(srcDir).flatMap((filePath) => {
+    const source = fs.readFileSync(filePath, 'utf8')
+    const relativePath = path.relative(process.cwd(), filePath)
+
+    return source.includes('console.log(') ? [`${relativePath}: console.log`] : []
+  })
+
+  assert.deepEqual(offenders, [])
+})
 
 test('page files avoid any-typed catches and any-valued query records', () => {
   const offenders = collectSourceFiles(pagesDir).flatMap((filePath) => {
@@ -254,14 +277,13 @@ test('home recent orders empty icon renders fully', () => {
 
   assert(homeContent.includes("className='empty-state fanda-empty'"), 'home recent orders must use the empty-state block')
   assert(homeContent.includes("className='empty-icon-wrap'"), 'home recent orders empty icon must use a stable wrapper')
-  assert(homeContent.includes("className='empty-order-icon'"), 'home recent orders empty icon must avoid Taro Image clipping')
+  assert(homeContent.includes("<Image className='empty-order-icon' src={sticker('order')} mode='aspectFit' />"), 'home empty icon must use the copied runtime /assets sticker')
   assert(emptyIconWrapStyle.includes('width: 72px'), 'home empty icon wrapper must reserve full icon width')
   assert(emptyIconWrapStyle.includes('height: 72px'), 'home empty icon wrapper must reserve full icon height')
   assert(emptyIconWrapStyle.includes('overflow: visible'), 'home empty icon wrapper must not clip the sticker')
-  assert(emptyOrderIconStyle.includes("background-image: url('../../assets/stickers/order.png')"), 'home empty icon must render as a background image')
-  assert(emptyOrderIconStyle.includes('background-size: contain'), 'home empty background icon must show the full sticker')
-  assert(emptyOrderIconStyle.includes('background-repeat: no-repeat'), 'home empty background icon must not tile')
-  assert(emptyOrderIconStyle.includes('background-position: center'), 'home empty background icon must stay centered')
+  assert(emptyOrderIconStyle.includes('width: 100%'), 'home empty image must fill the reserved width')
+  assert(emptyOrderIconStyle.includes('height: 100%'), 'home empty image must fill the reserved height')
+  assert(emptyOrderIconStyle.includes('display: block'), 'home empty image must avoid inline image gaps')
 })
 
 test('login page hides tabbar and renders logo without image clipping', () => {
@@ -283,12 +305,10 @@ test('login page hides tabbar and renders logo without image clipping', () => {
   assert(!appConfig.match(/tabBar:\s*\{[\s\S]*pagePath:\s*'pages\/login\/index'/), 'login page must not be a tabbar page')
   assert(loginContent.includes('Taro.hideTabBar'), 'login page must explicitly hide tabbar in H5 and mini program runtimes')
   assert(loginContent.includes('Taro.showTabBar'), 'login flow must restore tabbar before entering the main tab page')
-  assert(loginContent.includes("className='logo-icon'"), 'login logo must use a stable background container')
-  assert(!loginContent.includes("className='logo-icon' src={sticker('home')}"), 'login logo must avoid Taro Image clipping')
-  assert(logoIconStyle.includes("background-image: url('../../assets/stickers/home.png')"), 'login logo must render as a background image')
-  assert(logoIconStyle.includes('background-size: contain'), 'login logo background must show the full sticker')
-  assert(logoIconStyle.includes('background-repeat: no-repeat'), 'login logo background must not tile')
-  assert(logoIconStyle.includes('background-position: center'), 'login logo background must stay centered')
+  assert(loginContent.includes("<Image className='logo-icon' src={sticker('home')} mode='aspectFit' />"), 'login logo must use the copied runtime /assets sticker')
+  assert(logoIconStyle.includes('width: 150px'), 'login logo must reserve full sticker width')
+  assert(logoIconStyle.includes('height: 150px'), 'login logo must reserve full sticker height')
+  assert(logoIconStyle.includes('display: block'), 'login logo must avoid inline image gaps')
   assert(loginHeroStyle.includes('margin-bottom: 88px'), 'login hero must leave enough space before the login button when the tabbar is hidden')
 })
 

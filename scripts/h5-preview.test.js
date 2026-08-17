@@ -3,6 +3,35 @@ const fs = require('node:fs')
 const path = require('node:path')
 const test = require('node:test')
 
+const H5_ENTRYPOINT_WARNING_LIMIT_KIB = 340
+
+test('fanda-app npm test uses the existing Node static test entry instead of Jest', () => {
+  const packageJson = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'fanda-app/package.json'), 'utf8'))
+  const appTestsDir = path.join(process.cwd(), 'fanda-app/src/__tests__')
+  const appStaticTests = fs.readdirSync(appTestsDir).filter((fileName) => fileName.endsWith('.test.cjs'))
+
+  assert.equal(packageJson.scripts.test, 'node --test src/__tests__/*.test.cjs')
+  assert.doesNotMatch(packageJson.scripts.test, /\bjest\b/)
+  assert.deepEqual(appStaticTests, ['page-data-flow.test.cjs'])
+})
+
+test('H5 entrypoint warning limit is documented without blocking preview tests', () => {
+  const testSource = fs.readFileSync(__filename, 'utf8')
+
+  assert.match(testSource, /^const H5_ENTRYPOINT_WARNING_LIMIT_KIB = 340$/m)
+})
+
+function collectScssFiles(dir) {
+  const entries = fs.readdirSync(dir, { withFileTypes: true })
+  return entries.flatMap((entry) => {
+    const fullPath = path.join(dir, entry.name)
+    if (entry.isDirectory()) {
+      return collectScssFiles(fullPath)
+    }
+    return entry.name.endsWith('.scss') ? [fullPath] : []
+  })
+}
+
 test('H5 preview has the Taro HTML entry template', () => {
   const templatePath = path.join(process.cwd(), 'fanda-app/src/index.html')
 
@@ -71,4 +100,32 @@ test('H5 login page can force-hide the tabbar shell', () => {
   assert.match(loginContent, /document\.body\.classList\.remove\(LOGIN_BODY_CLASS\)/)
   assert.match(appScss, /body\.fanda-login-active\s*>\s*#container\.taro-tabbar__container\s*>\s*taro-tabbar\s*\{[\s\S]*display:\s*none !important/)
   assert.match(appScss, /body\.fanda-login-active\s*>\s*#container\.taro-tabbar__container\s*>\s*\.taro-tabbar__panel\s*\{[\s\S]*height:\s*100vh/)
+})
+
+test('H5 preview mock requires explicit non-production preview flag', () => {
+  const previewSource = fs.readFileSync(path.join(process.cwd(), 'fanda-app/src/services/h5-preview.ts'), 'utf8')
+
+  assert.match(previewSource, /ENABLE_H5_PREVIEW_MOCK/)
+  assert.match(previewSource, /process\.env\.TARO_ENV === ['"]h5['"]/)
+  assert.match(previewSource, /process\.env\.NODE_ENV !== ['"]production['"]/)
+  assert.doesNotMatch(previewSource, /process\.env\.TARO_ENV === ['"]h5['"] && token === ['"]h5-preview-token['"]/)
+})
+
+test('fixed page style blocks do not use browser-wide inset zero', () => {
+  const pagesDir = path.join(process.cwd(), 'fanda-app/src/pages')
+  const offenders = collectScssFiles(pagesDir).flatMap((filePath) => {
+    const source = fs.readFileSync(filePath, 'utf8')
+    const relativePath = path.relative(process.cwd(), filePath)
+    const blocks = source.match(/[^{}]+\{[^{}]*\}/g) || []
+
+    return blocks.flatMap((block) => {
+      if (block.includes('position: fixed') && /inset:\s*0\b/.test(block)) {
+        const selector = block.split('{')[0].trim()
+        return [`${relativePath}: ${selector} uses fixed inset: 0`]
+      }
+      return []
+    })
+  })
+
+  assert.deepEqual(offenders, [])
 })

@@ -95,7 +95,7 @@ node -v
 npm -v
 ```
 
-项目要求 Node.js `18` 或更高版本。
+项目要求 Node.js `18.12` 或更高版本。
 
 ### Go
 
@@ -107,7 +107,7 @@ Go 是后端使用的编程语言。Go 命令负责下载依赖、编译代码�
 go version
 ```
 
-项目要求 Go `1.23` 或更高版本。
+项目要求 Go `1.25` 或更高版本，与 `fanda-server/go.mod` 保持一致。
 
 常用命令：
 
@@ -150,18 +150,20 @@ CREATE DATABASE fanda;
 fanda-server/migrations/001_init.sql
 fanda-server/migrations/002_add_phone.sql
 fanda-server/migrations/003_tables_refactor.sql
+fanda-server/migrations/004_finalize_table_model.sql
 ```
 
-必须按 `001`、`002`、`003` 的顺序执行：
+必须按 `001`、`002`、`003`、`004` 的顺序执行：
 
 - `001` 创建初始业务表
 - `002` 增加手机号能力
 - `003` 引入统一餐桌模型、参与者和相关 `table_id`
+- `004` 回填旧 `group_id` 到 `table_id`，收紧核心表的 `table_id` 非空约束，并放宽旧 `group_type/group_id`
 
 下面的命令表示使用 `postgres` 用户连接 `fanda` 数据库，并执行一个 SQL 文件：
 
 ```text
-psql -U postgres -d fanda -f fanda-server/migrations/003_tables_refactor.sql
+psql -U postgres -d fanda -f fanda-server/migrations/004_finalize_table_model.sql
 ```
 
 ### Redis
@@ -213,7 +215,7 @@ Docker Desktop 不是饭搭当前版本的必需软件。只有希望在 Windows
 | `npm run build:h5` | 支持 | 支持 | 构建 H5 |
 | `npm test` | 支持 | 支持 | 根目录脚本测试 |
 | `npm run db:start` | 支持 | 不支持 | 脚本依赖 Homebrew |
-| `npm run db:migrate` | 支持但不完整 | 不支持 | 脚本依赖 `sh`，且未执行 `003` |
+| `npm run db:migrate` | 支持，自动执行 `001`-`004` | 不支持 | 脚本依赖 Unix `sh` |
 | `node scripts/start.js redis` | 支持 | 不支持 | 脚本依赖 Homebrew |
 
 Windows 应使用本指南提供的 PostgreSQL Windows 服务、`psql` 和 Docker 命令。
@@ -306,9 +308,21 @@ JWT_SECRET=local-development-secret
 JWT_EXPIRE_HOURS=168
 ADMIN_PASSWORD=admin123
 CORS_ALLOW_ORIGINS=*
+WX_APPID=your_wx_appid
+WX_SECRET=your_wx_secret
+DY_APPID=your_dy_appid
+DY_SECRET=your_dy_secret
 ```
 
 本地 `postgres` 用户有密码时，把密码填入 `DB_PASSWORD`；无密码时留空。
+
+本地开发可以使用示例值；生产或接近生产的演示环境必须改用安全配置：
+
+- `SERVER_MODE=release` 时必须配置真实 `WX_APPID` / `WX_SECRET` / `DY_APPID` / `DY_SECRET`，后端会分别调用微信 `jscode2session` 与抖音 `code2session` 换取 openid，不能使用开发 mock code。
+- `JWT_SECRET` 必须换成高强度随机密钥。
+- `ADMIN_PASSWORD` 必须换成非默认强密码。
+- `CORS_ALLOW_ORIGINS` 必须限制为实际前端域名，不能使用 `*`。
+- `.env`、数据库密码和平台密钥不能提交到 Git。
 
 ### 启动 PostgreSQL
 
@@ -335,17 +349,13 @@ createuser -s postgres
 
 ### 创建数据库并迁移
 
-项目入口会创建数据库并执行 `001`、`002`：
+项目入口会创建数据库并按顺序执行 `001`、`002`、`003`、`004`：
 
 ```bash
 npm run db:migrate
 ```
 
-当前脚本没有执行 `003`，必须手动补充：
-
-```bash
-psql -U postgres -d fanda -f fanda-server/migrations/003_tables_refactor.sql
-```
+该命令使用严格失败退出；任一迁移报错时会停止，避免后续迁移在不完整 schema 上继续执行。
 
 也可以手动执行完整流程：
 
@@ -354,6 +364,7 @@ psql -U postgres -c "CREATE DATABASE fanda;"
 psql -U postgres -d fanda -f fanda-server/migrations/001_init.sql
 psql -U postgres -d fanda -f fanda-server/migrations/002_add_phone.sql
 psql -U postgres -d fanda -f fanda-server/migrations/003_tables_refactor.sql
+psql -U postgres -d fanda -f fanda-server/migrations/004_finalize_table_model.sql
 ```
 
 数据库已经存在时，跳过第一条创建命令。
@@ -533,11 +544,12 @@ psql -U postgres -h localhost -W -c "CREATE DATABASE fanda;"
 psql -U postgres -h localhost -W -d fanda -f fanda-server/migrations/001_init.sql
 psql -U postgres -h localhost -W -d fanda -f fanda-server/migrations/002_add_phone.sql
 psql -U postgres -h localhost -W -d fanda -f fanda-server/migrations/003_tables_refactor.sql
+psql -U postgres -h localhost -W -d fanda -f fanda-server/migrations/004_finalize_table_model.sql
 ```
 
 `-W` 会提示输入安装 PostgreSQL 时设置的 `postgres` 密码。输入密码时终端不会显示字符，这是正常的。
 
-数据库已经存在时，第一条命令会报错，可以忽略创建步骤并继续执行三个迁移文件。
+数据库已经存在时，第一条命令会报错，可以忽略创建步骤并继续执行四个迁移文件。
 
 验证：
 
@@ -728,7 +740,7 @@ H5：http://localhost:10086/
 后台：http://localhost:8080/admin/
 ```
 
-H5 登录页可以点击“浏览器预览登录”。该模式使用前端内置 Mock 数据，不调用微信或抖音登录能力。
+H5 登录页可以点击“浏览器预览登录”。该模式只用于本地浏览器预览，不调用微信或抖音登录能力；前端内置 Mock 需要同时满足 H5、非生产环境、`ENABLE_H5_PREVIEW_MOCK=true` 和 `h5-preview-token`。
 
 ## H5 与小程序
 
@@ -863,7 +875,7 @@ Get-NetTCPConnection -LocalPort 5432 -ErrorAction SilentlyContinue
 Get-NetTCPConnection -LocalPort 6379 -ErrorAction SilentlyContinue
 ```
 
-`fanda-app` 当前声明了 `npm test`，但项目尚未安装 `jest`，因此前端目录的 `npm test` 暂时不是有效验证命令。
+前端目录的测试入口为 `npm --prefix fanda-app test`，当前运行 `fanda-app/src/__tests__/*.test.cjs` 中的 Node 静态测试，不依赖 Jest。
 
 ## 常见问题
 
@@ -919,22 +931,24 @@ Windows：
 psql -U postgres -h localhost -W -c "CREATE DATABASE fanda;"
 ```
 
-然后按顺序执行三个迁移文件。
+然后按顺序执行四个迁移文件。
 
 ### 缺少 `tables` 表或 `table_id`
 
-说明没有执行 `003_tables_refactor.sql`。
+说明没有完成 `003_tables_refactor.sql` 和 `004_finalize_table_model.sql`。
 
 macOS：
 
 ```bash
 psql -U postgres -d fanda -f fanda-server/migrations/003_tables_refactor.sql
+psql -U postgres -d fanda -f fanda-server/migrations/004_finalize_table_model.sql
 ```
 
 Windows：
 
 ```powershell
 psql -U postgres -h localhost -W -d fanda -f fanda-server/migrations/003_tables_refactor.sql
+psql -U postgres -h localhost -W -d fanda -f fanda-server/migrations/004_finalize_table_model.sql
 ```
 
 ### 端口已被占用
@@ -997,9 +1011,10 @@ docker exec fanda-redis redis-cli ping
 1. 后端终端是否仍在运行
 2. `http://localhost:8080/` 能否打开
 3. 前端 API 是否为 `http://localhost:8080/api/v1`
-4. `.env` 中 `CORS_ALLOW_ORIGINS` 是否为 `*`
+4. 本地开发 `.env` 中 `CORS_ALLOW_ORIGINS` 是否允许当前 H5 地址
+5. 浏览器预览登录是否已在 H5 非生产环境显式设置 `ENABLE_H5_PREVIEW_MOCK=true`
 
-使用“浏览器预览登录”时，主要接口会走前端 Mock。
+使用“浏览器预览登录”时，只有显式预览模式会走前端 Mock；生产构建不得启用该开关。
 
 ### npm 安装失败
 
@@ -1022,7 +1037,6 @@ npm install
 cp fanda-server/.env.example fanda-server/.env
 npm run db:start
 npm run db:migrate
-psql -U postgres -d fanda -f fanda-server/migrations/003_tables_refactor.sql
 ```
 
 然后分别运行：
@@ -1048,6 +1062,7 @@ psql -U postgres -h localhost -W -c "CREATE DATABASE fanda;"
 psql -U postgres -h localhost -W -d fanda -f fanda-server/migrations/001_init.sql
 psql -U postgres -h localhost -W -d fanda -f fanda-server/migrations/002_add_phone.sql
 psql -U postgres -h localhost -W -d fanda -f fanda-server/migrations/003_tables_refactor.sql
+psql -U postgres -h localhost -W -d fanda -f fanda-server/migrations/004_finalize_table_model.sql
 ```
 
 然后分别运行：

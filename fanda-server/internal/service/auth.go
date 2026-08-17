@@ -2,11 +2,15 @@
 package service
 
 import (
+	"bytes"
 	"context"
 	"crypto/rand"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
+	"net/url"
 	"time"
 
 	"fanda-server/internal/config"
@@ -19,12 +23,20 @@ import (
 )
 
 type AuthService struct {
-	cfg *config.Config
+	cfg               *config.Config
+	httpClient        *http.Client
+	wxCode2SessionURL string
+	dyCode2SessionURL string
 }
 
 // NewAuthService 创建认证服务，JWT 签发依赖传入的运行配置。
 func NewAuthService(cfg *config.Config) *AuthService {
-	return &AuthService{cfg: cfg}
+	return &AuthService{
+		cfg:               cfg,
+		httpClient:        http.DefaultClient,
+		wxCode2SessionURL: "https://api.weixin.qq.com/sns/jscode2session",
+		dyCode2SessionURL: "https://developer.toutiao.com/api/apps/v2/jscode2session",
+	}
 }
 
 // LoginResult 登录返回
@@ -229,6 +241,18 @@ func (s *AuthService) mergeAccounts(sourceUID, targetUID uuid.UUID) error {
 		tx.Rollback()
 		return fmt.Errorf("迁移菜篮子失败: %w", err)
 	}
+	if err := tx.Model(&model.Table{}).Where("owner_id = ?", sourceUID).Update("owner_id", targetUID).Error; err != nil {
+		tx.Rollback()
+		return fmt.Errorf("迁移餐桌归属失败: %w", err)
+	}
+	if err := mergeTableMembers(tx, sourceUID, targetUID); err != nil {
+		tx.Rollback()
+		return err
+	}
+	if err := mergeOrderParticipants(tx, sourceUID, targetUID); err != nil {
+		tx.Rollback()
+		return err
+	}
 	if err := tx.Model(&model.OrderVote{}).Where("user_id = ?", sourceUID).Update("user_id", targetUID).Error; err != nil {
 		tx.Rollback()
 		return fmt.Errorf("迁移投票失败: %w", err)
@@ -275,6 +299,60 @@ func (s *AuthService) mergeAccounts(sourceUID, targetUID uuid.UUID) error {
 	}
 
 	return tx.Commit().Error
+}
+
+func mergeTableMembers(tx *gorm.DB, sourceUID, targetUID uuid.UUID) error {
+	var members []model.TableMember
+	if err := tx.Where("user_id = ?", sourceUID).Find(&members).Error; err != nil {
+		return fmt.Errorf("查询餐桌成员失败: %w", err)
+	}
+
+	for _, member := range members {
+		var existingCount int64
+		if err := tx.Model(&model.TableMember{}).
+			Where("table_id = ? AND user_id = ?", member.TableID, targetUID).
+			Count(&existingCount).Error; err != nil {
+			return fmt.Errorf("查询餐桌成员冲突失败: %w", err)
+		}
+		if existingCount > 0 {
+			if err := tx.Delete(&model.TableMember{}, "id = ?", member.ID).Error; err != nil {
+				return fmt.Errorf("删除重复餐桌成员失败: %w", err)
+			}
+			continue
+		}
+		if err := tx.Model(&model.TableMember{}).Where("id = ?", member.ID).Update("user_id", targetUID).Error; err != nil {
+			return fmt.Errorf("迁移餐桌成员失败: %w", err)
+		}
+	}
+
+	return nil
+}
+
+func mergeOrderParticipants(tx *gorm.DB, sourceUID, targetUID uuid.UUID) error {
+	var participants []model.OrderParticipant
+	if err := tx.Where("user_id = ?", sourceUID).Find(&participants).Error; err != nil {
+		return fmt.Errorf("查询订单参与人失败: %w", err)
+	}
+
+	for _, participant := range participants {
+		var existingCount int64
+		if err := tx.Model(&model.OrderParticipant{}).
+			Where("order_id = ? AND user_id = ?", participant.OrderID, targetUID).
+			Count(&existingCount).Error; err != nil {
+			return fmt.Errorf("查询订单参与人冲突失败: %w", err)
+		}
+		if existingCount > 0 {
+			if err := tx.Delete(&model.OrderParticipant{}, "id = ?", participant.ID).Error; err != nil {
+				return fmt.Errorf("删除重复订单参与人失败: %w", err)
+			}
+			continue
+		}
+		if err := tx.Model(&model.OrderParticipant{}).Where("id = ?", participant.ID).Update("user_id", targetUID).Error; err != nil {
+			return fmt.Errorf("迁移订单参与人失败: %w", err)
+		}
+	}
+
+	return nil
 }
 
 // GetProfile 获取用户信息，并附带当前活跃情侣关系与饭搭子组合概览。
@@ -388,6 +466,7 @@ func (s *AuthService) JoinCouple(ctx context.Context, userID uuid.UUID, code str
 	tx := database.DB.Begin()
 
 	couple := model.Couple{
+		ID:      uuid.New(),
 		User1ID: invite.InviterID,
 		User2ID: userID,
 		Status:  "active",
@@ -395,6 +474,10 @@ func (s *AuthService) JoinCouple(ctx context.Context, userID uuid.UUID, code str
 	if err := tx.Create(&couple).Error; err != nil {
 		tx.Rollback()
 		return fmt.Errorf("创建情侣关系失败: %w", err)
+	}
+	if err := NewTableService().CreateCoupleTable(ctx, tx, couple.ID, invite.InviterID, userID); err != nil {
+		tx.Rollback()
+		return fmt.Errorf("创建情侣餐桌失败: %w", err)
 	}
 
 	invite.IsUsed = true
@@ -418,6 +501,7 @@ func (s *AuthService) CreateBuddyGroup(ctx context.Context, userID uuid.UUID, na
 	tx := database.DB.Begin()
 
 	group := model.BuddyGroup{
+		ID:      uuid.New(),
 		Name:    name,
 		OwnerID: userID,
 	}
@@ -427,6 +511,7 @@ func (s *AuthService) CreateBuddyGroup(ctx context.Context, userID uuid.UUID, na
 	}
 
 	member := model.BuddyMember{
+		ID:      uuid.New(),
 		GroupID: group.ID,
 		UserID:  userID,
 		Role:    "owner",
@@ -434,6 +519,10 @@ func (s *AuthService) CreateBuddyGroup(ctx context.Context, userID uuid.UUID, na
 	if err := tx.Create(&member).Error; err != nil {
 		tx.Rollback()
 		return nil, fmt.Errorf("添加成员失败: %w", err)
+	}
+	if err := NewTableService().CreateBuddyTable(ctx, tx, group.ID, userID, group.Name); err != nil {
+		tx.Rollback()
+		return nil, fmt.Errorf("创建饭搭餐桌失败: %w", err)
 	}
 
 	if err := tx.Commit().Error; err != nil {
@@ -521,6 +610,7 @@ func (s *AuthService) JoinBuddyGroup(ctx context.Context, userID uuid.UUID, grou
 	tx := database.DB.Begin()
 
 	member := model.BuddyMember{
+		ID:      uuid.New(),
 		GroupID: invite.GroupID,
 		UserID:  userID,
 		Role:    "member",
@@ -529,7 +619,10 @@ func (s *AuthService) JoinBuddyGroup(ctx context.Context, userID uuid.UUID, grou
 		tx.Rollback()
 		return fmt.Errorf("加入组合失败: %w", err)
 	}
-
+	if err := NewTableService().AddBuddyTableMember(ctx, tx, invite.GroupID, userID, "member"); err != nil {
+		tx.Rollback()
+		return fmt.Errorf("加入饭搭餐桌失败: %w", err)
+	}
 	invite.IsUsed = true
 	if err := tx.Save(&invite).Error; err != nil {
 		tx.Rollback()
@@ -572,12 +665,122 @@ func (s *AuthService) RemoveBuddyMember(ctx context.Context, userID uuid.UUID, g
 // ---- 辅助函数 ----
 
 func (s *AuthService) exchangeOpenID(platform, code string) (string, error) {
-	// 开发阶段：直接用 code 作为 openid 模拟
-	// 上线后替换为真实的微信/抖音 API 调用
 	if code == "" {
 		return "", errors.New("code 不能为空")
 	}
-	return platform + "_" + code, nil
+
+	switch platform {
+	case "wechat", "douyin":
+	default:
+		return "", fmt.Errorf("不支持的平台: %s", platform)
+	}
+
+	if s.cfg == nil || s.cfg.ServerMode != "release" {
+		return platform + "_" + code, nil
+	}
+
+	switch platform {
+	case "wechat":
+		if s.cfg.WxAppID == "" || s.cfg.WxSecret == "" {
+			return "", errors.New("release 模式缺少微信 WX_APPID 或 WX_SECRET")
+		}
+		return s.exchangeWechatOpenID(code)
+	case "douyin":
+		if s.cfg.DyAppID == "" || s.cfg.DySecret == "" {
+			return "", errors.New("release 模式缺少抖音 DY_APPID 或 DY_SECRET")
+		}
+		return s.exchangeDouyinOpenID(code)
+	default:
+		return "", fmt.Errorf("不支持的平台: %s", platform)
+	}
+}
+
+func (s *AuthService) exchangeWechatOpenID(code string) (string, error) {
+	endpoint, err := url.Parse(s.wxCode2SessionURL)
+	if err != nil {
+		return "", fmt.Errorf("微信 code2session 地址无效: %w", err)
+	}
+	q := endpoint.Query()
+	q.Set("appid", s.cfg.WxAppID)
+	q.Set("secret", s.cfg.WxSecret)
+	q.Set("js_code", code)
+	q.Set("grant_type", "authorization_code")
+	endpoint.RawQuery = q.Encode()
+
+	resp, err := s.client().Get(endpoint.String())
+	if err != nil {
+		return "", fmt.Errorf("调用微信 code2session 失败: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
+		return "", fmt.Errorf("微信 code2session HTTP 状态异常: %d", resp.StatusCode)
+	}
+
+	var payload struct {
+		OpenID  string `json:"openid"`
+		ErrCode int    `json:"errcode"`
+		ErrMsg  string `json:"errmsg"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&payload); err != nil {
+		return "", fmt.Errorf("解析微信 code2session 响应失败: %w", err)
+	}
+	if payload.ErrCode != 0 {
+		return "", fmt.Errorf("微信 code2session 返回错误: %d %s", payload.ErrCode, payload.ErrMsg)
+	}
+	if payload.OpenID == "" {
+		return "", errors.New("微信 code2session 未返回 openid")
+	}
+	return payload.OpenID, nil
+}
+
+func (s *AuthService) exchangeDouyinOpenID(code string) (string, error) {
+	body, err := json.Marshal(map[string]string{
+		"appid":  s.cfg.DyAppID,
+		"secret": s.cfg.DySecret,
+		"code":   code,
+	})
+	if err != nil {
+		return "", fmt.Errorf("构造抖音 code2session 请求失败: %w", err)
+	}
+	req, err := http.NewRequest(http.MethodPost, s.dyCode2SessionURL, bytes.NewReader(body))
+	if err != nil {
+		return "", fmt.Errorf("抖音 code2session 地址无效: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := s.client().Do(req)
+	if err != nil {
+		return "", fmt.Errorf("调用抖音 code2session 失败: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
+		return "", fmt.Errorf("抖音 code2session HTTP 状态异常: %d", resp.StatusCode)
+	}
+
+	var payload struct {
+		ErrNo   int    `json:"err_no"`
+		ErrTips string `json:"err_tips"`
+		Data    struct {
+			OpenID string `json:"openid"`
+		} `json:"data"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&payload); err != nil {
+		return "", fmt.Errorf("解析抖音 code2session 响应失败: %w", err)
+	}
+	if payload.ErrNo != 0 {
+		return "", fmt.Errorf("抖音 code2session 返回错误: %d %s", payload.ErrNo, payload.ErrTips)
+	}
+	if payload.Data.OpenID == "" {
+		return "", errors.New("抖音 code2session 未返回 openid")
+	}
+	return payload.Data.OpenID, nil
+}
+
+func (s *AuthService) client() *http.Client {
+	if s.httpClient != nil {
+		return s.httpClient
+	}
+	return http.DefaultClient
 }
 
 func (s *AuthService) generateJWT(uid uuid.UUID, platform string) (string, error) {

@@ -10,13 +10,19 @@ import (
 )
 
 type FeatureHandler struct {
-	service *service.FeatureService
+	service       *service.FeatureService
+	wishService   *service.WishService
+	basketService *service.BasketService
+	budgetService *service.BudgetService
 }
 
 // NewFeatureHandler 创建扩展功能 handler，覆盖心愿、签到、菜篮子、预算和积分。
 func NewFeatureHandler() *FeatureHandler {
 	return &FeatureHandler{
-		service: service.NewFeatureService(),
+		service:       service.NewFeatureService(),
+		wishService:   service.NewWishService(),
+		basketService: service.NewBasketService(),
+		budgetService: service.NewBudgetService(),
 	}
 }
 
@@ -33,7 +39,7 @@ func (h *FeatureHandler) CreateWish(c *gin.Context) {
 		return
 	}
 
-	wish, err := h.service.CreateWish(c.Request.Context(), uid, req)
+	wish, err := h.wishService.CreateWish(c.Request.Context(), uid, req)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": err.Error()})
 		return
@@ -60,7 +66,7 @@ func (h *FeatureHandler) ListWishes(c *gin.Context) {
 		completed = &f
 	}
 
-	wishes, err := h.service.ListWishes(c.Request.Context(), uid, tableID, completed)
+	wishes, err := h.wishService.ListWishes(c.Request.Context(), uid, tableID, completed)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": err.Error()})
 		return
@@ -78,7 +84,7 @@ func (h *FeatureHandler) CompleteWish(c *gin.Context) {
 		return
 	}
 
-	if err := h.service.CompleteWish(c.Request.Context(), uid, wishID); err != nil {
+	if err := h.wishService.CompleteWish(c.Request.Context(), uid, wishID); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": err.Error()})
 		return
 	}
@@ -95,7 +101,7 @@ func (h *FeatureHandler) DeleteWish(c *gin.Context) {
 		return
 	}
 
-	if err := h.service.DeleteWish(c.Request.Context(), uid, wishID); err != nil {
+	if err := h.wishService.DeleteWish(c.Request.Context(), uid, wishID); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": err.Error()})
 		return
 	}
@@ -146,7 +152,7 @@ func (h *FeatureHandler) AddToBasket(c *gin.Context) {
 		return
 	}
 
-	item, err := h.service.AddToBasket(c.Request.Context(), uid, req)
+	item, err := h.basketService.AddToBasket(c.Request.Context(), uid, req)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": err.Error()})
 		return
@@ -164,7 +170,7 @@ func (h *FeatureHandler) ListBasket(c *gin.Context) {
 		return
 	}
 
-	items, err := h.service.ListBasket(c.Request.Context(), uid, tableID)
+	items, err := h.basketService.ListBasket(c.Request.Context(), uid, tableID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": err.Error()})
 		return
@@ -182,7 +188,7 @@ func (h *FeatureHandler) ToggleBasketPurchased(c *gin.Context) {
 		return
 	}
 
-	if err := h.service.ToggleBasketPurchased(c.Request.Context(), uid, itemID); err != nil {
+	if err := h.basketService.ToggleBasketPurchased(c.Request.Context(), uid, itemID); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": err.Error()})
 		return
 	}
@@ -199,7 +205,7 @@ func (h *FeatureHandler) DeleteBasket(c *gin.Context) {
 		return
 	}
 
-	if err := h.service.DeleteBasket(c.Request.Context(), uid, itemID); err != nil {
+	if err := h.basketService.DeleteBasket(c.Request.Context(), uid, itemID); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": err.Error()})
 		return
 	}
@@ -220,7 +226,7 @@ func (h *FeatureHandler) SetBudget(c *gin.Context) {
 		return
 	}
 
-	budget, err := h.service.SetBudget(c.Request.Context(), uid, req)
+	budget, err := h.budgetService.SetBudget(c.Request.Context(), uid, req)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": err.Error()})
 		return
@@ -239,7 +245,7 @@ func (h *FeatureHandler) GetBudget(c *gin.Context) {
 	}
 	month := c.Query("month")
 
-	budget, err := h.service.GetBudget(c.Request.Context(), uid, tableID, month)
+	budget, err := h.budgetService.GetBudget(c.Request.Context(), uid, tableID, month)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"code": 404, "message": err.Error()})
 		return

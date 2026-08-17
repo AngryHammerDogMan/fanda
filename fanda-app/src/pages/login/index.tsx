@@ -160,7 +160,7 @@ export default function Login() {
         <View className='login-container'>
           {/* Logo */}
           <View className='logo-section login-hero'>
-            <View className='logo-icon' />
+            <Image className='logo-icon' src={sticker('home')} mode='aspectFit' />
             <Text className='logo-title'>饭搭</Text>
             <Text className='logo-subtitle'>和喜欢的人一起吃饭</Text>
           </View>
@@ -270,7 +270,7 @@ export default function Login() {
     <View className='page-login'>
       <View className='login-container'>
         <View className='logo-section'>
-          <View className='logo-icon' />
+          <Image className='logo-icon' src={sticker('home')} mode='aspectFit' />
           <Text className='logo-title'>饭搭</Text>
           <Text className='logo-subtitle'>正在登录…</Text>
         </View>

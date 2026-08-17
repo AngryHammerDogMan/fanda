@@ -1,6 +1,6 @@
 import { View, Text, Input, Picker } from '@tarojs/components'
 import Taro, { useDidShow } from '@tarojs/taro'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { featureAPI, calendarAPI, tableAPI } from '@/services/api'
 import type { BudgetSetting, MonthlyStats, PickerChangeEvent, Table } from '@/types'
 import { getErrorMessage } from '@/utils/error'
@@ -38,7 +38,7 @@ export default function Budget() {
     }
   }
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     if (!activeTableId) return
     try {
       // 预算设置和日历统计独立返回，并发请求后在本页合并计算进度。
@@ -51,13 +51,13 @@ export default function Budget() {
     } catch (err) {
       console.error('加载预算数据失败', err)
     }
-  }
+  }, [activeTableId, currentMonth, month, year])
 
   useEffect(() => {
     if (activeTableId) {
       loadData()
     }
-  }, [activeTableId, year, month])
+  }, [activeTableId, year, month, loadData])
 
   const handleTableChange = (tableId: string) => {
     setActiveTableId(tableId)

@@ -1,6 +1,7 @@
 package config
 
 import (
+	"strings"
 	"testing"
 )
 
@@ -26,5 +27,25 @@ func TestLoadAcceptsDevelopmentDefaults(t *testing.T) {
 	}
 	if cfg.JWTSecret == "" {
 		t.Fatal("JWTSecret 不应为空")
+	}
+}
+
+// TestLoadRejectsReleaseWithoutPlatformSecrets 覆盖生产模式必须配置真实平台密钥，避免退回 mock 登录。
+func TestLoadRejectsReleaseWithoutPlatformSecrets(t *testing.T) {
+	t.Setenv("SERVER_MODE", "release")
+	t.Setenv("JWT_SECRET", "release-jwt-secret-with-at-least-32-chars")
+	t.Setenv("ADMIN_PASSWORD", "release-admin-password")
+	t.Setenv("WX_APPID", "")
+	t.Setenv("WX_SECRET", "")
+	t.Setenv("DY_APPID", "")
+	t.Setenv("DY_SECRET", "")
+
+	_, err := Load()
+	if err == nil {
+		t.Fatal("release 模式缺少微信/抖音平台密钥时应失败")
+	}
+	if !strings.Contains(err.Error(), "WX_APPID") || !strings.Contains(err.Error(), "WX_SECRET") ||
+		!strings.Contains(err.Error(), "DY_APPID") || !strings.Contains(err.Error(), "DY_SECRET") {
+		t.Fatalf("错误信息应指出缺失的平台配置，got %q", err.Error())
 	}
 }

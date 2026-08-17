@@ -36,7 +36,8 @@ function probeRegistry(registry, timeoutMs = DEFAULT_TIMEOUT_MS) {
     const request = https.get(pingUrl, { signal: controller.signal }, (response) => {
       clearTimeout(timer)
       response.resume()
-      resolve(response.statusCode !== undefined && response.statusCode < 500)
+      const isUsableStatus = response.statusCode >= 200 && response.statusCode < 400
+      resolve(isUsableStatus)
     })
 
     request.on('error', () => {

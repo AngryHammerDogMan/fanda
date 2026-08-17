@@ -148,3 +148,146 @@ func TestCreateTogetherOrderCreatesParticipants(t *testing.T) {
 	require.NoError(t, db.First(&record, "id = ?", *order.CalendarRecordID).Error)
 	require.Equal(t, "pending", record.Status)
 }
+
+func TestCreateOrderRejectsDishFromAnotherTable(t *testing.T) {
+	db := setupOrderTestDB(t)
+	database.DB = db
+
+	uid := uuid.New()
+	tableA := uuid.New()
+	tableB := uuid.New()
+	dishFromTableB := uuid.New()
+	price := 22.0
+
+	require.NoError(t, db.Create(&model.User{UID: uid, Nickname: "tester"}).Error)
+	require.NoError(t, db.Create(&model.Table{ID: tableA, Type: "personal", Name: "A 餐桌", OwnerID: uid, Status: "active"}).Error)
+	require.NoError(t, db.Create(&model.Table{ID: tableB, Type: "personal", Name: "B 餐桌", OwnerID: uid, Status: "active"}).Error)
+	require.NoError(t, db.Create(&model.TableMember{ID: uuid.New(), TableID: tableA, UserID: uid, Role: "owner", Status: "active"}).Error)
+	require.NoError(t, db.Create(&model.TableMember{ID: uuid.New(), TableID: tableB, UserID: uid, Role: "owner", Status: "active"}).Error)
+	require.NoError(t, db.Create(&model.Dish{ID: dishFromTableB, OwnerID: uid, TableID: tableB, DishType: "dish", Name: "越界菜", Price: &price}).Error)
+
+	_, err := NewOrderService().CreateOrder(context.Background(), uid, CreateOrderReq{
+		TableID:  tableA,
+		DineMode: "solo",
+		Items: []OrderItemReq{{
+			DishID:    dishFromTableB,
+			Quantity:  1,
+			UnitPrice: &price,
+		}},
+	})
+
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "菜品")
+}
+
+func TestCreateOrderRejectsDeletedDish(t *testing.T) {
+	db := setupOrderTestDB(t)
+	database.DB = db
+
+	uid := uuid.New()
+	tableID := uuid.New()
+	dishID := uuid.New()
+	price := 18.0
+
+	require.NoError(t, db.Create(&model.User{UID: uid, Nickname: "tester"}).Error)
+	require.NoError(t, db.Create(&model.Table{ID: tableID, Type: "personal", Name: "我的餐桌", OwnerID: uid, Status: "active"}).Error)
+	require.NoError(t, db.Create(&model.TableMember{ID: uuid.New(), TableID: tableID, UserID: uid, Role: "owner", Status: "active"}).Error)
+	require.NoError(t, db.Create(&model.Dish{ID: dishID, OwnerID: uid, TableID: tableID, DishType: "dish", Name: "已删除菜", Price: &price, IsDeleted: true}).Error)
+
+	_, err := NewOrderService().CreateOrder(context.Background(), uid, CreateOrderReq{
+		TableID:  tableID,
+		DineMode: "solo",
+		Items: []OrderItemReq{{
+			DishID:    dishID,
+			Quantity:  1,
+			UnitPrice: &price,
+		}},
+	})
+
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "菜品")
+}
+
+func TestConfirmOrderSyncsCalendarRecordAndParticipant(t *testing.T) {
+	db := setupOrderTestDB(t)
+	database.DB = db
+	ctx := context.Background()
+	_, participantID, order := createPendingOrderForStateTest(t, db)
+
+	err := NewOrderService().ConfirmOrder(ctx, participantID, order.ID)
+
+	require.NoError(t, err)
+	assertOrderCalendarAndParticipantStatus(t, db, order.ID, *order.CalendarRecordID, participantID, "confirmed", "confirmed", "accepted")
+}
+
+func TestRejectOrderSyncsCalendarRecordAndParticipant(t *testing.T) {
+	db := setupOrderTestDB(t)
+	database.DB = db
+	ctx := context.Background()
+	_, participantID, order := createPendingOrderForStateTest(t, db)
+
+	err := NewOrderService().RejectOrder(ctx, participantID, order.ID)
+
+	require.NoError(t, err)
+	assertOrderCalendarAndParticipantStatus(t, db, order.ID, *order.CalendarRecordID, participantID, "rejected", "cancelled", "rejected")
+}
+
+func TestCancelOrderSyncsCalendarRecordAndParticipants(t *testing.T) {
+	db := setupOrderTestDB(t)
+	database.DB = db
+	ctx := context.Background()
+	creatorID, participantID, order := createPendingOrderForStateTest(t, db)
+
+	err := NewOrderService().CancelOrder(ctx, creatorID, order.ID)
+
+	require.NoError(t, err)
+	assertOrderCalendarAndParticipantStatus(t, db, order.ID, *order.CalendarRecordID, participantID, "cancelled", "cancelled", "skipped")
+}
+
+func createPendingOrderForStateTest(t *testing.T, db *gorm.DB) (uuid.UUID, uuid.UUID, *model.Order) {
+	t.Helper()
+
+	creatorID := uuid.New()
+	participantID := uuid.New()
+	tableID := uuid.New()
+	dishID := uuid.New()
+	price := 28.0
+
+	require.NoError(t, db.Create(&model.User{UID: creatorID, Nickname: "creator"}).Error)
+	require.NoError(t, db.Create(&model.User{UID: participantID, Nickname: "member"}).Error)
+	require.NoError(t, db.Create(&model.Table{ID: tableID, Type: "buddy", Name: "状态餐桌", OwnerID: creatorID, Status: "active"}).Error)
+	require.NoError(t, db.Create(&model.TableMember{ID: uuid.New(), TableID: tableID, UserID: creatorID, Role: "owner", Status: "active"}).Error)
+	require.NoError(t, db.Create(&model.TableMember{ID: uuid.New(), TableID: tableID, UserID: participantID, Role: "member", Status: "active"}).Error)
+	require.NoError(t, db.Create(&model.Dish{ID: dishID, OwnerID: creatorID, TableID: tableID, DishType: "dish", Name: "状态菜", Price: &price}).Error)
+
+	order, err := NewOrderService().CreateOrder(context.Background(), creatorID, CreateOrderReq{
+		TableID:        tableID,
+		DineMode:       "together",
+		ParticipantIDs: []uuid.UUID{participantID},
+		Items: []OrderItemReq{{
+			DishID:    dishID,
+			Quantity:  1,
+			UnitPrice: &price,
+		}},
+	})
+	require.NoError(t, err)
+	require.Equal(t, "pending", order.Status)
+	require.NotNil(t, order.CalendarRecordID)
+	return creatorID, participantID, order
+}
+
+func assertOrderCalendarAndParticipantStatus(t *testing.T, db *gorm.DB, orderID, recordID, participantID uuid.UUID, orderStatus, recordStatus, participantStatus string) {
+	t.Helper()
+
+	var persistedOrder model.Order
+	require.NoError(t, db.First(&persistedOrder, "id = ?", orderID).Error)
+	require.Equal(t, orderStatus, persistedOrder.Status)
+
+	var record model.CalendarRecord
+	require.NoError(t, db.First(&record, "id = ?", recordID).Error)
+	require.Equal(t, recordStatus, record.Status)
+
+	var participant model.OrderParticipant
+	require.NoError(t, db.First(&participant, "order_id = ? AND user_id = ?", orderID, participantID).Error)
+	require.Equal(t, participantStatus, participant.Status)
+}

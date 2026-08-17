@@ -19,25 +19,82 @@ func NewTableService() *TableService {
 	return &TableService{}
 }
 
+func isUniqueConstraintError(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := strings.ToLower(err.Error())
+	return strings.Contains(msg, "unique") || strings.Contains(msg, "duplicate")
+}
+
+// CreateCoupleTable 在既有情侣关系事务中同步创建对应餐桌和双方成员。
+func (s *TableService) CreateCoupleTable(ctx context.Context, tx *gorm.DB, coupleID, inviterID, partnerID uuid.UUID) error {
+	table := model.Table{
+		ID:      coupleID,
+		Type:    "couple",
+		Name:    "情侣餐桌",
+		OwnerID: inviterID,
+		Status:  "active",
+	}
+	if err := tx.WithContext(ctx).Create(&table).Error; err != nil {
+		return err
+	}
+	members := []model.TableMember{
+		{ID: uuid.New(), TableID: coupleID, UserID: inviterID, Role: "owner", Status: "active"},
+		{ID: uuid.New(), TableID: coupleID, UserID: partnerID, Role: "member", Status: "active"},
+	}
+	return tx.WithContext(ctx).Create(&members).Error
+}
+
+// CreateBuddyTable 在饭搭子组合创建事务中同步创建对应餐桌和 owner 成员。
+func (s *TableService) CreateBuddyTable(ctx context.Context, tx *gorm.DB, groupID, ownerID uuid.UUID, name string) error {
+	table := model.Table{
+		ID:      groupID,
+		Type:    "buddy",
+		Name:    name,
+		OwnerID: ownerID,
+		Status:  "active",
+	}
+	if err := tx.WithContext(ctx).Create(&table).Error; err != nil {
+		return err
+	}
+	member := model.TableMember{ID: uuid.New(), TableID: groupID, UserID: ownerID, Role: "owner", Status: "active"}
+	return tx.WithContext(ctx).Create(&member).Error
+}
+
+// AddBuddyTableMember 在饭搭子加入事务中同步追加餐桌成员。
+func (s *TableService) AddBuddyTableMember(ctx context.Context, tx *gorm.DB, groupID, userID uuid.UUID, role string) error {
+	member := model.TableMember{ID: uuid.New(), TableID: groupID, UserID: userID, Role: role, Status: "active"}
+	return tx.WithContext(ctx).Create(&member).Error
+}
+
+func (s *TableService) findPersonalTable(ctx context.Context, uid uuid.UUID) (*model.Table, error) {
+	var table model.Table
+	err := database.DB.WithContext(ctx).
+		Joins("JOIN table_members ON table_members.table_id = tables.id").
+		Where("tables.type = ? AND tables.status = ? AND table_members.user_id = ? AND table_members.status = ?", "personal", "active", uid, "active").
+		First(&table).Error
+	if err != nil {
+		return nil, err
+	}
+	return &table, nil
+}
+
 // EnsurePersonalTable 确保用户拥有一个 active 个人餐桌；已有则复用，缺失则原子创建餐桌与 owner 成员。
 func (s *TableService) EnsurePersonalTable(ctx context.Context, uid uuid.UUID) (*model.Table, error) {
 	if uid == uuid.Nil {
 		return nil, errors.New("用户不存在")
 	}
 
-	var table model.Table
-	err := database.DB.WithContext(ctx).
-		Joins("JOIN table_members ON table_members.table_id = tables.id").
-		Where("tables.type = ? AND tables.status = ? AND table_members.user_id = ? AND table_members.status = ?", "personal", "active", uid, "active").
-		First(&table).Error
+	table, err := s.findPersonalTable(ctx, uid)
 	if err == nil {
-		return &table, nil
+		return table, nil
 	}
 	if !errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, err
 	}
 
-	table = model.Table{
+	newTable := model.Table{
 		ID:      uuid.New(),
 		Type:    "personal",
 		Name:    "我的餐桌",
@@ -46,25 +103,34 @@ func (s *TableService) EnsurePersonalTable(ctx context.Context, uid uuid.UUID) (
 	}
 	member := model.TableMember{
 		ID:      uuid.New(),
-		TableID: table.ID,
+		TableID: newTable.ID,
 		UserID:  uid,
 		Role:    "owner",
 		Status:  "active",
 	}
 
 	tx := database.DB.WithContext(ctx).Begin()
-	if err := tx.Create(&table).Error; err != nil {
+	if err := tx.Create(&newTable).Error; err != nil {
 		tx.Rollback()
+		if isUniqueConstraintError(err) {
+			return s.findPersonalTable(ctx, uid)
+		}
 		return nil, err
 	}
 	if err := tx.Create(&member).Error; err != nil {
 		tx.Rollback()
+		if isUniqueConstraintError(err) {
+			return s.findPersonalTable(ctx, uid)
+		}
 		return nil, err
 	}
 	if err := tx.Commit().Error; err != nil {
+		if isUniqueConstraintError(err) {
+			return s.findPersonalTable(ctx, uid)
+		}
 		return nil, err
 	}
-	return &table, nil
+	return &newTable, nil
 }
 
 // ListTables 返回用户所有 active 餐桌，并自动补齐个人餐桌作为默认空间。

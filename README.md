@@ -25,6 +25,7 @@ fanda/
 │   └── static/                 # 后端首页和管理后台
 ├── scripts/                    # 根目录安装、启动和测试脚本
 ├── docs/
+│   ├── architecture.md         # 餐桌模型、权限、订单和前端数据流说明
 │   └── development-setup.md    # macOS 与 Windows 完整环境指南
 ├── package.json                # 根目录统一命令入口
 └── README.md
@@ -56,9 +57,9 @@ Go 后端 localhost:8080
 
 | 工具 | 要求 | 是否必需 |
 |---|---|---:|
-| Node.js | `18` 或更高 | 是 |
+| Node.js | `18.12` 或更高 | 是 |
 | npm | 随 Node.js 安装 | 是 |
-| Go | `1.23` 或更高 | 是 |
+| Go | `1.25` 或更高 | 是 |
 | PostgreSQL | `14` 或更高，推荐 `16` | 是 |
 | Redis | 推荐 `7` | 否 |
 | Docker Desktop | Windows 运行可选 Redis 时使用 | 否 |
@@ -91,10 +92,9 @@ cp fanda-server/.env.example fanda-server/.env
 ```bash
 npm run db:start
 npm run db:migrate
-psql -U postgres -d fanda -f fanda-server/migrations/003_tables_refactor.sql
 ```
 
-当前 `npm run db:migrate` 只执行 `001`、`002`，因此必须手动补跑 `003_tables_refactor.sql`。
+`npm run db:migrate` 会按顺序执行 `001_init.sql`、`002_add_phone.sql`、`003_tables_refactor.sql` 和 `004_finalize_table_model.sql`，任一迁移失败都会停止。
 
 ### Windows
 
@@ -114,6 +114,7 @@ psql -U postgres -h localhost -W -c "CREATE DATABASE fanda;"
 psql -U postgres -h localhost -W -d fanda -f fanda-server/migrations/001_init.sql
 psql -U postgres -h localhost -W -d fanda -f fanda-server/migrations/002_add_phone.sql
 psql -U postgres -h localhost -W -d fanda -f fanda-server/migrations/003_tables_refactor.sql
+psql -U postgres -h localhost -W -d fanda -f fanda-server/migrations/004_finalize_table_model.sql
 ```
 
 Windows 不使用 `npm run db:start` 和 `npm run db:migrate`，因为这两个脚本依赖 macOS 的 Homebrew 或 Unix `sh`。
@@ -149,7 +150,7 @@ npm run dev:h5
 
 如果 PostgreSQL 没有运行，请参考 [Windows PostgreSQL 服务启动方法](docs/development-setup.md#安装-postgresql)。
 
-启动后打开 `http://localhost:10086/`。H5 登录页可以使用“浏览器预览登录”，该模式使用前端内置 Mock 数据。
+启动后打开 `http://localhost:10086/`。H5 登录页的“浏览器预览登录”只用于本地预览；内置 Mock 必须在 H5、非生产环境且 `ENABLE_H5_PREVIEW_MOCK=true` 时才会启用。
 
 ## Redis 说明
 
@@ -172,7 +173,7 @@ Redis 当前是可选依赖。后端启动时会检查 Redis，但现有业务�
 | `npm run build:h5` | 支持 | 支持 | 构建 H5 |
 | `npm test` | 支持 | 支持 | 根目录脚本测试 |
 | `npm run db:start` | 支持 | 不支持 | macOS Homebrew 脚本 |
-| `npm run db:migrate` | 支持但缺少 `003` | 不支持 | 依赖 Unix `sh` |
+| `npm run db:migrate` | 支持，自动执行 `001`-`004` | 不支持 | 依赖 Unix `sh` |
 | `node scripts/start.js redis` | 支持 | 不支持 | macOS Homebrew 脚本 |
 
 ## 小程序开发
@@ -198,14 +199,26 @@ npm --prefix fanda-app run dev:tt
 ```text
 npm test
 go -C fanda-server test ./...
+npm --prefix fanda-app test
 npm run build:h5
 ```
 
-`fanda-app` 当前缺少 `jest`，因此前端目录的 `npm test` 暂时不可用。
+前端测试入口是 `npm --prefix fanda-app test`，当前运行 `fanda-app/src/__tests__/*.test.cjs` 中的 Node 静态测试。
+
+## 生产安全配置
+
+发布或演示接近生产环境前，至少检查：
+
+- `SERVER_MODE=release` 时必须配置真实 `WX_APPID` / `WX_SECRET` / `DY_APPID` / `DY_SECRET`，后端会调用微信 `jscode2session` 与抖音 `code2session` 换 openid，不能使用开发 mock code。
+- `JWT_SECRET` 和 `ADMIN_PASSWORD` 必须换成高强度私密值，不能沿用示例值。
+- `CORS_ALLOW_ORIGINS` 必须限制为实际域名，不能使用 `*`。
+- H5 构建不要设置 `ENABLE_H5_PREVIEW_MOCK=true`，也不要依赖 `h5-preview-token`。
+- `.env`、数据库密码和平台密钥不能提交到 Git。
 
 ## 相关文档
 
 - [完整开发环境指南](docs/development-setup.md)
+- [架构说明](docs/architecture.md)
 - [餐桌点单重构设计](docs/superpowers/specs/2026-08-11-table-order-refactor-design.md)
 - [自适应 npm 源设计](docs/superpowers/specs/2026-08-13-adaptive-npm-registry-design.md)
 

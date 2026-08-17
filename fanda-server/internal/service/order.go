@@ -10,6 +10,7 @@ import (
 	"fanda-server/internal/model"
 
 	"github.com/google/uuid"
+	"gorm.io/gorm"
 )
 
 type OrderService struct{}
@@ -45,6 +46,9 @@ func (s *OrderService) CreateOrder(ctx context.Context, uid uuid.UUID, req Creat
 		if basketItem.Name == "" {
 			return nil, errors.New("采购项名称不能为空")
 		}
+	}
+	if err := validateOrderDishes(ctx, req.TableID, req.Items); err != nil {
+		return nil, err
 	}
 
 	order := model.Order{
@@ -208,7 +212,7 @@ func (s *OrderService) ConfirmOrder(ctx context.Context, uid uuid.UUID, orderID 
 		return errors.New("不能确认自己的订单")
 	}
 
-	return database.DB.Model(order).Update("status", "confirmed").Error
+	return s.updateOrderState(ctx, order, "confirmed", uid)
 }
 
 // RejectOrder 拒绝订单
@@ -226,7 +230,7 @@ func (s *OrderService) RejectOrder(ctx context.Context, uid uuid.UUID, orderID u
 		return errors.New("不能拒绝自己的订单")
 	}
 
-	return database.DB.Model(order).Update("status", "rejected").Error
+	return s.updateOrderState(ctx, order, "rejected", uid)
 }
 
 // CancelOrder 取消订单
@@ -244,7 +248,94 @@ func (s *OrderService) CancelOrder(ctx context.Context, uid uuid.UUID, orderID u
 		return errors.New("已确认的订单不能取消")
 	}
 
-	return database.DB.Model(order).Update("status", "cancelled").Error
+	return s.updateOrderState(ctx, order, "cancelled", uid)
+}
+
+func validateOrderDishes(ctx context.Context, tableID uuid.UUID, items []OrderItemReq) error {
+	if len(items) == 0 {
+		return errors.New("订单至少包含一个菜品")
+	}
+
+	seen := make(map[uuid.UUID]struct{}, len(items))
+	dishIDs := make([]uuid.UUID, 0, len(items))
+	for _, item := range items {
+		if _, ok := seen[item.DishID]; ok {
+			continue
+		}
+		seen[item.DishID] = struct{}{}
+		dishIDs = append(dishIDs, item.DishID)
+	}
+
+	var count int64
+	if err := database.DB.WithContext(ctx).Model(&model.Dish{}).
+		Where("id IN ? AND table_id = ? AND is_deleted = ?", dishIDs, tableID, false).
+		Count(&count).Error; err != nil {
+		return fmt.Errorf("校验菜品失败: %w", err)
+	}
+	if count != int64(len(dishIDs)) {
+		return errors.New("订单包含不存在或无权访问的菜品")
+	}
+	return nil
+}
+
+func (s *OrderService) updateOrderState(ctx context.Context, order *model.Order, nextStatus string, actorID uuid.UUID) error {
+	return database.DB.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := tx.Model(&model.Order{}).Where("id = ?", order.ID).Update("status", nextStatus).Error; err != nil {
+			return err
+		}
+
+		if order.CalendarRecordID != nil {
+			recordStatus := mapOrderStatusToRecordStatus(nextStatus)
+			if err := tx.Model(&model.CalendarRecord{}).Where("id = ?", *order.CalendarRecordID).Update("status", recordStatus).Error; err != nil {
+				return err
+			}
+		}
+
+		return updateParticipantForOrderState(tx, order.ID, actorID, nextStatus)
+	})
+}
+
+func mapOrderStatusToRecordStatus(orderStatus string) string {
+	switch orderStatus {
+	case "confirmed", "cancelled":
+		return orderStatus
+	case "rejected":
+		return "cancelled"
+	default:
+		return "pending"
+	}
+}
+
+func updateParticipantForOrderState(tx *gorm.DB, orderID, actorID uuid.UUID, nextStatus string) error {
+	switch nextStatus {
+	case "confirmed":
+		result := tx.Model(&model.OrderParticipant{}).
+			Where("order_id = ? AND user_id = ?", orderID, actorID).
+			Update("status", "accepted")
+		if result.Error != nil {
+			return result.Error
+		}
+		if result.RowsAffected == 0 {
+			return errors.New("订单参与人不存在")
+		}
+	case "rejected":
+		result := tx.Model(&model.OrderParticipant{}).
+			Where("order_id = ? AND user_id = ?", orderID, actorID).
+			Update("status", "rejected")
+		if result.Error != nil {
+			return result.Error
+		}
+		if result.RowsAffected == 0 {
+			return errors.New("订单参与人不存在")
+		}
+	case "cancelled":
+		if err := tx.Model(&model.OrderParticipant{}).
+			Where("order_id = ?", orderID).
+			Update("status", "skipped").Error; err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // VoteOrder 投票：饭搭子 voted 状态订单可投票；重复投不同票会更新原投票。

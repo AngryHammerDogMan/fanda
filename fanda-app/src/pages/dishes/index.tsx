@@ -36,7 +36,10 @@ export default function DishesIndex() {
 
   const pageSize = 10
 
-  const loadDishes = useCallback(async (pageNum: number, append: boolean, tableId = activeTableId) => {
+  const loadDishes = useCallback(async (pageNum: number, append: boolean, options?: { tableId?: string; dishType?: string; keyword?: string }) => {
+    const tableId = options?.tableId ?? activeTableId
+    const dishType = options?.dishType ?? activeTab
+    const nextKeyword = options?.keyword ?? searchKeyword
     if (loading) return
     if (!tableId) return
     setLoading(true)
@@ -49,12 +52,12 @@ export default function DishesIndex() {
       }
 
       // “全部”不传 dish_type，让后端按默认全集合查询；具体类型才下发筛选条件。
-      if (activeTab !== 'all') {
-        params.dish_type = activeTab
+      if (dishType !== 'all') {
+        params.dish_type = dishType
       }
 
-      if (searchKeyword.trim()) {
-        params.keyword = searchKeyword.trim()
+      if (nextKeyword.trim()) {
+        params.keyword = nextKeyword.trim()
       }
 
       const res = await dishAPI.list(params)
@@ -87,7 +90,7 @@ export default function DishesIndex() {
         setPage(1)
         setDishes([])
         setHasMore(true)
-        loadDishes(1, false, nextTableId)
+        loadDishes(1, false, { tableId: nextTableId })
       }
     } catch {
       Taro.showToast({ title: '加载餐桌失败', icon: 'none' })
@@ -109,10 +112,7 @@ export default function DishesIndex() {
     setDishes([])
     setPage(1)
     setHasMore(true)
-    // 等待 activeTab 写入后再触发查询，避免 loadDishes 读取到上一个 tab。
-    setTimeout(() => {
-      loadDishes(1, false)
-    }, 0)
+    loadDishes(1, false, { dishType: key })
   }
 
   const handleTableChange = (tableId: string) => {
@@ -121,14 +121,14 @@ export default function DishesIndex() {
     setDishes([])
     setPage(1)
     setHasMore(true)
-    loadDishes(1, false, tableId)
+    loadDishes(1, false, { tableId })
   }
 
   const handleSearch = () => {
     setDishes([])
     setPage(1)
     setHasMore(true)
-    loadDishes(1, false)
+    loadDishes(1, false, { keyword: searchKeyword })
   }
 
   const handleSearchClear = () => {
@@ -136,7 +136,7 @@ export default function DishesIndex() {
     setDishes([])
     setPage(1)
     setHasMore(true)
-    loadDishes(1, false)
+    loadDishes(1, false, { keyword: '' })
   }
 
   const handleDishClick = (id: string) => {
