@@ -203,7 +203,7 @@ export default function DishesIndex() {
         </View>
 
         <View className='tab-bar fanda-filter'>
-          <View className='tab-scroll'>
+          <ScrollView className='tab-scroll' scrollX scrollWithAnimation>
             <View className='tab-list'>
               {DISH_TYPES.map(item => (
                 <View
@@ -215,7 +215,7 @@ export default function DishesIndex() {
                 </View>
               ))}
             </View>
-          </View>
+          </ScrollView>
         </View>
       </View>
 

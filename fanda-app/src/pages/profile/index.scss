@@ -361,6 +361,22 @@
       color: var(--color-text-light);
     }
   }
+
+  .point-state {
+    padding: 32px 24px;
+    text-align: center;
+
+    .point-state-text {
+      font-size: 13px;
+      color: var(--color-text-light);
+    }
+
+    &.error {
+      .point-state-text {
+        color: var(--color-danger);
+      }
+    }
+  }
 }
 
 // 退出登录

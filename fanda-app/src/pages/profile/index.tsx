@@ -12,6 +12,7 @@ const CURRENT_PLATFORM = process.env.TARO_ENV === 'weapp' ? 'wechat' : 'douyin'
 const PLATFORM_NAME = CURRENT_PLATFORM === 'wechat' ? '微信' : '抖音'
 const OTHER_PLATFORM_NAME = CURRENT_PLATFORM === 'wechat' ? '抖音' : '微信'
 const sticker = (name: string) => `/assets/stickers/${name}.png`
+type PointHistoryStatus = 'idle' | 'loading' | 'success' | 'error'
 
 type EditableModalResult = Taro.showModal.SuccessCallbackResult & {
   content?: string
@@ -33,6 +34,7 @@ export default function Profile() {
   const [checkinStatus, setCheckinStatus] = useState<CheckinStatus | null>(null)
   const [pointHistory, setPointHistory] = useState<PointRecord[]>([])
   const [showPointHistory, setShowPointHistory] = useState(false)
+  const [pointHistoryStatus, setPointHistoryStatus] = useState<PointHistoryStatus>('idle')
 
   useDidShow(() => {
     loadAll()
@@ -52,20 +54,31 @@ export default function Profile() {
     }
   }
 
+  const loadPointHistory = async () => {
+    if (pointHistoryStatus === 'loading') return
+    setPointHistoryStatus('loading')
+    try {
+      const res = await featureAPI.getPointHistory(1, 20)
+      setPointHistory(res.data.list)
+      setPointHistoryStatus('success')
+    } catch (err) {
+      console.error('加载积分历史失败', err)
+      setPointHistory([])
+      setPointHistoryStatus('error')
+    }
+  }
+
   const togglePointHistory = async () => {
     if (showPointHistory) {
       setShowPointHistory(false)
       return
     }
-    try {
-      const res = await featureAPI.getPointHistory(1, 20)
-      setPointHistory(res.data?.list || res.data || [])
-      setShowPointHistory(true)
-    } catch (err) {
-      console.error('加载积分历史失败', err)
-      // 即使请求失败也展开面板，让用户看到空状态
-      setShowPointHistory(true)
-    }
+    setShowPointHistory(true)
+    await loadPointHistory()
+  }
+
+  const handlePointHistoryRetry = () => {
+    loadPointHistory()
   }
 
   const handleEditProfile = () => {
@@ -294,11 +307,22 @@ export default function Profile() {
           </View>
           <View className={`point-collapse ${showPointHistory ? 'open' : ''}`}>
             <View className='point-collapse-inner'>
-              {pointHistory.length === 0 ? (
+              {pointHistoryStatus === 'loading' && (
+                <View className='point-state'>
+                  <Text className='point-state-text'>加载中…</Text>
+                </View>
+              )}
+              {pointHistoryStatus === 'error' && (
+                <View className='point-state error' onClick={handlePointHistoryRetry}>
+                  <Text className='point-state-text'>加载失败，点击重试</Text>
+                </View>
+              )}
+              {pointHistoryStatus === 'success' && pointHistory.length === 0 && (
                 <View className='point-empty'>
                   <Text className='point-empty-text'>暂无积分记录</Text>
                 </View>
-              ) : (
+              )}
+              {pointHistoryStatus === 'success' && pointHistory.length > 0 && (
                 pointHistory.map(record => (
                   <View key={record.id} className='point-record'>
                     <View className='point-record-info'>

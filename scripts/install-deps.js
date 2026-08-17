@@ -5,32 +5,40 @@ const path = require('node:path')
 const { spawn } = require('node:child_process')
 
 const ROOT = path.resolve(__dirname, '..')
-const NPMRC_PATH = path.join(ROOT, 'fanda-app', '.npmrc')
 const PACKAGE_JSON_PATH = path.join(ROOT, 'fanda-app', 'package.json')
+const PACKAGE_LOCK_PATH = path.join(ROOT, 'fanda-app', 'package-lock.json')
 const NODE_MODULES_LOCK = path.join(ROOT, 'fanda-app', 'node_modules', '.package-lock.json')
+
+function isFileNotOlderThan(targetPath, sourcePaths) {
+  if (!fs.existsSync(targetPath)) return false
+
+  try {
+    const targetStat = fs.statSync(targetPath)
+    return sourcePaths.every((sourcePath) => {
+      if (!fs.existsSync(sourcePath)) return true
+      const sourceStat = fs.statSync(sourcePath)
+      return targetStat.mtimeMs >= sourceStat.mtimeMs
+    })
+  } catch {
+    return false
+  }
+}
 
 const INSTALL_STEPS = [
   {
     label: '初始化前端 npm 源',
     command: 'node',
     args: ['scripts/setup-npm-registry.js'],
-    isDone: () => fs.existsSync(NPMRC_PATH),
+    isDone: () => false,
   },
   {
     label: '安装前端依赖',
     command: 'npm',
     args: ['--prefix', 'fanda-app', 'install'],
-    isDone: () => {
-      if (!fs.existsSync(NODE_MODULES_LOCK)) return false
-      // 如果 package.json 比 node_modules 更新，说明新增了依赖，需要重新安装
-      try {
-        const pkgStat = fs.statSync(PACKAGE_JSON_PATH)
-        const lockStat = fs.statSync(NODE_MODULES_LOCK)
-        return lockStat.mtimeMs >= pkgStat.mtimeMs
-      } catch {
-        return false
-      }
-    },
+    isDone: () => isFileNotOlderThan(NODE_MODULES_LOCK, [
+      PACKAGE_JSON_PATH,
+      PACKAGE_LOCK_PATH,
+    ]),
   },
   {
     label: '下载后端 Go 依赖',
@@ -98,5 +106,6 @@ if (require.main === module) {
 
 module.exports = {
   getInstallSteps,
+  isFileNotOlderThan,
   runStep,
 }
