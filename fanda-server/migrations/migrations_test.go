@@ -7,12 +7,14 @@ import (
 	"testing"
 )
 
+// 测试意图：静态检查 005 迁移会补齐 couple_members，并在建唯一约束前处理历史冲突。
 func TestCoupleMembersMigrationNormalizesActiveUserUniqueness(t *testing.T) {
 	content, err := os.ReadFile(filepath.Join("005_couple_members.sql"))
 	if err != nil {
 		t.Fatalf("005 迁移必须存在: %v", err)
 	}
 	sql := strings.ToLower(string(content))
+	// fragment 是迁移 SQL 必须包含的关键片段，覆盖建表、回填 active 数据和唯一约束。
 	for _, fragment := range []string{
 		"create table couple_members",
 		"insert into couple_members",

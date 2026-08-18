@@ -6,13 +6,16 @@ const test = require('node:test')
 
 const { getInstallSteps, isFileNotOlderThan } = require('./install-deps')
 
+// touch 生成带指定修改时间的临时文件，用于模拟依赖产物与源文件的新旧关系。
 function touch(filePath, time) {
   fs.mkdirSync(path.dirname(filePath), { recursive: true })
   fs.writeFileSync(filePath, '')
   fs.utimesSync(filePath, time, time)
 }
 
+// 测试意图：验证依赖安装脚本的跳过判断、轻量安装过滤和 package scripts 约定。
 test('detects target older than any source file', () => {
+  // dir 是隔离临时目录；target 模拟 node_modules 锁文件，packageJson/packageLock 模拟依赖输入。
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'fanda-install-'))
   const target = path.join(dir, 'node_modules', '.package-lock.json')
   const packageJson = path.join(dir, 'package.json')
@@ -25,6 +28,7 @@ test('detects target older than any source file', () => {
 })
 
 test('accepts target not older than package files', () => {
+  // target 时间晚于输入文件时应被判定为可复用，关键断言为 true。
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'fanda-install-'))
   const target = path.join(dir, 'node_modules', '.package-lock.json')
   const packageJson = path.join(dir, 'package.json')
@@ -37,6 +41,7 @@ test('accepts target not older than package files', () => {
 })
 
 test('skip-heavy keeps only lightweight dependency setup steps', () => {
+  // steps 是开启 skipHeavy 后的执行计划，关键断言是不包含 npm install/go mod download。
   const steps = getInstallSteps({ skipHeavy: true })
 
   assert.deepEqual(steps.map((step) => step.label), ['初始化前端 npm 源'])

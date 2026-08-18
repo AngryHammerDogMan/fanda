@@ -13,10 +13,12 @@ import (
 	"gorm.io/gorm"
 )
 
+// setupOrderTestDB 构造订单、菜品、日历和菜篮子相关最小表结构，支撑订单服务单元测试。
 func setupOrderTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
 	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
 	require.NoError(t, err)
+	// stmts 是订单流程会触达的最小 schema，包含订单项、参与者和自动生成日历记录。
 	stmts := []string{
 		`CREATE TABLE users (uid TEXT PRIMARY KEY, wx_openid TEXT, dy_openid TEXT, phone TEXT, nickname TEXT NOT NULL, avatar TEXT, points INTEGER, created_at DATETIME, updated_at DATETIME)`,
 		`CREATE TABLE tables (id TEXT PRIMARY KEY, type TEXT NOT NULL, name TEXT NOT NULL, owner_id TEXT NOT NULL, status TEXT NOT NULL, created_at DATETIME, updated_at DATETIME)`,
@@ -35,6 +37,7 @@ func setupOrderTestDB(t *testing.T) *gorm.DB {
 }
 
 func TestCreateOrderCreatesSelectedBasketItems(t *testing.T) {
+	// 测试意图：下单时选择的待采购项会写入菜篮子，并保持未购买状态。
 	db := setupOrderTestDB(t)
 	database.DB = db
 
@@ -42,6 +45,7 @@ func TestCreateOrderCreatesSelectedBasketItems(t *testing.T) {
 	tableID := uuid.New()
 	dishID := uuid.New()
 	price := 42.0
+	// price 是菜品单价指针来源，既用于建菜品也用于下单明细，确保金额字段一致。
 
 	require.NoError(t, db.Create(&model.User{UID: uid, Nickname: "tester"}).Error)
 	require.NoError(t, db.Create(&model.Table{ID: tableID, Type: "personal", Name: "我的餐桌", OwnerID: uid, Status: "active"}).Error)
@@ -75,6 +79,7 @@ func TestCreateOrderCreatesSelectedBasketItems(t *testing.T) {
 }
 
 func TestCreateOrderCreatesCalendarRecord(t *testing.T) {
+	// 测试意图：单人订单创建后立即确认，并同步生成一条日历记录。
 	db := setupOrderTestDB(t)
 	database.DB = db
 
@@ -109,6 +114,7 @@ func TestCreateOrderCreatesCalendarRecord(t *testing.T) {
 }
 
 func TestCreateTogetherOrderCreatesParticipants(t *testing.T) {
+	// 测试意图：多人一起吃订单保持 pending，创建参与者邀请，并生成 pending 日历记录。
 	db := setupOrderTestDB(t)
 	database.DB = db
 
@@ -150,6 +156,7 @@ func TestCreateTogetherOrderCreatesParticipants(t *testing.T) {
 }
 
 func TestCreateOrderRejectsDishFromAnotherTable(t *testing.T) {
+	// 测试意图：订单不能引用其他餐桌的菜品，防止跨餐桌越权下单。
 	db := setupOrderTestDB(t)
 	database.DB = db
 
@@ -181,6 +188,7 @@ func TestCreateOrderRejectsDishFromAnotherTable(t *testing.T) {
 }
 
 func TestCreateOrderRejectsDeletedDish(t *testing.T) {
+	// 测试意图：已删除菜品不能再被下单引用。
 	db := setupOrderTestDB(t)
 	database.DB = db
 
@@ -209,6 +217,7 @@ func TestCreateOrderRejectsDeletedDish(t *testing.T) {
 }
 
 func TestConfirmOrderSyncsCalendarRecordAndParticipant(t *testing.T) {
+	// 测试意图：参与者确认订单时，订单、日历记录和参与者状态三者同步更新。
 	db := setupOrderTestDB(t)
 	database.DB = db
 	ctx := context.Background()
@@ -221,6 +230,7 @@ func TestConfirmOrderSyncsCalendarRecordAndParticipant(t *testing.T) {
 }
 
 func TestRejectOrderSyncsCalendarRecordAndParticipant(t *testing.T) {
+	// 测试意图：参与者拒绝订单时，订单取消/拒绝链路同步反映到日历和参与者状态。
 	db := setupOrderTestDB(t)
 	database.DB = db
 	ctx := context.Background()
@@ -233,6 +243,7 @@ func TestRejectOrderSyncsCalendarRecordAndParticipant(t *testing.T) {
 }
 
 func TestCancelOrderSyncsCalendarRecordAndParticipants(t *testing.T) {
+	// 测试意图：创建者取消订单时，订单、日历记录和参与者状态同步为取消/跳过。
 	db := setupOrderTestDB(t)
 	database.DB = db
 	ctx := context.Background()
@@ -247,6 +258,7 @@ func TestCancelOrderSyncsCalendarRecordAndParticipants(t *testing.T) {
 func createPendingOrderForStateTest(t *testing.T, db *gorm.DB) (uuid.UUID, uuid.UUID, *model.Order) {
 	t.Helper()
 
+	// creatorID/participantID/tableID/dishID 组成一笔待确认多人订单的最小业务上下文。
 	creatorID := uuid.New()
 	participantID := uuid.New()
 	tableID := uuid.New()
@@ -279,6 +291,7 @@ func createPendingOrderForStateTest(t *testing.T, db *gorm.DB) (uuid.UUID, uuid.
 func assertOrderCalendarAndParticipantStatus(t *testing.T, db *gorm.DB, orderID, recordID, participantID uuid.UUID, orderStatus, recordStatus, participantStatus string) {
 	t.Helper()
 
+	// 关键断言：同一订单状态变更必须同时落到 orders、calendar_records 和 order_participants。
 	var persistedOrder model.Order
 	require.NoError(t, db.First(&persistedOrder, "id = ?", orderID).Error)
 	require.Equal(t, orderStatus, persistedOrder.Status)

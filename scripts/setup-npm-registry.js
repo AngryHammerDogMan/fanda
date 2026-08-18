@@ -9,6 +9,7 @@ const PUBLIC_REGISTRY = 'https://registry.npmmirror.com/'
 const DEFAULT_TIMEOUT_MS = 3000
 const TARGET_NPMRC = path.resolve(__dirname, '../fanda-app/.npmrc')
 
+// 脚本职责：探测可用 npm registry，并写入前端项目本机 .npmrc，避免修改锁文件源地址。
 function normalizeRegistry(registry) {
   return registry.endsWith('/') ? registry : `${registry}/`
 }
@@ -24,6 +25,7 @@ function createNpmrcContent(registry) {
 }
 
 function probeRegistry(registry, timeoutMs = DEFAULT_TIMEOUT_MS) {
+  // pingUrl 是 registry 的健康检查端点；timeoutMs 控制探测失败时的等待上限。
   const pingUrl = new URL('-/ping', normalizeRegistry(registry))
 
   return new Promise((resolve) => {
@@ -48,6 +50,7 @@ function probeRegistry(registry, timeoutMs = DEFAULT_TIMEOUT_MS) {
 }
 
 async function selectRegistry(probe = probeRegistry) {
+  // canUseInternalRegistry 表示内网源探测结果，失败时回退到公开镜像源。
   const canUseInternalRegistry = await probe(INTERNAL_REGISTRY)
   return canUseInternalRegistry ? INTERNAL_REGISTRY : PUBLIC_REGISTRY
 }

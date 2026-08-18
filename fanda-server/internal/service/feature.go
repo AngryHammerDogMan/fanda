@@ -12,6 +12,7 @@ import (
 	"github.com/google/uuid"
 )
 
+// FeatureService 聚合签到、积分和兼容旧入口的轻量扩展功能。
 type FeatureService struct{}
 
 // NewFeatureService 创建扩展功能服务，聚合轻量但共用鉴权规则的业务能力。
@@ -21,15 +22,17 @@ func NewFeatureService() *FeatureService {
 
 // ---- 签到 ----
 
+// CheckinResult 是签到成功后的响应体，包含本次奖励积分和签到日期。
 type CheckinResult struct {
-	Points      int    `json:"points"`
-	CheckinDate string `json:"checkin_date"`
+	Points      int    `json:"points"`       // 本次签到获得的积分
+	CheckinDate string `json:"checkin_date"` // YYYY-MM-DD 格式的签到日期
 }
 
+// CheckinStatusResult 是签到状态摘要，供前端展示今日状态、月累计和连续天数。
 type CheckinStatusResult struct {
-	TodayChecked bool  `json:"today_checked"`
-	MonthCount   int64 `json:"month_count"`
-	Streak       int   `json:"streak"`
+	TodayChecked bool  `json:"today_checked"` // 今天是否已签到
+	MonthCount   int64 `json:"month_count"`   // 本月签到次数
+	Streak       int   `json:"streak"`        // 当前连续签到天数
 }
 
 // Checkin 签到：同一天只允许一次，连续签到在事务中同时写签到、积分和流水。
@@ -152,21 +155,24 @@ func (s *FeatureService) GetPointHistory(ctx context.Context, uid uuid.UUID, pag
 
 // ---- 请求结构：扩展功能请求均显式携带 table_id 以复用餐桌鉴权 ----
 
+// CreateWishReq 是创建心愿的请求体，TableID 决定心愿所属餐桌。
 type CreateWishReq struct {
-	TableID uuid.UUID  `json:"table_id" binding:"required"`
-	Name    string     `json:"name" binding:"required,max=100"`
-	Note    string     `json:"note"`
-	DishID  *uuid.UUID `json:"dish_id"`
+	TableID uuid.UUID  `json:"table_id" binding:"required"`     // 目标餐桌 ID
+	Name    string     `json:"name" binding:"required,max=100"` // 心愿名称
+	Note    string     `json:"note"`                            // 可选备注
+	DishID  *uuid.UUID `json:"dish_id"`                         // 可选关联菜品
 }
 
+// BasketReq 是新增菜篮子采购项的请求体。
 type BasketReq struct {
-	TableID  uuid.UUID `json:"table_id" binding:"required"`
-	Name     string    `json:"name" binding:"required,max=100"`
-	Quantity string    `json:"quantity"`
+	TableID  uuid.UUID `json:"table_id" binding:"required"`     // 目标餐桌 ID
+	Name     string    `json:"name" binding:"required,max=100"` // 采购项名称
+	Quantity string    `json:"quantity"`                        // 采购数量，空值由服务层默认成 1
 }
 
+// BudgetReq 是设置月度预算的请求体。
 type BudgetReq struct {
-	TableID uuid.UUID `json:"table_id" binding:"required"`
-	Month   string    `json:"month" binding:"required"` // 2026-08
-	Budget  float64   `json:"budget" binding:"required,min=0"`
+	TableID uuid.UUID `json:"table_id" binding:"required"`     // 目标餐桌 ID
+	Month   string    `json:"month" binding:"required"`        // 月份，格式 2026-08
+	Budget  float64   `json:"budget" binding:"required,min=0"` // 预算金额，必须非负
 }

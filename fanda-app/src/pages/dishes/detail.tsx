@@ -20,10 +20,12 @@ const DISH_TYPE_LABELS: Record<string, string> = {
 
 const sticker = (name: string) => `/assets/stickers/${name}.png`
 
+// 菜品详情页：按路由 id 展示菜品图片、基础信息、食材步骤和餐厅信息，并提供编辑、删除、点单入口。
 export default function DishDetail() {
   const router = useRouter()
   const { id } = router.params
 
+  // dish/loading 控制详情加载与空态；currentImageIndex 只负责本页图片轮播选中态。
   const [dish, setDish] = useState<Dish | null>(null)
   const [loading, setLoading] = useState(false)
   const [currentImageIndex, setCurrentImageIndex] = useState(0)
@@ -59,6 +61,7 @@ export default function DishDetail() {
 
   const handleDelete = () => {
     if (!dish) return
+    // 删除是破坏性操作，先弹窗确认，成功后返回上一页刷新来源列表。
     Taro.showModal({
       title: '确认删除',
       content: `确定要删除菜品「${dish.name}」吗？删除后不可恢复。`,

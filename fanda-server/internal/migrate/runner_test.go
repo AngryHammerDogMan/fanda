@@ -9,6 +9,7 @@ import (
 	"gorm.io/gorm"
 )
 
+// newTestDB 创建独立内存数据库，测试迁移 runner 时不依赖真实 PostgreSQL。
 func newTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
 	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
@@ -16,9 +17,11 @@ func newTestDB(t *testing.T) *gorm.DB {
 	return db
 }
 
+// 测试意图：迁移按版本排序执行，重复运行会跳过已登记版本，不重复写入业务数据。
 func TestRunnerAppliesMigrationsInVersionOrderAndSkipsApplied(t *testing.T) {
 	db := newTestDB(t)
 	runner := NewRunner(db)
+	// migrations 特意乱序排列，关键断言是最终数据仍按 001、002 的版本顺序插入。
 	migrations := []Migration{
 		{Version: "002", Name: "second", SQL: `INSERT INTO events (name) VALUES ('second')`},
 		{Version: "001", Name: "first", SQL: `CREATE TABLE events (name TEXT); INSERT INTO events (name) VALUES ('first')`},
@@ -40,6 +43,7 @@ func TestRunnerDoesNotRegisterFailedMigration(t *testing.T) {
 	require.Error(t, err)
 
 	var count int64
+	// count 表示失败版本的登记数量，必须为 0 才能证明失败迁移不会被误标记为成功。
 	require.NoError(t, db.Table("schema_migrations").Where("version = ?", "001").Count(&count).Error)
 	require.Zero(t, count)
 }
@@ -54,6 +58,7 @@ func TestRunnerRejectsChecksumDrift(t *testing.T) {
 	err := runner.Run([]Migration{
 		{Version: "001", Name: "create", SQL: "CREATE TABLE changed (id INTEGER)"},
 	})
+	// 关键断言：同版本 SQL 被修改时返回“校验和”相关错误，避免历史迁移漂移。
 	require.Error(t, err)
 	require.True(t, strings.Contains(err.Error(), "校验和"), err)
 }
@@ -62,6 +67,7 @@ func TestRunnerBaseline004ValidatesSchemaAndRegistersRealChecksums(t *testing.T)
 	db := newTestDB(t)
 	createBaseline004Schema(t, db)
 	runner := NewRunner(db)
+	// migrations 包含基线前后版本；baseline=004 时只执行 005，但登记 001-004 的真实 checksum。
 	migrations := []Migration{
 		{Version: "005", Name: "next", SQL: "CREATE TABLE after_baseline (id INTEGER)"},
 		{Version: "001", Name: "init", SQL: "THIS MUST NOT RUN"},
@@ -77,6 +83,7 @@ func TestRunnerBaseline004ValidatesSchemaAndRegistersRealChecksums(t *testing.T)
 		Version  string
 		Checksum string
 	}
+	// applied 是 schema_migrations 的登记结果，关键断言是版本数量与 checksum 均正确。
 	require.NoError(t, db.Table("schema_migrations").
 		Select("version, checksum").Order("version").Find(&applied).Error)
 	require.Len(t, applied, 5)
@@ -156,6 +163,7 @@ func TestRunnerBaselineRequiresEmptyMigrationTable(t *testing.T) {
 
 func createBaseline004Schema(t *testing.T, db *gorm.DB) {
 	t.Helper()
+	// statement 是模拟 004 基线已具备的核心表结构，用于验证 baseline 前置条件。
 	for _, statement := range []string{
 		"CREATE TABLE users (uid TEXT PRIMARY KEY, phone TEXT)",
 		"CREATE TABLE tables (id TEXT PRIMARY KEY, type TEXT, owner_id TEXT, status TEXT)",

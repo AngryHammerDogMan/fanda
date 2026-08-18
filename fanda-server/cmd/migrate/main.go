@@ -12,10 +12,12 @@ import (
 	"fanda-server/internal/migrate"
 )
 
+// commandOptions 保存命令行参数，baseline 用于接管已有 004 结构的旧库。
 type commandOptions struct {
 	baseline string
 }
 
+// parseOptions 解析迁移命令参数，并拒绝未定义的位置参数以避免误操作。
 func parseOptions(args []string, errorHandling flag.ErrorHandling) (commandOptions, error) {
 	var options commandOptions
 	flags := flag.NewFlagSet("migrate", errorHandling)
@@ -29,6 +31,7 @@ func parseOptions(args []string, errorHandling flag.ErrorHandling) (commandOptio
 	return options, nil
 }
 
+// main 按“配置 → 数据库 → 读取 SQL → 执行迁移”的顺序完成一次迁移任务。
 func main() {
 	options, err := parseOptions(os.Args[1:], flag.ContinueOnError)
 	if err != nil {

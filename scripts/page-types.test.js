@@ -6,6 +6,7 @@ const test = require('node:test')
 const srcDir = path.join(process.cwd(), 'fanda-app/src')
 const pagesDir = path.join(process.cwd(), 'fanda-app/src/pages')
 
+// 测试意图：静态守护前端页面类型安全、下单流程、H5 移动端布局和关键交互防回归。
 test('fanda-app exposes typecheck and unified check scripts', () => {
   const packageJson = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'fanda-app/package.json'), 'utf8'))
 
@@ -14,6 +15,7 @@ test('fanda-app exposes typecheck and unified check scripts', () => {
 })
 
 function collectSourceFiles(dir) {
+  // entries 是当前目录项快照，递归收集页面 TypeScript 源码供类型规则扫描。
   const entries = fs.readdirSync(dir, { withFileTypes: true })
   return entries.flatMap((entry) => {
     const fullPath = path.join(dir, entry.name)
@@ -25,6 +27,7 @@ function collectSourceFiles(dir) {
 }
 
 function collectAppSourceFiles(dir) {
+  // collectAppSourceFiles 范围更广，包含 js/jsx，用于扫描生产 console.log。
   const entries = fs.readdirSync(dir, { withFileTypes: true })
   return entries.flatMap((entry) => {
     const fullPath = path.join(dir, entry.name)
@@ -36,6 +39,7 @@ function collectAppSourceFiles(dir) {
 }
 
 test('app source files do not contain production console logs', () => {
+  // offenders 收集违规文件与规则名称，关键断言是数组为空。
   const offenders = collectAppSourceFiles(srcDir).flatMap((filePath) => {
     const source = fs.readFileSync(filePath, 'utf8')
     const relativePath = path.relative(process.cwd(), filePath)
@@ -51,6 +55,7 @@ test('page files avoid any-typed catches and any-valued query records', () => {
     const source = fs.readFileSync(filePath, 'utf8')
     const relativePath = path.relative(process.cwd(), filePath)
     const matches = []
+    // matches 记录当前文件命中的 any 相关问题，随后汇总到 offenders 统一断言。
 
     if (/catch \(err: any\)/.test(source)) {
       matches.push(`${relativePath}: catch (err: any)`)
@@ -199,6 +204,7 @@ test('calendar floating add button stays inside the mobile preview width', () =>
 })
 
 test('floating page actions stay inside the mobile preview width', () => {
+  // checks 是批量样式断言配置，required/forbidden 分别表示必须存在和禁止出现的 CSS 片段。
   const checks = [
     {
       file: 'fanda-app/src/pages/dishes/index.scss',
@@ -243,6 +249,7 @@ test('calendar page uses compact mobile calendar proportions', () => {
   const calendarCellStyle = calendarStyle.match(/\.calendar-cell\s*\{[\s\S]*?\n\}/)?.[0] || ''
   const todayStyle = calendarStyle.match(/&\.today\s*\{[\s\S]*?\n\s*\}/)?.[0] || ''
 
+  // 各 style 变量是从日历样式中截取的选择器块，关键断言聚焦移动端尺寸约束。
   assert(heroStickerStyle.includes('width: 56px'), 'calendar hero sticker must be compact on mobile')
   assert(monthNavStyle.includes('padding: 12px 16px'), 'month navigation must use compact vertical spacing')
   assert(weekHeaderStyle.includes('padding: 6px 10px'), 'week header must not add excessive height')

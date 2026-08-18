@@ -9,10 +9,12 @@ import (
 	"github.com/google/uuid"
 )
 
+// TableHandler 负责餐桌列表和餐桌重命名 HTTP 适配。
 type TableHandler struct {
 	service *service.TableService
 }
 
+// NewTableHandler 创建餐桌 handler，并注入餐桌服务。
 func NewTableHandler() *TableHandler {
 	return &TableHandler{service: service.NewTableService()}
 }

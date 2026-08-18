@@ -9,8 +9,9 @@ import (
 	"github.com/google/uuid"
 )
 
+// OrderHandler 负责订单创建、列表、状态确认和投票相关 HTTP 接口。
 type OrderHandler struct {
-	service *service.OrderService
+	service *service.OrderService // 订单业务服务
 }
 
 // NewOrderHandler 创建订单 handler，处理点餐单、状态流转和饭搭子投票接口。

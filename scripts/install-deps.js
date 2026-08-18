@@ -9,7 +9,9 @@ const PACKAGE_JSON_PATH = path.join(ROOT, 'fanda-app', 'package.json')
 const PACKAGE_LOCK_PATH = path.join(ROOT, 'fanda-app', 'package-lock.json')
 const NODE_MODULES_LOCK = path.join(ROOT, 'fanda-app', 'node_modules', '.package-lock.json')
 
+// 脚本职责：串联前端 npm 源、前端依赖和后端 Go 依赖初始化，并在 postinstall 场景跳过重步骤。
 function isFileNotOlderThan(targetPath, sourcePaths) {
+  // targetPath 是可复用产物；sourcePaths 是判断产物是否过期的输入文件集合。
   if (!fs.existsSync(targetPath)) return false
 
   try {
@@ -24,6 +26,7 @@ function isFileNotOlderThan(targetPath, sourcePaths) {
   }
 }
 
+// INSTALL_STEPS 描述依赖初始化流水线；heavy 标记允许 --skip-heavy 在轻量安装时过滤。
 const INSTALL_STEPS = [
   {
     label: '初始化前端 npm 源',
@@ -81,6 +84,7 @@ function runStep(step) {
 async function main() {
   const force = process.argv.includes('--force')
   const skipHeavy = process.argv.includes('--skip-heavy')
+  // skipped 统计因产物已就绪而跳过的步骤数量，用于最终提示用户实际执行情况。
   let skipped = 0
 
   for (const step of getInstallSteps({ skipHeavy })) {

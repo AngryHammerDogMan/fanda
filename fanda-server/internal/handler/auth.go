@@ -10,9 +10,10 @@ import (
 	"github.com/google/uuid"
 )
 
+// AuthHandler 负责认证、个人资料、情侣和饭搭子关系相关 HTTP 接口。
 type AuthHandler struct {
-	cfg     *config.Config
-	service *service.AuthService
+	cfg     *config.Config       // 运行配置，供认证服务初始化使用
+	service *service.AuthService // 认证业务服务
 }
 
 // NewAuthHandler 组装认证相关 handler，底层 service 负责账号、关系和邀请码规则。

@@ -3,6 +3,7 @@ const path = require('path')
 
 // H5 预览检查脚本：静态确认 package 脚本、登录页入口和 API mock 兜底仍然存在。
 const root = path.resolve(__dirname, '..')
+// 静态读取关键文件，避免启动完整 H5 服务也能快速发现预览链路缺失。
 const pkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'))
 const login = fs.readFileSync(path.join(root, 'src/pages/login/index.tsx'), 'utf8')
 const api = fs.readFileSync(path.join(root, 'src/services/api.ts'), 'utf8')

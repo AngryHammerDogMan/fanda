@@ -5,6 +5,7 @@ const test = require('node:test')
 
 const H5_ENTRYPOINT_WARNING_LIMIT_KIB = 340
 
+// collectScssFiles 递归收集样式文件，用于静态检查资源引用是否会导致 H5 包重复打入图片。
 function collectScssFiles(dir) {
   const entries = fs.readdirSync(dir, { withFileTypes: true })
   return entries.flatMap((entry) => {
@@ -16,7 +17,9 @@ function collectScssFiles(dir) {
   })
 }
 
+// 测试意图：锁定 H5 构建分包、性能阈值、样式资源引用和预览 mock 的动态加载约束。
 test('H5 pages use route lazyload and splitChunks size guardrails', () => {
+  // config 是 Taro 构建配置源码，关键断言是 lazyload/splitChunks/runtimeChunk/性能阈值同时存在。
   const config = fs.readFileSync(path.join(process.cwd(), 'fanda-app/config/index.ts'), 'utf8')
 
   assert.match(config, /router:\s*\{\s*lazyload:\s*true\s*\}/)
@@ -37,6 +40,7 @@ test('H5 entrypoint warning limit is documented in webpack performance hints', (
 test('H5 stylesheets avoid bundling duplicate src/assets images', () => {
   const pagesDir = path.join(process.cwd(), 'fanda-app/src/pages')
   const scssFiles = collectScssFiles(pagesDir)
+  // relativeAssetReferences 收集违规的相对 assets 引用，期望为空表示不会重复打包源图片。
   const relativeAssetReferences = scssFiles.flatMap((filePath) => {
     const source = fs.readFileSync(filePath, 'utf8')
     const relativePath = path.relative(process.cwd(), filePath)

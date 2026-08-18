@@ -6,7 +6,9 @@ const test = require('node:test')
 const { getInstallSteps } = require('./install-deps')
 const { getMenuItems, resolveTask } = require('./start')
 
+// 测试意图：锁定本地启动/安装脚本的菜单、命令参数和无效输入行为，防止开发入口回退。
 test('install steps cover frontend npm dependencies and backend Go modules', () => {
+  // steps 是 install-deps 暴露的执行计划副本，关键断言是步骤顺序与命令参数完全匹配。
   const steps = getInstallSteps()
 
   assert.deepEqual(
@@ -22,6 +24,7 @@ test('install steps cover frontend npm dependencies and backend Go modules', () 
 })
 
 test('start menu exposes the common local development tasks', () => {
+  // taskKeys 仅提取菜单 key，避免展示文案变化影响启动能力断言。
   const taskKeys = getMenuItems().map((item) => item.key)
 
   assert.deepEqual(taskKeys, ['registry', 'h5', 'server', 'postgres', 'redis', 'migrate'])
@@ -36,6 +39,7 @@ test('resolveTask accepts menu numbers and task keys', () => {
 })
 
 test('invalid explicit task exits without opening the interactive menu', () => {
+  // result 捕获子进程退出码和输出，验证显式无效参数不会阻塞在交互菜单。
   const result = spawnSync(process.execPath, ['scripts/start.js', '--task', 'unknown'], {
     cwd: process.cwd(),
     encoding: 'utf8',
@@ -48,6 +52,7 @@ test('invalid explicit task exits without opening the interactive menu', () => {
 })
 
 test('migrate task uses the versioned Go runner without hard-coded database credentials', () => {
+  // source 用于扫描脚本源码，关键断言是迁移命令不内置数据库账号或库名。
   const source = fs.readFileSync('scripts/start.js', 'utf8')
   const task = resolveTask('migrate')
 

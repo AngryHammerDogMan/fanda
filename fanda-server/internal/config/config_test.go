@@ -5,6 +5,7 @@ import (
 	"testing"
 )
 
+// 本文件测试意图：区分 release 与 debug 配置约束，确保生产安全默认值被拒绝。
 // TestLoadRejectsUnsafeReleaseSecrets 覆盖生产模式安全兜底：默认 JWT/后台密码必须被拒绝。
 func TestLoadRejectsUnsafeReleaseSecrets(t *testing.T) {
 	t.Setenv("SERVER_MODE", "release")

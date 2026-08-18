@@ -13,6 +13,7 @@ import (
 	"gorm.io/gorm"
 )
 
+// OrderService 管理点单、一起吃确认、取消和饭搭子投票流程。
 type OrderService struct{}
 
 // NewOrderService 创建订单服务，负责订单创建、状态流转和投票聚合。
@@ -251,6 +252,7 @@ func (s *OrderService) CancelOrder(ctx context.Context, uid uuid.UUID, orderID u
 	return s.updateOrderState(ctx, order, "cancelled", uid)
 }
 
+// validateOrderDishes 批量确认订单内菜品都属于当前餐桌且未被软删除。
 func validateOrderDishes(ctx context.Context, tableID uuid.UUID, items []OrderItemReq) error {
 	if len(items) == 0 {
 		return errors.New("订单至少包含一个菜品")
@@ -278,6 +280,7 @@ func validateOrderDishes(ctx context.Context, tableID uuid.UUID, items []OrderIt
 	return nil
 }
 
+// updateOrderState 同步订单状态、关联日历记录状态和当前参与人的确认状态。
 func (s *OrderService) updateOrderState(ctx context.Context, order *model.Order, nextStatus string, actorID uuid.UUID) error {
 	return database.DB.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		if err := tx.Model(&model.Order{}).Where("id = ?", order.ID).Update("status", nextStatus).Error; err != nil {
@@ -295,6 +298,7 @@ func (s *OrderService) updateOrderState(ctx context.Context, order *model.Order,
 	})
 }
 
+// mapOrderStatusToRecordStatus 将订单状态映射为日历记录状态，拒绝视为取消。
 func mapOrderStatusToRecordStatus(orderStatus string) string {
 	switch orderStatus {
 	case "confirmed", "cancelled":
@@ -306,6 +310,7 @@ func mapOrderStatusToRecordStatus(orderStatus string) string {
 	}
 }
 
+// updateParticipantForOrderState 根据订单流转结果更新参与人状态。
 func updateParticipantForOrderState(tx *gorm.DB, orderID, actorID uuid.UUID, nextStatus string) error {
 	switch nextStatus {
 	case "confirmed":
@@ -371,12 +376,13 @@ func (s *OrderService) VoteOrder(ctx context.Context, uid uuid.UUID, orderID uui
 	return nil
 }
 
+// OrderVotesResult 是订单投票聚合结果，包含各票数和原始投票列表。
 type OrderVotesResult struct {
-	Approve int               `json:"approve"`
-	Reject  int               `json:"reject"`
-	Skip    int               `json:"skip"`
-	Total   int               `json:"total"`
-	Votes   []model.OrderVote `json:"votes"`
+	Approve int               `json:"approve"` // 赞成票数
+	Reject  int               `json:"reject"`  // 反对票数
+	Skip    int               `json:"skip"`    // 跳过票数
+	Total   int               `json:"total"`   // 总投票数
+	Votes   []model.OrderVote `json:"votes"`   // 投票明细
 }
 
 // GetOrderVotes 获取订单投票结果：读取投票明细后在内存中聚合 approve/reject/skip。
@@ -411,21 +417,24 @@ func (s *OrderService) GetOrderVotes(ctx context.Context, uid uuid.UUID, orderID
 
 // ---- 请求结构：订单创建请求由餐桌、就餐模式和至少一个订单项组成 ----
 
+// CreateOrderReq 是创建订单请求体，Items 至少包含一个菜品。
 type CreateOrderReq struct {
-	TableID        uuid.UUID            `json:"table_id" binding:"required"`
-	DineMode       string               `json:"dine_mode" binding:"required,oneof=together solo"`
-	ParticipantIDs []uuid.UUID          `json:"participant_ids"`
-	Items          []OrderItemReq       `json:"items" binding:"required,min=1"`
-	BasketItems    []OrderBasketItemReq `json:"basket_items"`
+	TableID        uuid.UUID            `json:"table_id" binding:"required"`                      // 目标餐桌 ID
+	DineMode       string               `json:"dine_mode" binding:"required,oneof=together solo"` // 就餐模式
+	ParticipantIDs []uuid.UUID          `json:"participant_ids"`                                  // 一起吃参与人
+	Items          []OrderItemReq       `json:"items" binding:"required,min=1"`                   // 订单菜品
+	BasketItems    []OrderBasketItemReq `json:"basket_items"`                                     // 顺手加入菜篮子的采购项
 }
 
+// OrderItemReq 描述订单中的一个菜品条目。
 type OrderItemReq struct {
-	DishID    uuid.UUID `json:"dish_id" binding:"required"`
-	Quantity  int       `json:"quantity" binding:"required,min=1"`
-	UnitPrice *float64  `json:"unit_price"`
+	DishID    uuid.UUID `json:"dish_id" binding:"required"`        // 菜品 ID
+	Quantity  int       `json:"quantity" binding:"required,min=1"` // 数量
+	UnitPrice *float64  `json:"unit_price"`                        // 下单时单价快照
 }
 
+// OrderBasketItemReq 描述创建订单时同步加入菜篮子的采购项。
 type OrderBasketItemReq struct {
-	Name     string `json:"name" binding:"required,max=100"`
-	Quantity string `json:"quantity"`
+	Name     string `json:"name" binding:"required,max=100"` // 采购项名称
+	Quantity string `json:"quantity"`                        // 采购数量，空值默认 1
 }

@@ -14,23 +14,31 @@ import (
 	"gorm.io/gorm"
 )
 
+// advisoryLockID 是应用级 PostgreSQL advisory lock 标识，避免多个进程同时跑迁移。
 const advisoryLockID int64 = 706_263_202_608_18
 
+// Migration 表示一个已从文件系统读取的不可变 SQL 迁移文件。
 type Migration struct {
+	// Version 来自文件名前缀，用于排序和幂等登记。
 	Version string
-	Name    string
-	SQL     string
+	// Name 来自文件名后缀，便于 schema_migrations 表展示。
+	Name string
+	// SQL 是迁移文件原文，校验和基于该内容计算。
+	SQL string
 }
 
+// Runner 持有迁移执行所需的数据库连接。
 type Runner struct {
 	db *gorm.DB
 }
 
+// requiredColumn 描述 baseline 校验时必须存在的表列。
 type requiredColumn struct {
 	table  string
 	column string
 }
 
+// baseline004RequiredColumns 是从旧库直接接入 004 baseline 前必须验证的核心列集合。
 var baseline004RequiredColumns = []requiredColumn{
 	{table: "users", column: "uid"},
 	{table: "tables", column: "id"},
@@ -46,10 +54,12 @@ var baseline004RequiredColumns = []requiredColumn{
 	{table: "calendar_records", column: "table_id"},
 }
 
+// NewRunner 创建迁移执行器，调用方负责传入已连通的数据库连接。
 func NewRunner(db *gorm.DB) *Runner {
 	return &Runner{db: db}
 }
 
+// LoadDir 读取目录中的 .sql 文件，要求文件名格式为 <version>_<name>.sql。
 func LoadDir(dir string) ([]Migration, error) {
 	entries, err := os.ReadDir(dir)
 	if err != nil {
@@ -73,6 +83,7 @@ func LoadDir(dir string) ([]Migration, error) {
 	return migrations, nil
 }
 
+// Run 按版本顺序执行迁移；PostgreSQL 下先获取 advisory lock，再登记校验和。
 func (r *Runner) Run(migrations []Migration, baseline ...string) error {
 	if len(baseline) > 1 {
 		return errors.New("只能指定一个 baseline")
@@ -93,6 +104,7 @@ func (r *Runner) Run(migrations []Migration, baseline ...string) error {
 	})
 }
 
+// runLocked 在已持有迁移锁的连接上初始化登记表、处理 baseline 并逐个执行迁移。
 func (r *Runner) runLocked(db *gorm.DB, migrations []Migration, baselineVersion string) error {
 	if err := db.Exec(`
 		CREATE TABLE IF NOT EXISTS schema_migrations (
@@ -120,6 +132,7 @@ func (r *Runner) runLocked(db *gorm.DB, migrations []Migration, baselineVersion 
 	return nil
 }
 
+// registerBaseline 将已人工确认存在的历史版本写入登记表，不重复执行历史 SQL。
 func registerBaseline(db *gorm.DB, migrations []Migration, version string) error {
 	if version != "004" {
 		return fmt.Errorf("不支持 baseline %q，仅支持 004", version)
@@ -159,6 +172,7 @@ func registerBaseline(db *gorm.DB, migrations []Migration, version string) error
 	})
 }
 
+// validateBaseline004 检查 004 版本依赖的统一餐桌核心列，防止错误跳过历史迁移。
 func validateBaseline004(db *gorm.DB) error {
 	for _, required := range baseline004RequiredColumns {
 		if !db.Migrator().HasColumn(required.table, required.column) {
@@ -168,6 +182,7 @@ func validateBaseline004(db *gorm.DB) error {
 	return nil
 }
 
+// applyOne 对单个迁移做幂等检查、校验和漂移检测和事务内执行登记。
 func applyOne(db *gorm.DB, migration Migration) error {
 	checksum := checksumOf(migration.SQL)
 	var applied struct {
@@ -199,6 +214,7 @@ func applyOne(db *gorm.DB, migration Migration) error {
 	})
 }
 
+// checksumOf 生成迁移内容的 SHA-256 校验和，用于发现已执行 SQL 被修改。
 func checksumOf(sql string) string {
 	sum := sha256.Sum256([]byte(sql))
 	return hex.EncodeToString(sum[:])

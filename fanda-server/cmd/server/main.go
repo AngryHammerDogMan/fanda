@@ -10,6 +10,7 @@ import (
 	"fanda-server/internal/router"
 )
 
+// main 是服务进程入口，所有初始化失败都会在启动阶段快速暴露。
 func main() {
 	// 启动顺序保持为“配置 → 基础设施 → 路由 → 监听”，便于启动失败时定位问题。
 	cfg, err := config.Load()

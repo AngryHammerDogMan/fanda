@@ -1,7 +1,9 @@
 -- 003: 餐桌模型与点单流程重构
 -- 引入统一 tables / table_members 权限边界，并为既有业务表补充 table_id。
+-- 文件职责：从早期 group_type/group_id 归属模型过渡到统一餐桌模型。
 
 CREATE TABLE IF NOT EXISTS tables (
+    -- type 区分个人/情侣/饭搭餐桌；owner_id 用于重命名等创建者权限判断。
     id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     type        VARCHAR(10) NOT NULL CHECK (type IN ('personal', 'couple', 'buddy')),
     name        VARCHAR(50) NOT NULL,
@@ -15,6 +17,7 @@ CREATE INDEX IF NOT EXISTS idx_tables_owner ON tables(owner_id);
 CREATE INDEX IF NOT EXISTS idx_tables_type ON tables(type);
 
 CREATE TABLE IF NOT EXISTS table_members (
+    -- table_id + user_id 唯一；status=active 是所有餐桌资源鉴权的核心依据。
     id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     table_id    UUID NOT NULL REFERENCES tables(id) ON DELETE CASCADE,
     user_id     UUID NOT NULL REFERENCES users(uid),
@@ -34,6 +37,7 @@ WHERE type = 'personal' AND status = 'active';
 -- 由 TableService 在创建或绑定情侣餐桌时通过事务校验 table_members 实现。
 
 ALTER TABLE dishes ADD COLUMN IF NOT EXISTS table_id UUID REFERENCES tables(id);
+-- 核心逻辑：先允许 table_id 为空以便历史数据分批回填，004 再收紧非空约束。
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS table_id UUID REFERENCES tables(id);
 ALTER TABLE calendar_records ADD COLUMN IF NOT EXISTS table_id UUID REFERENCES tables(id);
 ALTER TABLE calendar_records ADD COLUMN IF NOT EXISTS status VARCHAR(15) NOT NULL DEFAULT 'confirmed'
@@ -43,6 +47,7 @@ ALTER TABLE shopping_baskets ADD COLUMN IF NOT EXISTS table_id UUID REFERENCES t
 ALTER TABLE budget_settings ADD COLUMN IF NOT EXISTS table_id UUID REFERENCES tables(id);
 
 CREATE TABLE IF NOT EXISTS order_participants (
+    -- 一起吃参与人独立成表，便于每个参与人维护 invited/accepted/rejected/skipped 状态。
     id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     order_id    UUID NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
     user_id     UUID NOT NULL REFERENCES users(uid),

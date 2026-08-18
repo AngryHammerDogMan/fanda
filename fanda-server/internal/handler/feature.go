@@ -9,11 +9,12 @@ import (
 	"github.com/google/uuid"
 )
 
+// FeatureHandler 负责签到、积分、心愿、菜篮子和预算等扩展功能入口。
 type FeatureHandler struct {
-	service       *service.FeatureService
-	wishService   *service.WishService
-	basketService *service.BasketService
-	budgetService *service.BudgetService
+	service       *service.FeatureService // 签到和积分服务
+	wishService   *service.WishService    // 心愿清单服务
+	basketService *service.BasketService  // 菜篮子服务
+	budgetService *service.BudgetService  // 预算服务
 }
 
 // NewFeatureHandler 创建扩展功能 handler，覆盖心愿、签到、菜篮子、预算和积分。

@@ -9,6 +9,7 @@ import (
 )
 
 func main() {
+	// 脚本职责：手动连通性检查本地 PostgreSQL 的当前数据库、public 表和 users 查询。
 	// 尝试 URL 格式
 	dsn := "postgres://postgres@127.0.0.1:5432/fanda?sslmode=disable&TimeZone=Asia/Shanghai"
 	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
@@ -27,6 +28,7 @@ func main() {
 	fmt.Printf("public schema 中的表: %v\n", tables)
 
 	// 测试查询
+	// result 保存 users 表的样例查询结果；tx 用于检查查询是否执行成功。
 	var result []map[string]interface{}
 	tx := db.Raw("SELECT * FROM users LIMIT 1").Scan(&result)
 	if tx.Error != nil {

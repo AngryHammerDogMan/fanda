@@ -23,11 +23,12 @@ import (
 	"gorm.io/gorm/clause"
 )
 
+// AuthService 负责平台登录、JWT 签发、手机号合并和情侣/饭搭关系维护。
 type AuthService struct {
-	cfg               *config.Config
-	httpClient        *http.Client
-	wxCode2SessionURL string
-	dyCode2SessionURL string
+	cfg               *config.Config // 运行配置，包含平台密钥和 JWT 参数
+	httpClient        *http.Client   // 可替换 HTTP 客户端，便于测试平台换取 openid
+	wxCode2SessionURL string         // 微信 code2session 地址
+	dyCode2SessionURL string         // 抖音 code2session 地址
 }
 
 // NewAuthService 创建认证服务，JWT 签发依赖传入的运行配置。
@@ -42,44 +43,48 @@ func NewAuthService(cfg *config.Config) *AuthService {
 
 // LoginResult 登录返回
 type LoginResult struct {
-	Token         string `json:"token"`
-	UID           string `json:"uid"`
-	Nickname      string `json:"nickname"`
-	Avatar        string `json:"avatar"`
-	IsNew         bool   `json:"is_new"`
-	NeedBindPhone bool   `json:"need_bind_phone"`
-	Phone         string `json:"phone,omitempty"`
+	Token         string `json:"token"`           // JWT 登录令牌
+	UID           string `json:"uid"`             // 用户唯一 ID
+	Nickname      string `json:"nickname"`        // 用户昵称
+	Avatar        string `json:"avatar"`          // 头像地址
+	IsNew         bool   `json:"is_new"`          // 是否首次创建平台账号
+	NeedBindPhone bool   `json:"need_bind_phone"` // 是否需要绑定手机号以打通多平台
+	Phone         string `json:"phone,omitempty"` // 脱敏手机号
 }
 
+// CoupleProfile 是用户资料中返回的情侣关系摘要。
 type CoupleProfile struct {
-	ID      uuid.UUID `json:"id"`
-	User1ID uuid.UUID `json:"user1_id"`
-	User2ID uuid.UUID `json:"user2_id"`
-	Status  string    `json:"status"`
+	ID      uuid.UUID `json:"id"`       // 情侣关系 ID
+	User1ID uuid.UUID `json:"user1_id"` // 关系中的第一位用户
+	User2ID uuid.UUID `json:"user2_id"` // 关系中的第二位用户
+	Status  string    `json:"status"`   // 关系状态
 }
 
+// ProfileResult 是个人中心资料响应，聚合账号绑定状态和关系信息。
 type ProfileResult struct {
-	UID         uuid.UUID          `json:"uid"`
-	Nickname    string             `json:"nickname"`
-	Avatar      string             `json:"avatar"`
-	Points      int                `json:"points"`
-	HasWx       bool               `json:"has_wx"`
-	HasDy       bool               `json:"has_dy"`
-	Phone       string             `json:"phone"`
-	HasPhone    bool               `json:"has_phone"`
-	Couple      *CoupleProfile     `json:"couple"`
-	BuddyGroups []model.BuddyGroup `json:"buddy_groups"`
-	CreatedAt   time.Time          `json:"created_at"`
+	UID         uuid.UUID          `json:"uid"`          // 用户唯一 ID
+	Nickname    string             `json:"nickname"`     // 昵称
+	Avatar      string             `json:"avatar"`       // 头像地址
+	Points      int                `json:"points"`       // 当前积分
+	HasWx       bool               `json:"has_wx"`       // 是否绑定微信 openid
+	HasDy       bool               `json:"has_dy"`       // 是否绑定抖音 openid
+	Phone       string             `json:"phone"`        // 脱敏手机号
+	HasPhone    bool               `json:"has_phone"`    // 是否已绑定手机号
+	Couple      *CoupleProfile     `json:"couple"`       // 当前情侣关系
+	BuddyGroups []model.BuddyGroup `json:"buddy_groups"` // 加入的饭搭子组合
+	CreatedAt   time.Time          `json:"created_at"`   // 用户创建时间
 }
 
+// InviteResult 是邀请码创建响应，包含邀请码和过期时间。
 type InviteResult struct {
-	Code      string    `json:"code"`
-	ExpiresAt time.Time `json:"expires_at"`
+	Code      string    `json:"code"`       // 一次性邀请码
+	ExpiresAt time.Time `json:"expires_at"` // 过期时间
 }
 
+// BuddyGroupSummary 是饭搭子组合的轻量摘要。
 type BuddyGroupSummary struct {
-	ID   uuid.UUID `json:"id"`
-	Name string    `json:"name"`
+	ID   uuid.UUID `json:"id"`   // 饭搭子组合 ID
+	Name string    `json:"name"` // 组合名称
 }
 
 // Login 平台登录：用平台 code 换取 openid，按 openid 查找/创建用户并签发 JWT。
@@ -774,6 +779,7 @@ func (s *AuthService) RemoveBuddyMember(ctx context.Context, userID uuid.UUID, g
 
 // ---- 辅助函数 ----
 
+// exchangeOpenID 在 debug 模式生成模拟 openid，在 release 模式调用对应平台接口。
 func (s *AuthService) exchangeOpenID(platform, code string) (string, error) {
 	if code == "" {
 		return "", errors.New("code 不能为空")
@@ -805,6 +811,7 @@ func (s *AuthService) exchangeOpenID(platform, code string) (string, error) {
 	}
 }
 
+// exchangeWechatOpenID 调用微信 jscode2session，将前端 code 换成 openid。
 func (s *AuthService) exchangeWechatOpenID(code string) (string, error) {
 	endpoint, err := url.Parse(s.wxCode2SessionURL)
 	if err != nil {
@@ -843,6 +850,7 @@ func (s *AuthService) exchangeWechatOpenID(code string) (string, error) {
 	return payload.OpenID, nil
 }
 
+// exchangeDouyinOpenID 调用抖音 code2session，将前端 code 换成 openid。
 func (s *AuthService) exchangeDouyinOpenID(code string) (string, error) {
 	body, err := json.Marshal(map[string]string{
 		"appid":  s.cfg.DyAppID,
@@ -886,6 +894,7 @@ func (s *AuthService) exchangeDouyinOpenID(code string) (string, error) {
 	return payload.Data.OpenID, nil
 }
 
+// client 返回可注入的 HTTP 客户端，测试未注入时回退默认客户端。
 func (s *AuthService) client() *http.Client {
 	if s.httpClient != nil {
 		return s.httpClient
@@ -893,6 +902,7 @@ func (s *AuthService) client() *http.Client {
 	return http.DefaultClient
 }
 
+// generateJWT 使用 HS256 签发包含 uid、platform 和过期时间的登录令牌。
 func (s *AuthService) generateJWT(uid uuid.UUID, platform string) (string, error) {
 	claims := jwt.MapClaims{
 		"uid":      uid.String(),
@@ -905,6 +915,7 @@ func (s *AuthService) generateJWT(uid uuid.UUID, platform string) (string, error
 	return token.SignedString([]byte(s.cfg.JWTSecret))
 }
 
+// getOpenIDField 将平台名映射到 users 表中的 openid 字段。
 func (s *AuthService) getOpenIDField(platform string) string {
 	switch platform {
 	case "wechat":
@@ -916,6 +927,7 @@ func (s *AuthService) getOpenIDField(platform string) string {
 	}
 }
 
+// coupleToProfile 将数据库模型转换为接口需要的情侣摘要。
 func coupleToProfile(c *model.Couple) *CoupleProfile {
 	if c == nil {
 		return nil

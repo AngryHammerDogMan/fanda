@@ -9,8 +9,9 @@ import (
 	"github.com/google/uuid"
 )
 
+// DishHandler 负责菜品库和学菜广场相关 HTTP 接口。
 type DishHandler struct {
-	service *service.DishService
+	service *service.DishService // 菜品业务服务
 }
 
 // NewDishHandler 创建菜品 handler，负责个人菜品库和学菜广场相关请求。

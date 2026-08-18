@@ -11,8 +11,10 @@ import (
 	"github.com/google/uuid"
 )
 
+// WishService 管理餐桌心愿清单，创建、完成和删除均围绕创建者身份控制。
 type WishService struct{}
 
+// NewWishService 创建心愿服务实例。
 func NewWishService() *WishService {
 	return &WishService{}
 }
@@ -65,7 +67,7 @@ func (s *WishService) CompleteWish(ctx context.Context, uid uuid.UUID, wishID uu
 	return result.Error
 }
 
-// DeleteWish 删除心愿
+// DeleteWish 删除心愿：按 user_id 限制为创建者删除。
 func (s *WishService) DeleteWish(ctx context.Context, uid uuid.UUID, wishID uuid.UUID) error {
 	result := database.DB.Where("id = ? AND user_id = ?", wishID, uid).Delete(&model.WishItem{})
 	if result.RowsAffected == 0 {

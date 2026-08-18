@@ -1,7 +1,8 @@
 -- 饭搭小程序 - 数据库初始化脚本
 -- PostgreSQL 16
+-- 文件职责：创建首版业务全量表结构、索引、触发器和表级注释。
 
--- 启用 uuid 扩展
+-- 启用 uuid 扩展；pg_trgm 用于菜名模糊搜索的 GIN trigram 索引。
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE EXTENSION IF NOT EXISTS pg_trgm;
 
@@ -9,6 +10,7 @@ CREATE EXTENSION IF NOT EXISTS pg_trgm;
 -- 1. 用户表
 -- ============================================================
 CREATE TABLE users (
+    -- uid 是业务用户主键；openid/phone 分别承载平台账号和跨平台合并标识。
     uid         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     wx_openid   VARCHAR(64) UNIQUE,
     dy_openid   VARCHAR(64) UNIQUE,
@@ -100,6 +102,7 @@ CREATE INDEX idx_buddy_invites_code ON buddy_invites(code);
 -- 8. 菜品表
 -- ============================================================
 CREATE TABLE dishes (
+    -- group_type/group_id 是早期归属模型，003 起逐步迁移到统一 table_id。
     id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     owner_id        UUID NOT NULL REFERENCES users(uid),
     group_type      VARCHAR(10) NOT NULL CHECK (group_type IN ('couple', 'buddy')),
@@ -132,6 +135,7 @@ CREATE INDEX idx_dishes_name_trgm ON dishes USING GIN(name gin_trgm_ops);
 -- 9. 订单表
 -- ============================================================
 CREATE TABLE orders (
+    -- status 驱动一起吃确认/拒绝/取消/投票流程，calendar_record_id 关联日历记录。
     id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     creator_id          UUID NOT NULL REFERENCES users(uid),
     group_type          VARCHAR(10) NOT NULL CHECK (group_type IN ('couple', 'buddy')),
@@ -179,6 +183,7 @@ CREATE UNIQUE INDEX idx_order_vote_unique ON order_votes(order_id, user_id);
 -- 12. 日历记录表
 -- ============================================================
 CREATE TABLE calendar_records (
+    -- record_date + meal_type 记录每日每餐；amount 为空时会被月度统计标记为待补录。
     id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id         UUID NOT NULL REFERENCES users(uid),
     group_type      VARCHAR(10) NOT NULL CHECK (group_type IN ('couple', 'buddy')),
@@ -323,6 +328,7 @@ CREATE INDEX idx_basket_group ON shopping_baskets(user_id, group_type, group_id)
 CREATE OR REPLACE FUNCTION update_updated_at()
 RETURNS TRIGGER AS $$
 BEGIN
+    -- 核心逻辑：任何 UPDATE 自动刷新 updated_at，避免业务层遗漏更新时间维护。
     NEW.updated_at = NOW();
     RETURN NEW;
 END;

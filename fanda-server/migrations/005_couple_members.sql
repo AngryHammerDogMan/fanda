@@ -1,7 +1,9 @@
 -- 005: 规范化情侣成员，跨 user1_id/user2_id 保证每个用户至多属于一段 active 关系。
+-- 文件职责：把 couples 的两列成员关系展开为 couple_members 行式关系，便于唯一约束。
 
 DO $$
 BEGIN
+    -- 核心逻辑：迁移前先阻断已存在的多段 active 情侣关系，避免唯一索引创建失败后半迁移。
     IF EXISTS (
         SELECT user_id
         FROM (
@@ -17,6 +19,7 @@ BEGIN
 END $$;
 
 CREATE TABLE couple_members (
+    -- couple_id + user_id 唯一保证同一关系不重复；active user 唯一保证用户不同时处于多段情侣关系。
     id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     couple_id   UUID NOT NULL REFERENCES couples(id) ON DELETE CASCADE,
     user_id     UUID NOT NULL REFERENCES users(uid),

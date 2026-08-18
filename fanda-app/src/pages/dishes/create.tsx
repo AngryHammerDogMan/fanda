@@ -32,13 +32,14 @@ const getPickerIndex = (event: PickerChangeEvent): number => {
   return Number(rawValue)
 }
 
+// 菜品创建/编辑页：维护菜品基础信息、食材步骤、标签图片与餐桌归属，并按路由 id 区分新增或编辑。
 export default function DishCreate() {
   const router = useRouter()
   const { id } = router.params
 
   const isEdit = !!id
 
-  // 表单状态
+  // 表单状态：各字段与页面表单一一对应，submitting 防止重复提交。
   const [dishType, setDishType] = useState<DishPayload['dish_type']>('dish')
   const [name, setName] = useState('')
   const [category, setCategory] = useState('')
@@ -80,6 +81,7 @@ export default function DishCreate() {
     try {
       const res = await dishAPI.get(dishId)
       const dish = res.data as Dish
+      // 编辑模式回填后同步餐桌缓存，保证后续点单、日历等页面沿用同一餐桌上下文。
       setName(dish.name)
       setDishType(dish.dish_type)
       setCategory(dish.category)
@@ -166,7 +168,7 @@ export default function DishCreate() {
     setPhotos(photos.filter((_, i) => i !== index))
   }
 
-  // 提交
+  // 提交：校验必填项后统一组装 payload，新增和编辑共用同一份表单状态。
   const handleSubmit = async () => {
     if (submitting) return
 

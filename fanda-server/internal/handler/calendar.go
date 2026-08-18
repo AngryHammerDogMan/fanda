@@ -10,8 +10,9 @@ import (
 	"github.com/google/uuid"
 )
 
+// CalendarHandler 负责日历记录、记录照片、留言和月度统计的 HTTP 适配。
 type CalendarHandler struct {
-	service *service.CalendarService
+	service *service.CalendarService // 日历业务服务
 }
 
 // NewCalendarHandler 创建日历记录 handler，承接吃饭记录、照片、留言和统计接口。

@@ -3,6 +3,7 @@
 const { spawn } = require('node:child_process')
 const readline = require('node:readline/promises')
 
+// 脚本职责：统一暴露本地开发常用启动项，支持命令行参数和交互菜单两种入口。
 const postgresStartCommand = `
 if ! command -v brew >/dev/null 2>&1; then
   echo "未找到 brew，无法自动启动 PostgreSQL。请先手动启动数据库。"
@@ -27,6 +28,7 @@ fi
 brew services start redis
 `
 
+// TASKS 记录菜单 key、展示文案以及真实子进程命令，是 resolveTask/runTask 的共享数据源。
 const TASKS = [
   {
     key: 'registry',
@@ -71,6 +73,7 @@ function getMenuItems() {
 }
 
 function resolveTask(input) {
+  // value 是用户输入的序号或任务 key，统一 trim 后再尝试匹配。
   const value = String(input || '').trim()
   const index = Number(value)
 
@@ -82,6 +85,7 @@ function resolveTask(input) {
 }
 
 function getTaskArg(argv) {
+  // taskFlagIndex 用来区分显式 --task 参数和位置参数，便于无效任务时直接退出而不进菜单。
   const taskFlagIndex = argv.indexOf('--task')
   if (taskFlagIndex >= 0) {
     return {
@@ -127,6 +131,7 @@ function runTask(task) {
   console.log(`\n> ${task.label}`)
 
   return new Promise((resolve, reject) => {
+    // child 是被代理的实际启动命令；父进程负责转发中断信号并同步退出状态。
     const child = spawn(task.command, task.args, {
       stdio: 'inherit',
       shell: process.platform === 'win32',

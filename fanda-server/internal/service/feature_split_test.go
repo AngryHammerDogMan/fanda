@@ -13,12 +13,14 @@ import (
 	"gorm.io/gorm"
 )
 
+// setupFeatureSplitTestDB 构造心愿、菜篮子和预算拆分服务所需的最小内存数据库。
 func setupFeatureSplitTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
 
 	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
 	require.NoError(t, err)
 
+	// stmts 覆盖拆分服务直接访问的表，预算表包含唯一索引用于验证 upsert 语义。
 	stmts := []string{
 		`CREATE TABLE users (uid TEXT PRIMARY KEY, wx_openid TEXT, dy_openid TEXT, phone TEXT, nickname TEXT NOT NULL, avatar TEXT, points INTEGER, created_at DATETIME, updated_at DATETIME)`,
 		`CREATE TABLE tables (id TEXT PRIMARY KEY, type TEXT NOT NULL, name TEXT NOT NULL, owner_id TEXT NOT NULL, status TEXT NOT NULL, created_at DATETIME, updated_at DATETIME)`,
@@ -38,6 +40,7 @@ func setupFeatureSplitTestDB(t *testing.T) *gorm.DB {
 func createFeatureSplitMember(t *testing.T, db *gorm.DB) (uuid.UUID, uuid.UUID) {
 	t.Helper()
 
+	// uid/tableID 是当前测试用户及其可访问餐桌，供各独立服务复用。
 	uid := uuid.New()
 	tableID := uuid.New()
 	require.NoError(t, db.Create(&model.User{UID: uid, Nickname: "tester"}).Error)
@@ -47,6 +50,7 @@ func createFeatureSplitMember(t *testing.T, db *gorm.DB) (uuid.UUID, uuid.UUID) 
 }
 
 func TestBudgetServiceSetBudgetCanBeCalledIndependently(t *testing.T) {
+	// 测试意图：预算服务脱离 FeatureService 门面后仍可独立设置并读取预算。
 	db := setupFeatureSplitTestDB(t)
 	uid, tableID := createFeatureSplitMember(t, db)
 
@@ -68,6 +72,7 @@ func TestBudgetServiceSetBudgetCanBeCalledIndependently(t *testing.T) {
 }
 
 func TestBasketServiceAddToBasketCanBeCalledIndependently(t *testing.T) {
+	// 测试意图：菜篮子服务脱离门面后仍可独立新增并按餐桌列出条目。
 	db := setupFeatureSplitTestDB(t)
 	uid, tableID := createFeatureSplitMember(t, db)
 
@@ -89,6 +94,7 @@ func TestBasketServiceAddToBasketCanBeCalledIndependently(t *testing.T) {
 }
 
 func TestWishServiceCreateAndListCanBeCalledIndependently(t *testing.T) {
+	// 测试意图：心愿服务脱离门面后仍可独立创建并按未完成状态过滤列表。
 	db := setupFeatureSplitTestDB(t)
 	uid, tableID := createFeatureSplitMember(t, db)
 
@@ -104,6 +110,7 @@ func TestWishServiceCreateAndListCanBeCalledIndependently(t *testing.T) {
 	require.Equal(t, "周末吃火锅", wish.Name)
 
 	incomplete := false
+	// incomplete 表示只查询未完成心愿，关键断言是刚创建的心愿能被列表返回。
 	wishes, err := NewWishService().ListWishes(context.Background(), uid, tableID, &incomplete)
 	require.NoError(t, err)
 	require.Len(t, wishes, 1)

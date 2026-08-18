@@ -1,4 +1,5 @@
 export default defineAppConfig({
+  // pages 声明 Taro 路由注册顺序，首页必须放在首位作为默认入口。
   pages: [
     'pages/index/index',
     'pages/login/index',
@@ -18,12 +19,14 @@ export default defineAppConfig({
     'pages/buddy/index'
   ],
   window: {
+    // 全局导航栏主题：小程序端页面默认继承饭搭品牌橙色。
     backgroundTextStyle: 'light',
     navigationBarBackgroundColor: '#FF6B35',
     navigationBarTitleText: '饭搭',
     navigationBarTextStyle: 'white'
   },
   tabBar: {
+    // 底部 tab 仅放高频主流程；图标资源来自 src/assets/tabbar 并由 Taro 构建复制。
     color: '#999999',
     selectedColor: '#FF6B35',
     backgroundColor: '#FFFFFF',

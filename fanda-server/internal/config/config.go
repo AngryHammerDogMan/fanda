@@ -14,9 +14,11 @@ import (
 
 // Config 汇总服务启动所需的外部依赖、鉴权和跨域配置。
 type Config struct {
+	// ServerPort / ServerMode 控制 HTTP 监听端口和 Gin 运行模式。
 	ServerPort string
 	ServerMode string
 
+	// DB* 字段描述 PostgreSQL 主库连接参数，迁移和业务读写共用。
 	DBHost     string
 	DBPort     string
 	DBUser     string
@@ -24,24 +26,30 @@ type Config struct {
 	DBName     string
 	DBSSLMode  string
 
+	// Redis* 字段描述可选缓存连接参数，RedisDB 对应逻辑库编号。
 	RedisHost     string
 	RedisPort     string
 	RedisPassword string
 	RedisDB       int
 
+	// JWTSecret 用于签名登录令牌，JWTExpireHours 控制令牌有效期。
 	JWTSecret      string
 	JWTExpireHours int
 
+	// AdminPassword 是后台管理接口的简单口令。
 	AdminPassword string
 
+	// Wx* / Dy* 是小程序平台 code2session 所需凭证。
 	WxAppID  string
 	WxSecret string
 	DyAppID  string
 	DySecret string
 
+	// UploadDir 和 MaxUploadSize 控制上传文件落盘目录与单文件大小上限。
 	UploadDir     string
 	MaxUploadSize int64
 
+	// CORSAllowOrigins 保存允许跨域访问的 Origin 白名单，逗号分隔。
 	CORSAllowOrigins string
 }
 
@@ -130,6 +138,7 @@ func (c *Config) AllowsOrigin(origin string) bool {
 	return false
 }
 
+// String 输出不含敏感字段的配置摘要，便于启动日志排查。
 func (c *Config) String() string {
 	return fmt.Sprintf("port=%s mode=%s db=%s:%s/%s", c.ServerPort, c.ServerMode, c.DBHost, c.DBPort, c.DBName)
 }
@@ -152,6 +161,7 @@ func getEnvInt(key string, fallback int) int {
 	return fallback
 }
 
+// isMissingPlatformCredential 识别空值和示例占位符，供生产配置校验复用。
 func isMissingPlatformCredential(value, placeholder string) bool {
 	trimmed := strings.TrimSpace(value)
 	return trimmed == "" || trimmed == placeholder

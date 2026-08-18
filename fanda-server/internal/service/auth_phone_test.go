@@ -22,6 +22,7 @@ func setupPhoneMergeTestDB(t *testing.T) {
 		t.Fatalf("初始化内存数据库失败: %v", err)
 	}
 
+	// stmts 是账号合并会触达的最小表结构集合，避免无关字段干扰测试意图。
 	stmts := []string{
 		`CREATE TABLE users (uid TEXT PRIMARY KEY, wx_openid TEXT UNIQUE, dy_openid TEXT UNIQUE, phone TEXT UNIQUE, nickname TEXT NOT NULL, avatar TEXT, points INTEGER, created_at DATETIME, updated_at DATETIME)`,
 		`CREATE TABLE dishes (id TEXT PRIMARY KEY, owner_id TEXT, table_id TEXT, updated_at DATETIME)`,
@@ -111,9 +112,11 @@ func TestBindPhoneMergesExistingPhoneAccount(t *testing.T) {
 }
 
 func TestBindPhoneMigratesTableOwnershipMembersAndOrderParticipants(t *testing.T) {
+	// 测试意图：绑定已有手机号时，来源账号在餐桌、成员和订单参与者中的引用迁移到目标账号。
 	setupPhoneMergeTestDB(t)
 
 	phone := "13800138001"
+	// targetUID 是已绑定手机号账号；sourceUID 是本次登录的平台账号；tableID/orderID 是待迁移资源。
 	targetUID := uuid.New()
 	sourceUID := uuid.New()
 	tableID := uuid.New()
@@ -165,6 +168,7 @@ func TestBindPhoneMigratesTableOwnershipMembersAndOrderParticipants(t *testing.T
 }
 
 func TestBindPhoneRemovesConflictingTableMembersAndOrderParticipants(t *testing.T) {
+	// 测试意图：当目标和来源账号已同时出现在同一餐桌/订单时，合并后去重并保留目标状态。
 	setupPhoneMergeTestDB(t)
 
 	phone := "13800138002"
@@ -219,6 +223,7 @@ func TestBindPhoneRemovesConflictingTableMembersAndOrderParticipants(t *testing.
 	require.NoError(t, NewAuthService(nil).BindPhone(context.Background(), sourceUID, phone))
 
 	var memberCount int64
+	// memberCount/participantCount 是冲突去重后的数量断言，均应只剩目标账号记录。
 	require.NoError(t, database.DB.Model(&model.TableMember{}).Where("table_id = ?", tableID).Count(&memberCount).Error)
 	require.Equal(t, int64(1), memberCount)
 	var member model.TableMember
@@ -236,6 +241,7 @@ func TestBindPhoneRemovesConflictingTableMembersAndOrderParticipants(t *testing.
 }
 
 func TestBindPhoneMergesTwoActivePersonalTablesIntoTargetTable(t *testing.T) {
+	// 测试意图：两个账号各有活跃个人餐桌时，合并到目标个人餐桌并迁移关联业务数据。
 	setupPhoneMergeTestDB(t)
 
 	phone := "13800138003"
@@ -266,6 +272,7 @@ func TestBindPhoneMergesTwoActivePersonalTablesIntoTargetTable(t *testing.T) {
 	dishID := uuid.New()
 	orderID := uuid.New()
 	recordID := uuid.New()
+	// dishID/orderID/recordID 标识来源个人餐桌下的关联数据，合并后 table_id 应全部指向目标餐桌。
 	require.NoError(t, database.DB.Exec(
 		`INSERT INTO dishes (id, owner_id, table_id) VALUES (?, ?, ?)`,
 		dishID, sourceUID, sourceTableID,
@@ -304,6 +311,7 @@ func TestBindPhoneMergesTwoActivePersonalTablesIntoTargetTable(t *testing.T) {
 }
 
 func TestBindPhoneKeepsTargetBudgetOnSameMonthPersonalTableConflict(t *testing.T) {
+	// 测试意图：同月预算发生唯一键冲突时保留目标账号预算，丢弃来源账号重复预算。
 	setupPhoneMergeTestDB(t)
 
 	phone := "13800138005"
@@ -341,6 +349,7 @@ func TestBindPhoneKeepsTargetBudgetOnSameMonthPersonalTableConflict(t *testing.T
 }
 
 func TestCreateCoupleMembersRejectsUserAlreadyInAnotherActiveCouple(t *testing.T) {
+	// 测试意图：情侣成员规范化表通过 active 用户唯一索引阻止同一用户加入多个活跃情侣关系。
 	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
 	require.NoError(t, err)
 	require.NoError(t, db.Exec(`
@@ -368,6 +377,7 @@ func TestCreateCoupleMembersRejectsUserAlreadyInAnotherActiveCouple(t *testing.T
 }
 
 func TestBindPhoneMigratesNormalizedCoupleMember(t *testing.T) {
+	// 测试意图：账号合并时同步迁移 couple_members 规范化成员记录，并清理来源账号成员关系。
 	setupPhoneMergeTestDB(t)
 
 	phone := "13800138004"

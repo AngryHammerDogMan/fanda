@@ -10,6 +10,7 @@ import (
 	"fanda-server/internal/config"
 )
 
+// 测试意图：覆盖 release 模式下登录 code 换 openid 的安全限制和微信/抖音真实接口调用。
 func TestExchangeOpenIDRejectsMockInRelease(t *testing.T) {
 	svc := NewAuthService(&config.Config{ServerMode: "release"})
 
@@ -26,6 +27,7 @@ func TestExchangeOpenIDRejectsMockInRelease(t *testing.T) {
 }
 
 func TestExchangeOpenIDCallsWechatJscode2SessionInRelease(t *testing.T) {
+	// server 是本地模拟的微信 code2session 服务，关键断言是路径和 query 参数完全正确。
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/sns/jscode2session" {
 			t.Fatalf("微信 code2session 路径错误: %s", r.URL.Path)
@@ -57,6 +59,7 @@ func TestExchangeOpenIDCallsWechatJscode2SessionInRelease(t *testing.T) {
 }
 
 func TestExchangeOpenIDCallsDouyinCode2SessionInRelease(t *testing.T) {
+	// server 是本地模拟的抖音 code2session 服务，关键断言是 POST JSON body 和返回 openid 解析。
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/api/apps/v2/jscode2session" {
 			t.Fatalf("抖音 code2session 路径错误: %s", r.URL.Path)
@@ -65,6 +68,7 @@ func TestExchangeOpenIDCallsDouyinCode2SessionInRelease(t *testing.T) {
 			t.Fatalf("抖音 code2session 应使用 POST，got %s", r.Method)
 		}
 		var body map[string]string
+		// body 保存抖音接口收到的 JSON 请求体，用于校验 appid/secret/code 传参。
 		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 			t.Fatalf("抖音 code2session body 不是 JSON: %v", err)
 		}
@@ -94,6 +98,7 @@ func TestExchangeOpenIDCallsDouyinCode2SessionInRelease(t *testing.T) {
 }
 
 func TestExchangeOpenIDRejectsUnsupportedPlatform(t *testing.T) {
+	// 测试意图：未知平台不应调用外部接口，也不应返回 openid。
 	svc := NewAuthService(&config.Config{
 		ServerMode: "release",
 		WxAppID:    "wx-app",

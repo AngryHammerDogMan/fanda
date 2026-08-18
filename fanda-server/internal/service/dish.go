@@ -13,6 +13,7 @@ import (
 	"github.com/lib/pq"
 )
 
+// DishService 管理用户餐桌内菜品和学菜广场菜品的创建、查询与导入。
 type DishService struct{}
 
 // NewDishService 创建菜品服务，所有数据访问通过 database.DB 完成。
@@ -291,43 +292,47 @@ func (s *DishService) GetPlazaCategories(ctx context.Context) ([]string, error) 
 
 // ---- 请求结构：字段标签同时服务于 Gin 参数绑定和接口文档阅读 ----
 
+// IngredientReq 描述一道菜所需的一项食材。
 type IngredientReq struct {
-	Name   string `json:"name"`
-	Amount string `json:"amount"`
+	Name   string `json:"name"`   // 食材名称
+	Amount string `json:"amount"` // 用量描述
 }
 
+// StepReq 描述一道菜的一个制作步骤。
 type StepReq struct {
-	Order       int    `json:"order"`
-	Description string `json:"description"`
-	Image       string `json:"image,omitempty"`
+	Order       int    `json:"order"`           // 步骤序号
+	Description string `json:"description"`     // 步骤说明
+	Image       string `json:"image,omitempty"` // 可选步骤配图
 }
 
+// CreateDishReq 是创建菜品请求体，复杂数组字段会序列化为 JSONB 字符串保存。
 type CreateDishReq struct {
-	TableID        uuid.UUID       `json:"table_id" binding:"required"`
-	DishType       string          `json:"dish_type" binding:"required,oneof=dish takeout dineout"`
-	Name           string          `json:"name" binding:"required,max=100"`
-	Category       string          `json:"category"`
-	Difficulty     *int            `json:"difficulty"`
-	Duration       int             `json:"duration"`
-	Price          *float64        `json:"price"`
-	Ingredients    []IngredientReq `json:"ingredients"`
-	Steps          []StepReq       `json:"steps"`
-	Photos         []string        `json:"photos"`
-	Tags           []string        `json:"tags"`
-	Restaurant     string          `json:"restaurant"`
-	RestaurantNote string          `json:"restaurant_note"`
+	TableID        uuid.UUID       `json:"table_id" binding:"required"`                             // 目标餐桌 ID
+	DishType       string          `json:"dish_type" binding:"required,oneof=dish takeout dineout"` // 菜品类型
+	Name           string          `json:"name" binding:"required,max=100"`                         // 菜品名称
+	Category       string          `json:"category"`                                                // 分类
+	Difficulty     *int            `json:"difficulty"`                                              // 难度 1-4，可为空
+	Duration       int             `json:"duration"`                                                // 预计耗时分钟
+	Price          *float64        `json:"price"`                                                   // 外卖/堂食价格
+	Ingredients    []IngredientReq `json:"ingredients"`                                             // 食材列表
+	Steps          []StepReq       `json:"steps"`                                                   // 步骤列表
+	Photos         []string        `json:"photos"`                                                  // 图片 URL 列表
+	Tags           []string        `json:"tags"`                                                    // 标签
+	Restaurant     string          `json:"restaurant"`                                              // 餐厅名称
+	RestaurantNote string          `json:"restaurant_note"`                                         // 餐厅备注
 }
 
+// UpdateDishReq 是菜品局部更新请求，零值字段表示保持原值。
 type UpdateDishReq struct {
-	Name           string          `json:"name"`
-	Category       string          `json:"category"`
-	Difficulty     *int            `json:"difficulty"`
-	Duration       int             `json:"duration"`
-	Price          *float64        `json:"price"`
-	Ingredients    []IngredientReq `json:"ingredients"`
-	Steps          []StepReq       `json:"steps"`
-	Photos         []string        `json:"photos"`
-	Tags           []string        `json:"tags"`
-	Restaurant     string          `json:"restaurant"`
-	RestaurantNote string          `json:"restaurant_note"`
+	Name           string          `json:"name"`            // 菜品名称
+	Category       string          `json:"category"`        // 分类
+	Difficulty     *int            `json:"difficulty"`      // 难度，nil 表示不更新
+	Duration       int             `json:"duration"`        // 耗时分钟，大于 0 才更新
+	Price          *float64        `json:"price"`           // 价格，nil 表示不更新
+	Ingredients    []IngredientReq `json:"ingredients"`     // 食材列表
+	Steps          []StepReq       `json:"steps"`           // 步骤列表
+	Photos         []string        `json:"photos"`          // 图片 URL 列表
+	Tags           []string        `json:"tags"`            // 标签
+	Restaurant     string          `json:"restaurant"`      // 餐厅名称
+	RestaurantNote string          `json:"restaurant_note"` // 餐厅备注
 }

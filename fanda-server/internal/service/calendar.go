@@ -13,6 +13,7 @@ import (
 	"github.com/lib/pq"
 )
 
+// CalendarService 管理餐桌日历记录、照片、留言和月度聚合统计。
 type CalendarService struct{}
 
 // NewCalendarService 创建日历记录服务，封装吃饭记录、附件、留言和月度统计。
@@ -256,13 +257,14 @@ func (s *CalendarService) AddPhoto(ctx context.Context, uid uuid.UUID, recordID 
 	return &photo, nil
 }
 
+// MonthlyStatsResult 是月度统计响应体，面向前端预算和补录提醒展示。
 type MonthlyStatsResult struct {
-	TotalAmount    float64        `json:"total_amount"`
-	MealCount      map[string]int `json:"meal_count"`
-	TotalRecords   int            `json:"total_records"`
-	UnrecordedDays []string       `json:"unrecorded_days"`
-	Year           int            `json:"year"`
-	Month          int            `json:"month"`
+	TotalAmount    float64        `json:"total_amount"`    // 当月已记录金额合计
+	MealCount      map[string]int `json:"meal_count"`      // cook/takeout/dineout 次数
+	TotalRecords   int            `json:"total_records"`   // 当月记录总数
+	UnrecordedDays []string       `json:"unrecorded_days"` // 有记录但未填写金额的日期
+	Year           int            `json:"year"`            // 统计年份
+	Month          int            `json:"month"`           // 统计月份
 }
 
 // GetMonthlyStats 获取月度统计：按月份聚合消费金额、餐型次数和缺少金额的日期。
@@ -304,26 +306,29 @@ func (s *CalendarService) GetMonthlyStats(ctx context.Context, uid uuid.UUID, ta
 
 // ---- 请求结构：日期字段使用字符串承接 HTTP JSON，再在 service 中统一解析 ----
 
+// CreateRecordReq 是新建日历记录请求，日期由服务层解析为 time.Time。
 type CreateRecordReq struct {
-	TableID    uuid.UUID  `json:"table_id" binding:"required"`
-	RecordDate string     `json:"record_date" binding:"required"` // YYYY-MM-DD
-	MealType   string     `json:"meal_type" binding:"required,oneof=cook takeout dineout"`
-	MealPeriod string     `json:"meal_period"` // breakfast / lunch / dinner / snack
-	DishIDs    []string   `json:"dish_ids"`
-	Restaurant string     `json:"restaurant"`
-	Amount     *float64   `json:"amount"`
-	Photos     []PhotoReq `json:"photos"`
-	Content    string     `json:"content"`
+	TableID    uuid.UUID  `json:"table_id" binding:"required"`                             // 目标餐桌 ID
+	RecordDate string     `json:"record_date" binding:"required"`                          // 日期，格式 YYYY-MM-DD
+	MealType   string     `json:"meal_type" binding:"required,oneof=cook takeout dineout"` // 餐型
+	MealPeriod string     `json:"meal_period"`                                             // breakfast / lunch / dinner / snack
+	DishIDs    []string   `json:"dish_ids"`                                                // 关联菜品 ID 列表
+	Restaurant string     `json:"restaurant"`                                              // 外卖/堂食餐厅
+	Amount     *float64   `json:"amount"`                                                  // 本餐金额，可为空
+	Photos     []PhotoReq `json:"photos"`                                                  // 初始照片列表
+	Content    string     `json:"content"`                                                 // 创建时附带的首条留言
 }
 
+// PhotoReq 是记录照片请求项，Type 为空时服务层默认 image。
 type PhotoReq struct {
-	URL  string `json:"url" binding:"required"`
-	Type string `json:"type"` // image / video
+	URL  string `json:"url" binding:"required"` // 图片或视频 URL
+	Type string `json:"type"`                   // image / video
 }
 
+// UpdateRecordReq 是日历记录局部更新请求，空字段表示不更新。
 type UpdateRecordReq struct {
-	MealType   string   `json:"meal_type"`
-	MealPeriod string   `json:"meal_period"`
-	Restaurant string   `json:"restaurant"`
-	Amount     *float64 `json:"amount"`
+	MealType   string   `json:"meal_type"`   // 餐型
+	MealPeriod string   `json:"meal_period"` // 餐段
+	Restaurant string   `json:"restaurant"`  // 餐厅名称
+	Amount     *float64 `json:"amount"`      // 金额，nil 表示不更新
 }

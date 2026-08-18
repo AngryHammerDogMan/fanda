@@ -40,6 +40,7 @@ func setupAuthzTestDB(t *testing.T) *gorm.DB {
 }
 
 func TestCanAccessTableAllowsActiveMember(t *testing.T) {
+	// 测试意图：活跃 table_members 记录应允许用户访问对应餐桌。
 	db := setupAuthzTestDB(t)
 	database.DB = db
 
@@ -62,6 +63,7 @@ func TestCanAccessTableAllowsActiveMember(t *testing.T) {
 }
 
 func TestCanAccessTableRejectsNonMember(t *testing.T) {
+	// 测试意图：未在 table_members 中的用户必须被拒绝访问餐桌。
 	db := setupAuthzTestDB(t)
 	database.DB = db
 
@@ -123,6 +125,7 @@ func TestCompleteWishRejectsNonOwner(t *testing.T) {
 	setupAuthzTestDB(t)
 
 	ownerUID := uuid.New()
+	// outsiderUID 模拟非创建者，关键断言是越权完成失败且心愿状态不变。
 	outsiderUID := uuid.New()
 	groupID := uuid.New()
 	wishID := uuid.New()
@@ -161,6 +164,7 @@ func TestToggleBasketRejectsNonOwner(t *testing.T) {
 	setupAuthzTestDB(t)
 
 	ownerUID := uuid.New()
+	// itemID 指向 ownerUID 的菜篮子项，越权切换失败后 IsPurchased 应保持 false。
 	outsiderUID := uuid.New()
 	itemID := uuid.New()
 

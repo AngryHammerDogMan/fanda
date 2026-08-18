@@ -24,11 +24,13 @@ const getToday = () => {
   return `${year}-${month}-${day}`
 }
 
+// 餐食记录页：无 id 时补记一餐，有 id 时展示记录详情、评论和编辑/删除操作。
 export default function RecordDetail() {
   const router = useRouter()
   const recordId = router.params?.id as string | undefined
   const isCreateMode = !recordId
 
+  // 详情态和创建态共用页面：record/commentText 服务详情评论，recordDate/mealType 等字段服务补记表单。
   const [record, setRecord] = useState<CalendarRecord | null>(null)
   const [loading, setLoading] = useState(false)
   const [commentText, setCommentText] = useState('')
@@ -83,6 +85,7 @@ export default function RecordDetail() {
       Taro.showToast({ title: '请选择餐桌', icon: 'none' })
       return
     }
+    // 补记只提交当前表单字段，成功后缓存餐桌并返回日历页由上级刷新。
     setSubmitting(true)
     try {
       await calendarAPI.create({
@@ -148,6 +151,7 @@ export default function RecordDetail() {
   }
 
   const handleDelete = () => {
+    // 删除记录前二次确认，避免误删历史餐食账本。
     Taro.showModal({
       title: '确认删除',
       content: '删除后不可恢复，确定要删除这条记录吗？',

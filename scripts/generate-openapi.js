@@ -5,6 +5,8 @@ const rootDir = path.resolve(__dirname, '..')
 const openapiPath = path.join(rootDir, 'docs/openapi.json')
 const generatedApiPath = path.join(rootDir, 'fanda-app/src/types/generated-api.ts')
 
+// 脚本职责：从手写契约生成 OpenAPI 文档和前端共享 TypeScript 类型，保证前后端接口描述一致。
+// 下方 schema 工厂函数用于减少重复定义，并显式区分 string/date/uuid/nullable 等 OpenAPI 表达。
 const stringSchema = () => ({ type: 'string' })
 const dateSchema = () => ({ type: 'string', format: 'date' })
 const dateTimeSchema = () => ({ type: 'string', format: 'date-time' })
@@ -67,6 +69,7 @@ const pathParam = (name) => ({
   schema: uuidSchema(),
 })
 
+// schemas 是接口契约的核心组件表；字段是否 required 由 objectSchema 的第二个参数控制。
 const schemas = {
   LoginPayload: objectSchema({
     code: stringSchema(),
@@ -411,6 +414,7 @@ const schemas = {
 }
 
 const makeOperation = ({ operationId, summary, security = bearer, parameters = [], requestBody, dataSchema }) => {
+  // operation 暂存单个接口定义，按是否存在 requestBody 决定是否挂载请求体。
   const operation = {
     operationId,
     summary,
@@ -443,6 +447,7 @@ const spec = {
     },
     schemas,
   },
+  // paths 先按完整服务路径编写，最终统一去掉 /api/v1，避免 server URL 与 path 重复声明。
   paths: Object.fromEntries(Object.entries({
     '/api/v1/auth/login': {
       post: makeOperation({ operationId: 'authLogin', summary: '平台登录', security: [], requestBody: ref('LoginPayload'), dataSchema: ref('LoginResult') }),

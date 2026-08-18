@@ -17,6 +17,7 @@ const {
   writeProjectNpmrc,
 } = require('./setup-npm-registry')
 
+// 测试意图：覆盖 registry 选择、探测状态码、强制参数解析和 .npmrc 写入内容。
 test('normalizes registry with trailing slash', () => {
   assert.equal(normalizeRegistry('https://registry.npmmirror.com'), PUBLIC_REGISTRY)
   assert.equal(normalizeRegistry(PUBLIC_REGISTRY), PUBLIC_REGISTRY)
@@ -35,12 +36,14 @@ test('falls back to public registry when probe fails', async () => {
 })
 
 test('treats only 2xx and 3xx registry ping status as usable', async (t) => {
+  // originalGet 保存 https.get 原实现，便于用模拟响应覆盖后在测试结束恢复。
   const originalGet = https.get
   t.after(() => {
     https.get = originalGet
   })
 
   for (const statusCode of [200, 204, 302, 304]) {
+    // statusCode 是当前模拟的 registry ping HTTP 状态，2xx/3xx 应被视为可用。
     https.get = (_url, _options, callback) => {
       const request = new EventEmitter()
       process.nextTick(() => {
@@ -81,6 +84,7 @@ test('creates local npmrc content with generated-file warning', () => {
 })
 
 test('writes project npmrc to target path', () => {
+  // tempDir 隔离真实项目文件，targetPath 验证写入函数支持自定义目标路径。
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'fanda-npmrc-'))
   const targetPath = path.join(tempDir, 'fanda-app', '.npmrc')
 

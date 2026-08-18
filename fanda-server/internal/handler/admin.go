@@ -13,8 +13,9 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
+// AdminHandler 负责后台管理接口，聚合用户、菜品、订单和日历记录的管理视图。
 type AdminHandler struct {
-	cfg *config.Config
+	cfg *config.Config // 后台密码和运行配置来源
 }
 
 // NewAdminHandler 创建后台管理 handler，后台接口只依赖配置和数据库。

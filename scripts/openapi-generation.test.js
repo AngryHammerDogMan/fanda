@@ -10,12 +10,14 @@ const apiTypesPath = path.join(rootDir, 'fanda-app/src/types/index.ts')
 
 const readJson = (filePath) => JSON.parse(fs.readFileSync(filePath, 'utf8'))
 
+// 测试意图：校验生成出的 OpenAPI 与 TypeScript API 类型覆盖核心路径、schema 和可复用操作类型。
 test('generated openapi spec includes common app paths and schemas', () => {
   assert.ok(fs.existsSync(openapiPath), 'docs/openapi.json must be generated')
 
   const spec = readJson(openapiPath)
   assert.equal(spec.openapi, '3.0.3')
 
+  // route/method 是核心接口清单中的一项，关键断言是每个接口都出现在生成文档中。
   for (const [route, method] of [
     ['/auth/login', 'post'],
     ['/auth/profile', 'get'],
@@ -58,6 +60,7 @@ test('openapi base path is declared once and OpenAPI 3.0 schemas avoid type null
 
   const illegalNullSchemas = []
   const untypedNullableSchemas = []
+  // visit 递归扫描整个 spec，收集 OpenAPI 3.0 不允许的 null 表达或缺类型 nullable。
   const visit = (value, location = '$') => {
     if (!value || typeof value !== 'object') return
     if (value.type === 'null') illegalNullSchemas.push(location)
@@ -73,6 +76,7 @@ test('openapi base path is declared once and OpenAPI 3.0 schemas avoid type null
 
 test('calendar list operations return arrays and require a date-formatted date query', () => {
   const spec = readJson(openapiPath)
+  // monthlyData/dailyData 是响应 data schema，dateParameter 是日期查询参数 schema。
   const monthlyData = spec.paths['/calendar/records'].get.responses[200]
     .content['application/json'].schema.properties.data
   const dailyOperation = spec.paths['/calendar/records/date'].get

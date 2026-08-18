@@ -35,7 +35,9 @@ const DEFAULT_CATEGORY = '未分类'
 const ALL_CATEGORY = '全部'
 const CATEGORY_SECTION_TITLE_HEIGHT = 42
 
+// 点单创建页：按餐桌选择菜品、维护购物车、邀请成员并提交订单。
 export default function CreateOrder() {
+  // 餐桌、菜品、购物车、筛选词、弹层和提交态共同驱动本页点单流程。
   const [tables, setTables] = useState<Table[]>([])
   const [activeTableId, setActiveTableId] = useState('')
   const [dishes, setDishes] = useState<Dish[]>([])
@@ -53,6 +55,7 @@ export default function CreateOrder() {
   const [categoryScrollIntoView, setCategoryScrollIntoView] = useState('')
   const [loadingDishes, setLoadingDishes] = useState(false)
   const [submitting, setSubmitting] = useState(false)
+  // 滚动联动状态：区分点击分类触发的滚动和用户手势滚动，避免左右导航互相抢焦点。
   const scrollingByClick = useRef(false)
   const scrollLockTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const sectionPositionsRef = useRef<{ name: string; top: number }[]>([])
@@ -94,6 +97,7 @@ export default function CreateOrder() {
   const activeTable = tables.find(table => table.id === activeTableId)
 
   const keywordFilteredDishes = useMemo(() => {
+    // 搜索只在本地菜品列表中筛选，不触发额外网络请求。
     const normalizedKeyword = keyword.trim().toLowerCase()
     return dishes.filter(dish => {
       const matchesKeyword = !normalizedKeyword
@@ -200,6 +204,7 @@ export default function CreateOrder() {
   }
 
   const handleSwitchTable = (tableId: string) => {
+    // 切换餐桌会改变可选菜品和成员范围，因此同步清空购物车、筛选和弹层状态。
     if (tableId === activeTableId) {
       setShowTableSheet(false)
       return
@@ -219,6 +224,7 @@ export default function CreateOrder() {
   }
 
   const handleCategorySelect = (category: string) => {
+    // 点击左侧分类时锁住滚动联动，避免程序滚动又反向触发分类高亮抖动。
     setActiveCategory(category)
     const categoryIndex = categories.findIndex(item => item === category)
     setCategoryScrollIntoView(`category-item-${Math.max(categoryIndex, 0)}`)
@@ -237,6 +243,7 @@ export default function CreateOrder() {
   }
 
   const handleDishScroll = (event: DishScrollEvent) => {
+    // 用户滚动菜品列表时，根据实际区块位置反推当前分类。
     latestScrollTopRef.current = event.detail.scrollTop
     if (scrollingByClick.current) return
     setDishScrollTop(event.detail.scrollTop)
@@ -316,6 +323,7 @@ export default function CreateOrder() {
   }
 
   const handleCheckoutClick = () => {
+    // 结算前根据餐桌成员预填邀请对象，并重置采购清单确认状态。
     if (selectedDishes.length === 0) {
       Taro.showToast({ title: '请先选择菜品', icon: 'none' })
       return
@@ -336,6 +344,7 @@ export default function CreateOrder() {
   }
 
   const submitOrder = async () => {
+    // 提交时统一组装订单菜品、成员邀请和需要采购的食材，成功后回到订单列表。
     if (!activeTableId || submitting) return
     const canInviteMembers = getInvitableMembers()
     const shouldInvite = needInvite && canInviteMembers.length > 0

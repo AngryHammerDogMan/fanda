@@ -5,7 +5,9 @@ const test = require('node:test')
 
 const H5_ENTRYPOINT_WARNING_LIMIT_KIB = 340
 
+// 测试意图：覆盖 H5 预览启动、移动端壳样式、mock 开关、浮层定位和关键页面布局防回归。
 test('fanda-app npm test uses the existing Node static test entry instead of Jest', () => {
+  // appStaticTests 是当前 Node 静态测试入口列表，关键断言是不引入 Jest。
   const packageJson = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'fanda-app/package.json'), 'utf8'))
   const appTestsDir = path.join(process.cwd(), 'fanda-app/src/__tests__')
   const appStaticTests = fs.readdirSync(appTestsDir).filter((fileName) => fileName.endsWith('.test.cjs'))
@@ -22,6 +24,7 @@ test('H5 entrypoint warning limit is documented without blocking preview tests',
 })
 
 function collectScssFiles(dir) {
+  // entries 是目录项快照，递归返回所有 scss 文件供后续样式规则扫描。
   const entries = fs.readdirSync(dir, { withFileTypes: true })
   return entries.flatMap((entry) => {
     const fullPath = path.join(dir, entry.name)
@@ -103,6 +106,7 @@ test('H5 login page can force-hide the tabbar shell', () => {
 })
 
 test('H5 preview mock requires explicit non-production preview flag', () => {
+  // 多个 source 变量分别代表配置、登录页、请求层和 mock 数据源，用于断言开关只在非生产显式开启。
   const packageJson = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'fanda-app/package.json'), 'utf8'))
   const configSource = fs.readFileSync(path.join(process.cwd(), 'fanda-app/config/index.ts'), 'utf8')
   const loginSource = fs.readFileSync(path.join(process.cwd(), 'fanda-app/src/pages/login/index.tsx'), 'utf8')
@@ -130,6 +134,7 @@ test('H5 preview mock requires explicit non-production preview flag', () => {
 
 test('fixed page style blocks do not use browser-wide inset zero', () => {
   const pagesDir = path.join(process.cwd(), 'fanda-app/src/pages')
+  // offenders 收集使用 fixed + inset:0 的选择器，期望为空以保证浮层不撑满浏览器宽度。
   const offenders = collectScssFiles(pagesDir).flatMap((filePath) => {
     const source = fs.readFileSync(filePath, 'utf8')
     const relativePath = path.relative(process.cwd(), filePath)

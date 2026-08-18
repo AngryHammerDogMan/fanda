@@ -15,10 +15,12 @@ import (
 // TableService 管理当前用户可访问的餐桌列表、默认个人餐桌和餐桌基础属性。
 type TableService struct{}
 
+// NewTableService 创建餐桌服务实例。
 func NewTableService() *TableService {
 	return &TableService{}
 }
 
+// isUniqueConstraintError 粗略识别不同数据库驱动返回的唯一约束冲突，用于并发创建幂等重试。
 func isUniqueConstraintError(err error) bool {
 	if err == nil {
 		return false
@@ -68,6 +70,7 @@ func (s *TableService) AddBuddyTableMember(ctx context.Context, tx *gorm.DB, gro
 	return tx.WithContext(ctx).Create(&member).Error
 }
 
+// findPersonalTable 通过 table_members 反查用户当前 active 个人餐桌。
 func (s *TableService) findPersonalTable(ctx context.Context, uid uuid.UUID) (*model.Table, error) {
 	var table model.Table
 	err := database.DB.WithContext(ctx).

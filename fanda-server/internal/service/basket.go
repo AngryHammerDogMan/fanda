@@ -11,8 +11,10 @@ import (
 	"github.com/google/uuid"
 )
 
+// BasketService 管理餐桌共享菜篮子，所有写操作限制为创建者本人。
 type BasketService struct{}
 
+// NewBasketService 创建菜篮子服务实例。
 func NewBasketService() *BasketService {
 	return &BasketService{}
 }
@@ -51,7 +53,7 @@ func (s *BasketService) ListBasket(ctx context.Context, uid uuid.UUID, tableID u
 	return items, nil
 }
 
-// ToggleBasketPurchased 切换购买状态
+// ToggleBasketPurchased 切换购买状态：仅创建该采购项的用户可以切换。
 func (s *BasketService) ToggleBasketPurchased(ctx context.Context, uid uuid.UUID, itemID uuid.UUID) error {
 	var item model.ShoppingBasket
 	if err := database.DB.Where("id = ? AND user_id = ?", itemID, uid).First(&item).Error; err != nil {
@@ -60,7 +62,7 @@ func (s *BasketService) ToggleBasketPurchased(ctx context.Context, uid uuid.UUID
 	return database.DB.Model(&item).Update("is_purchased", !item.IsPurchased).Error
 }
 
-// DeleteBasket 删除菜篮子项
+// DeleteBasket 删除菜篮子项：按 user_id 限制为创建者删除，避免误删他人采购项。
 func (s *BasketService) DeleteBasket(ctx context.Context, uid uuid.UUID, itemID uuid.UUID) error {
 	result := database.DB.Where("id = ? AND user_id = ?", itemID, uid).Delete(&model.ShoppingBasket{})
 	if result.RowsAffected == 0 {

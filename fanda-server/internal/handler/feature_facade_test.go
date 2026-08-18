@@ -8,6 +8,7 @@ import (
 	"testing"
 )
 
+// 测试意图：静态扫描 handler，确保心愿/菜篮子/预算已改为直接依赖拆分服务而非 FeatureService 门面。
 func TestFeatureHandlerDoesNotCallFeatureServiceFacadeForSplitDomains(t *testing.T) {
 	_, filename, _, ok := runtime.Caller(0)
 	if !ok {
@@ -20,6 +21,7 @@ func TestFeatureHandlerDoesNotCallFeatureServiceFacadeForSplitDomains(t *testing
 	}
 	source := string(content)
 
+	// forbidden 是禁止出现的门面调用清单，任何命中都说明 handler 重新耦合回 FeatureService。
 	for _, forbidden := range []string{
 		"h.service.CreateWish(",
 		"h.service.ListWishes(",
@@ -37,6 +39,7 @@ func TestFeatureHandlerDoesNotCallFeatureServiceFacadeForSplitDomains(t *testing
 		}
 	}
 
+	// required 是必须保留的拆分服务字段，关键断言是 handler 依赖方向明确。
 	for _, required := range []string{
 		"wishService   *service.WishService",
 		"basketService *service.BasketService",

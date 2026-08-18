@@ -17,6 +17,7 @@ import (
 	"gorm.io/gorm/logger"
 )
 
+// setupTableTestDB 构造餐桌、成员、预算和邀请相关最小表结构，支撑 Table/Auth/Budget 服务测试。
 func setupTableTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
 
@@ -35,6 +36,7 @@ func setupTableTestDB(t *testing.T) *gorm.DB {
 	if err := db.Exec("PRAGMA busy_timeout=5000").Error; err != nil {
 		t.Fatalf("设置 busy timeout 失败: %v", err)
 	}
+	// stmts 是服务会访问的最小 schema，包含唯一索引用于验证并发与预算冲突行为。
 	stmts := []string{
 		`CREATE TABLE users (uid TEXT PRIMARY KEY, wx_openid TEXT, dy_openid TEXT, phone TEXT, nickname TEXT NOT NULL, avatar TEXT, points INTEGER, created_at DATETIME, updated_at DATETIME)`,
 		`CREATE TABLE couples (id TEXT PRIMARY KEY, user1_id TEXT NOT NULL, user2_id TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'active', created_at DATETIME)`,
@@ -60,6 +62,7 @@ func setupTableTestDB(t *testing.T) *gorm.DB {
 }
 
 func TestEnsurePersonalTableCreatesOneTable(t *testing.T) {
+	// 测试意图：首次调用创建个人餐桌，再次调用复用同一餐桌，保证 Ensure 幂等。
 	db := setupTableTestDB(t)
 	database.DB = db
 	uid := uuid.New()
@@ -89,6 +92,7 @@ func TestEnsurePersonalTableCreatesOneTable(t *testing.T) {
 }
 
 func TestEnsurePersonalTableConcurrentFirstCreateReturnsSameTable(t *testing.T) {
+	// 测试意图：并发首次创建个人餐桌时，只产生一张活跃个人餐桌且所有调用返回同一 ID。
 	db := setupTableTestDB(t)
 	database.DB = db
 	uid := uuid.New()
@@ -103,6 +107,7 @@ func TestEnsurePersonalTableConcurrentFirstCreateReturnsSameTable(t *testing.T) 
 
 	svc := NewTableService()
 	const workers = 8
+	// start 用作并发闸门；tables/errs 分别收集每个 worker 的返回餐桌和错误。
 	start := make(chan struct{})
 	tables := make([]*model.Table, workers)
 	errs := make([]error, workers)
@@ -160,6 +165,7 @@ func TestListTablesReturnsUserTables(t *testing.T) {
 }
 
 func TestGetBudgetReturnsCurrentUsersBudgetForSameTableAndMonth(t *testing.T) {
+	// 测试意图：同一餐桌同月存在多用户预算时，只返回当前用户自己的预算。
 	db := setupTableTestDB(t)
 	database.DB = db
 	userA := uuid.New()
@@ -182,6 +188,7 @@ func TestGetBudgetReturnsCurrentUsersBudgetForSameTableAndMonth(t *testing.T) {
 }
 
 func TestJoinCoupleCreatesCoupleTableWithBothMembers(t *testing.T) {
+	// 测试意图：加入情侣关系时同步创建情侣餐桌，并把双方写入餐桌成员和情侣成员。
 	db := setupTableTestDB(t)
 	database.DB = db
 	inviterID := uuid.New()
@@ -216,6 +223,7 @@ func TestJoinCoupleCreatesCoupleTableWithBothMembers(t *testing.T) {
 }
 
 func TestCreateBuddyGroupCreatesBuddyTableWithOwnerMember(t *testing.T) {
+	// 测试意图：创建饭搭子组合时同步创建 buddy 餐桌，并写入 owner 成员关系。
 	db := setupTableTestDB(t)
 	database.DB = db
 	ownerID := uuid.New()
@@ -236,6 +244,7 @@ func TestCreateBuddyGroupCreatesBuddyTableWithOwnerMember(t *testing.T) {
 }
 
 func TestJoinBuddyGroupAddsBuddyTableMember(t *testing.T) {
+	// 测试意图：通过饭搭子邀请码加入组合后，加入者应成为该 buddy 餐桌的 active member。
 	db := setupTableTestDB(t)
 	database.DB = db
 	ownerID := uuid.New()

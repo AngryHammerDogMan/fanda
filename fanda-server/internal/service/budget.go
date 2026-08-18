@@ -11,8 +11,10 @@ import (
 	"github.com/google/uuid"
 )
 
+// BudgetService 管理用户在指定餐桌、指定月份下的个人预算。
 type BudgetService struct{}
 
+// NewBudgetService 创建预算服务实例。
 func NewBudgetService() *BudgetService {
 	return &BudgetService{}
 }
@@ -48,7 +50,7 @@ func (s *BudgetService) SetBudget(ctx context.Context, uid uuid.UUID, req Budget
 	return &budget, nil
 }
 
-// GetBudget 获取预算
+// GetBudget 获取预算：先校验餐桌权限，再读取当前用户自己的月度预算。
 func (s *BudgetService) GetBudget(ctx context.Context, uid uuid.UUID, tableID uuid.UUID, month string) (*model.BudgetSetting, error) {
 	if err := CanAccessTable(ctx, uid, tableID); err != nil {
 		return nil, err
