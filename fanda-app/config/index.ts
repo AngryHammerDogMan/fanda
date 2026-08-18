@@ -4,6 +4,10 @@ import path from 'path'
 const H5_ENTRYPOINT_WARNING_LIMIT_KIB = 340
 
 export default defineConfig<'webpack5'>(async (merge, { command, mode }) => {
+  const h5PreviewMockEnabled = process.env.TARO_ENV === 'h5'
+    && process.env.NODE_ENV !== 'production'
+    && process.env.ENABLE_H5_PREVIEW_MOCK === 'true'
+
   const baseConfig: UserConfigExport = {
     projectName: 'fanda-app',
     date: '2026-8-8',
@@ -21,6 +25,7 @@ export default defineConfig<'webpack5'>(async (merge, { command, mode }) => {
     ],
     defineConstants: {
       API_BASE_URL: JSON.stringify(process.env.API_BASE_URL || 'http://localhost:8080/api/v1'),
+      H5_PREVIEW_MOCK_ENABLED: JSON.stringify(h5PreviewMockEnabled),
     },
     copy: {
       patterns: [

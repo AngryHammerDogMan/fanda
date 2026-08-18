@@ -291,6 +291,10 @@ test('login page hides tabbar and renders logo without image clipping', () => {
     path.join(process.cwd(), 'fanda-app/src/app.config.ts'),
     'utf8'
   )
+  const appStyle = fs.readFileSync(
+    path.join(process.cwd(), 'fanda-app/src/app.scss'),
+    'utf8'
+  )
   const loginContent = fs.readFileSync(
     path.join(process.cwd(), 'fanda-app/src/pages/login/index.tsx'),
     'utf8'
@@ -299,6 +303,7 @@ test('login page hides tabbar and renders logo without image clipping', () => {
     path.join(process.cwd(), 'fanda-app/src/pages/login/index.scss'),
     'utf8'
   )
+  const aspectFitStyle = appStyle.match(/taro-image-core\s*>\s*\.taro-img__mode-aspectfit\s*\{[\s\S]*?\n\}/)?.[0] || ''
   const logoIconStyle = loginStyle.match(/\.logo-icon\s*\{[\s\S]*?\n\s*\}/)?.[0] || ''
   const loginHeroStyle = loginStyle.match(/\.login-hero\s*\{[\s\S]*?\n\}/)?.[0] || ''
 
@@ -309,6 +314,8 @@ test('login page hides tabbar and renders logo without image clipping', () => {
   assert(logoIconStyle.includes('width: 150px'), 'login logo must reserve full sticker width')
   assert(logoIconStyle.includes('height: 150px'), 'login logo must reserve full sticker height')
   assert(logoIconStyle.includes('display: block'), 'login logo must avoid inline image gaps')
+  assert(aspectFitStyle.includes('left: 50%'), 'H5 aspectFit images must be centered horizontally')
+  assert(aspectFitStyle.includes('transform: translate(-50%, -50%)'), 'H5 aspectFit images must be centered on both axes')
   assert(loginHeroStyle.includes('margin-bottom: 88px'), 'login hero must leave enough space before the login button when the tabbar is hidden')
 })
 

@@ -3,11 +3,9 @@ import type { ApiResponse } from '@/types'
 import { getAuthToken, redirectToLoginOnce, resetAuthRedirect } from './auth-session'
 
 declare const API_BASE_URL: string
+declare const H5_PREVIEW_MOCK_ENABLED: boolean
 
 const BASE_URL = API_BASE_URL
-const ENABLE_H5_PREVIEW_MOCK = process.env.TARO_ENV === 'h5'
-  && process.env.NODE_ENV !== 'production'
-  && process.env.ENABLE_H5_PREVIEW_MOCK === 'true'
 
 const buildHeaders = (options: Taro.request.Option, token: string): Record<string, string> => {
   const header: Record<string, string> = {
@@ -33,7 +31,7 @@ const normalizeApiResponse = <T>(data: unknown): ApiResponse<T> => {
   return response
 }
 
-const isH5PreviewRequest = (token: string) => ENABLE_H5_PREVIEW_MOCK && token === 'h5-preview-token'
+const isH5PreviewRequest = (token: string) => H5_PREVIEW_MOCK_ENABLED && token === 'h5-preview-token'
 
 // 请求拦截器：统一真实请求、Authorization、401 跳转、响应校验和 H5 预览 mock。
 export const request = async <T>(options: Taro.request.Option): Promise<ApiResponse<T>> => {

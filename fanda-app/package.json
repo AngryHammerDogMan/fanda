@@ -13,7 +13,7 @@
     "build:h5": "taro build --type h5",
     "dev:weapp": "npm run build:weapp -- --watch",
     "dev:tt": "npm run build:tt -- --watch",
-    "dev:h5": "taro build --type h5 --watch",
+    "dev:h5": "node scripts/dev-h5.js",
     "test": "node --test src/__tests__/*.test.cjs",
     "lint": "eslint --ext .ts,.tsx,.js,.jsx \"src/**/*.{ts,tsx,js,jsx}\"",
     "lint:fix": "eslint --ext .ts,.tsx,.js,.jsx --fix \"src/**/*.{ts,tsx,js,jsx}\""

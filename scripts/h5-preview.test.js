@@ -103,12 +103,27 @@ test('H5 login page can force-hide the tabbar shell', () => {
 })
 
 test('H5 preview mock requires explicit non-production preview flag', () => {
+  const packageJson = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'fanda-app/package.json'), 'utf8'))
+  const configSource = fs.readFileSync(path.join(process.cwd(), 'fanda-app/config/index.ts'), 'utf8')
+  const loginSource = fs.readFileSync(path.join(process.cwd(), 'fanda-app/src/pages/login/index.tsx'), 'utf8')
+  const requestSource = fs.readFileSync(path.join(process.cwd(), 'fanda-app/src/services/request.ts'), 'utf8')
   const previewSource = fs.readFileSync(path.join(process.cwd(), 'fanda-app/src/services/h5-preview.ts'), 'utf8')
+  const launcherPath = path.join(process.cwd(), 'fanda-app/scripts/dev-h5.js')
 
-  assert.match(previewSource, /ENABLE_H5_PREVIEW_MOCK/)
-  assert.match(previewSource, /process\.env\.TARO_ENV === ['"]h5['"]/)
-  assert.match(previewSource, /process\.env\.NODE_ENV !== ['"]production['"]/)
-  assert.doesNotMatch(previewSource, /process\.env\.TARO_ENV === ['"]h5['"] && token === ['"]h5-preview-token['"]/)
+  assert.equal(packageJson.scripts['dev:h5'], 'node scripts/dev-h5.js')
+  assert.equal(fs.existsSync(launcherPath), true)
+  const launcherSource = fs.readFileSync(launcherPath, 'utf8')
+  assert.match(launcherSource, /ENABLE_H5_PREVIEW_MOCK:\s*['"]true['"]/)
+  assert.match(configSource, /H5_PREVIEW_MOCK_ENABLED:\s*JSON\.stringify\(h5PreviewMockEnabled\)/)
+  assert.match(configSource, /process\.env\.TARO_ENV === ['"]h5['"]/)
+  assert.match(configSource, /process\.env\.NODE_ENV !== ['"]production['"]/)
+  assert.match(configSource, /process\.env\.ENABLE_H5_PREVIEW_MOCK === ['"]true['"]/)
+  assert.match(loginSource, /declare const H5_PREVIEW_MOCK_ENABLED: boolean/)
+  assert.match(loginSource, /const IS_H5_PREVIEW = H5_PREVIEW_MOCK_ENABLED/)
+  assert.match(requestSource, /declare const H5_PREVIEW_MOCK_ENABLED: boolean/)
+  assert.match(previewSource, /declare const H5_PREVIEW_MOCK_ENABLED: boolean/)
+  assert.doesNotMatch(requestSource, /process\.env/)
+  assert.doesNotMatch(previewSource, /process\.env/)
 })
 
 test('fixed page style blocks do not use browser-wide inset zero', () => {

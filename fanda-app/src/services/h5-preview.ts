@@ -8,12 +8,10 @@ type Order = components['schemas']['Order']
 type Table = components['schemas']['Table']
 type User = components['schemas']['User']
 
-const ENABLE_H5_PREVIEW_MOCK = process.env.TARO_ENV === 'h5'
-  && process.env.NODE_ENV !== 'production'
-  && process.env.ENABLE_H5_PREVIEW_MOCK === 'true'
+declare const H5_PREVIEW_MOCK_ENABLED: boolean
 
 export const isH5PreviewRequest = (token: string) => {
-  return ENABLE_H5_PREVIEW_MOCK && token === 'h5-preview-token'
+  return H5_PREVIEW_MOCK_ENABLED && token === 'h5-preview-token'
 }
 
 // H5 预览用户：覆盖账号绑定、伴侣、饭搭成员等核心关系字段，保证主要页面可直接演示。
