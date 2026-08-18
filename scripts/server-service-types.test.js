@@ -30,6 +30,10 @@ test('service layer uses concrete business types instead of interface maps', () 
       matches.push(`${relativePath}: map[string]interface{}`)
     }
 
+    if (/\bany\b/.test(source)) {
+      matches.push(`${relativePath}: any`)
+    }
+
     return matches
   })
 

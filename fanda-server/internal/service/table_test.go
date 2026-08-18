@@ -38,6 +38,8 @@ func setupTableTestDB(t *testing.T) *gorm.DB {
 	stmts := []string{
 		`CREATE TABLE users (uid TEXT PRIMARY KEY, wx_openid TEXT, dy_openid TEXT, phone TEXT, nickname TEXT NOT NULL, avatar TEXT, points INTEGER, created_at DATETIME, updated_at DATETIME)`,
 		`CREATE TABLE couples (id TEXT PRIMARY KEY, user1_id TEXT NOT NULL, user2_id TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'active', created_at DATETIME)`,
+		`CREATE TABLE couple_members (id TEXT PRIMARY KEY, couple_id TEXT NOT NULL, user_id TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'active')`,
+		`CREATE UNIQUE INDEX idx_couple_members_active_user ON couple_members(user_id) WHERE status = 'active'`,
 		`CREATE TABLE couple_invites (id TEXT PRIMARY KEY, inviter_id TEXT NOT NULL, code TEXT NOT NULL UNIQUE, expires_at DATETIME NOT NULL, is_used BOOLEAN DEFAULT false, created_at DATETIME)`,
 		`CREATE TABLE buddy_groups (id TEXT PRIMARY KEY, name TEXT NOT NULL, owner_id TEXT NOT NULL, max_member INTEGER DEFAULT 10, status TEXT NOT NULL DEFAULT 'active', created_at DATETIME, updated_at DATETIME)`,
 		`CREATE TABLE buddy_members (id TEXT PRIMARY KEY, group_id TEXT NOT NULL, user_id TEXT NOT NULL, role TEXT NOT NULL DEFAULT 'member', joined_at DATETIME)`,
@@ -207,6 +209,10 @@ func TestJoinCoupleCreatesCoupleTableWithBothMembers(t *testing.T) {
 	require.NoError(t, db.Order("role DESC").Find(&members, "table_id = ?", couple.ID).Error)
 	require.Len(t, members, 2)
 	require.ElementsMatch(t, []uuid.UUID{inviterID, partnerID}, []uuid.UUID{members[0].UserID, members[1].UserID})
+	var coupleMembers []model.CoupleMember
+	require.NoError(t, db.Find(&coupleMembers, "couple_id = ?", couple.ID).Error)
+	require.Len(t, coupleMembers, 2)
+	require.ElementsMatch(t, []uuid.UUID{inviterID, partnerID}, []uuid.UUID{coupleMembers[0].UserID, coupleMembers[1].UserID})
 }
 
 func TestCreateBuddyGroupCreatesBuddyTableWithOwnerMember(t *testing.T) {

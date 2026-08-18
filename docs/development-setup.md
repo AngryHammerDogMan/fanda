@@ -151,14 +151,18 @@ fanda-server/migrations/001_init.sql
 fanda-server/migrations/002_add_phone.sql
 fanda-server/migrations/003_tables_refactor.sql
 fanda-server/migrations/004_finalize_table_model.sql
+fanda-server/migrations/005_couple_members.sql
 ```
 
-必须按 `001`、`002`、`003`、`004` 的顺序执行：
+版本化迁移器按文件版本顺序执行：
 
 - `001` 创建初始业务表
 - `002` 增加手机号能力
 - `003` 引入统一餐桌模型、参与者和相关 `table_id`
 - `004` 回填旧 `group_id` 到 `table_id`，收紧核心表的 `table_id` 非空约束，并放宽旧 `group_type/group_id`
+- `005` 规范化情侣成员，并保证每个用户至多属于一段 active 情侣关系
+
+迁移器在 `schema_migrations` 中保存版本、名称、SHA-256 校验和和执行时间。已执行版本会跳过；历史 SQL 被修改时会因校验和不一致而停止。
 
 下面的命令表示使用 `postgres` 用户连接 `fanda` 数据库，并执行一个 SQL 文件：
 
@@ -209,13 +213,14 @@ Docker Desktop 不是饭搭当前版本的必需软件。只有希望在 Windows
 
 | 命令 | macOS | Windows | 说明 |
 |---|---:|---:|---|
-| `npm install` | 支持 | 支持 | 安装前端和后端依赖 |
+| `npm install` | 支持 | 支持 | 轻量安装并配置 npm 源 |
+| `npm run bootstrap` | 支持 | 支持 | 安装前端依赖并下载 Go 依赖 |
 | `npm run dev:h5` | 支持 | 支持 | 启动 H5 |
 | `npm run dev:server` | 支持 | 支持 | 启动 Go 后端 |
 | `npm run build:h5` | 支持 | 支持 | 构建 H5 |
 | `npm test` | 支持 | 支持 | 根目录脚本测试 |
 | `npm run db:start` | 支持 | 不支持 | 脚本依赖 Homebrew |
-| `npm run db:migrate` | 支持，自动执行 `001`-`004` | 不支持 | 脚本依赖 Unix `sh` |
+| `npm run db:migrate` | 支持 | 支持 | 读取 `fanda-server/.env` 并执行未应用迁移 |
 | `node scripts/start.js redis` | 支持 | 不支持 | 脚本依赖 Homebrew |
 
 Windows 应使用本指南提供的 PostgreSQL Windows 服务、`psql` 和 Docker 命令。
@@ -265,15 +270,15 @@ source ~/.zshrc
 
 ```bash
 npm install
+npm run bootstrap
 ```
 
-根目录 `postinstall` 会：
+根目录 `postinstall` 只执行轻量初始化：
 
 1. 配置前端 npm 下载源
-2. 在 `fanda-app` 中执行 `npm install`
-3. 在 `fanda-server` 中执行 `go mod download`
+2. 跳过前端依赖安装和后端 Go 依赖下载
 
-自动安装失败时可以分别执行：
+`npm run bootstrap` 会完成前端依赖安装和后端 Go 依赖下载。自动安装失败时可以分别执行：
 
 ```bash
 npm --prefix fanda-app install
@@ -349,25 +354,22 @@ createuser -s postgres
 
 ### 创建数据库并迁移
 
-项目入口会创建数据库并按顺序执行 `001`、`002`、`003`、`004`：
+先按 `fanda-server/.env` 中的 `DB_NAME` 创建目标数据库，然后运行版本化迁移：
 
 ```bash
+createdb -h localhost -U postgres fanda
 npm run db:migrate
 ```
 
-该命令使用严格失败退出；任一迁移报错时会停止，避免后续迁移在不完整 schema 上继续执行。
+`npm run db:migrate` 读取 `fanda-server/.env`，通过 `schema_migrations` 跳过已执行版本。每个版本在独立事务中执行，任一迁移报错时会回滚当前版本并停止。
 
-也可以手动执行完整流程：
+如果数据库此前已经手动执行完 `001` 到 `004`，首次切换到版本化迁移时运行：
 
 ```bash
-psql -U postgres -c "CREATE DATABASE fanda;"
-psql -U postgres -d fanda -f fanda-server/migrations/001_init.sql
-psql -U postgres -d fanda -f fanda-server/migrations/002_add_phone.sql
-psql -U postgres -d fanda -f fanda-server/migrations/003_tables_refactor.sql
-psql -U postgres -d fanda -f fanda-server/migrations/004_finalize_table_model.sql
+go -C fanda-server run cmd/migrate/main.go -baseline 004
 ```
 
-数据库已经存在时，跳过第一条创建命令。
+baseline 会先验证核心表和列，确认结构完整后才在同一事务中登记 `001` 到 `004` 的真实校验和；结构不完整时会拒绝登记。随后再执行 `npm run db:migrate` 应用 `005` 及后续版本。
 
 ### 可选安装 Redis
 
@@ -501,6 +503,7 @@ Start-Service -Name $service.Name
 ```powershell
 cd "D:\项目所在位置\fanda"
 npm install
+npm run bootstrap
 ```
 
 自动安装失败时：
@@ -537,19 +540,16 @@ CORS_ALLOW_ORIGINS=*
 
 ### 创建数据库并迁移
 
-标准 Windows 环境不能使用 `npm run db:migrate`，因为该脚本依赖 Unix `sh`。请在项目根目录的 PowerShell 中执行：
+先创建 `.env` 中配置的数据库，再在项目根目录运行版本化迁移：
 
 ```powershell
 psql -U postgres -h localhost -W -c "CREATE DATABASE fanda;"
-psql -U postgres -h localhost -W -d fanda -f fanda-server/migrations/001_init.sql
-psql -U postgres -h localhost -W -d fanda -f fanda-server/migrations/002_add_phone.sql
-psql -U postgres -h localhost -W -d fanda -f fanda-server/migrations/003_tables_refactor.sql
-psql -U postgres -h localhost -W -d fanda -f fanda-server/migrations/004_finalize_table_model.sql
+npm run db:migrate
 ```
 
-`-W` 会提示输入安装 PostgreSQL 时设置的 `postgres` 密码。输入密码时终端不会显示字符，这是正常的。
+`npm run db:migrate` 使用 Go 迁移器，不依赖 Unix `sh`，会读取 `fanda-server/.env` 中的主机、端口、用户名、密码和数据库名。
 
-数据库已经存在时，第一条命令会报错，可以忽略创建步骤并继续执行四个迁移文件。
+数据库已经存在时，第一条命令会报错，可以忽略创建步骤。旧数据库已经手动执行完 `001` 到 `004` 时，先运行 `go -C fanda-server run cmd/migrate/main.go -baseline 004`。
 
 验证：
 

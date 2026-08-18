@@ -27,18 +27,6 @@ fi
 brew services start redis
 `
 
-const migrateCommand = `
-set -euo pipefail
-
-psql -v ON_ERROR_STOP=1 -U postgres -tc "SELECT 1 FROM pg_database WHERE datname = 'fanda'" | grep -q 1 \\
-  || psql -v ON_ERROR_STOP=1 -U postgres -c "CREATE DATABASE fanda;"
-
-psql -v ON_ERROR_STOP=1 -U postgres -d fanda -f fanda-server/migrations/001_init.sql
-psql -v ON_ERROR_STOP=1 -U postgres -d fanda -f fanda-server/migrations/002_add_phone.sql
-psql -v ON_ERROR_STOP=1 -U postgres -d fanda -f fanda-server/migrations/003_tables_refactor.sql
-psql -v ON_ERROR_STOP=1 -U postgres -d fanda -f fanda-server/migrations/004_finalize_table_model.sql
-`
-
 const TASKS = [
   {
     key: 'registry',
@@ -73,8 +61,8 @@ const TASKS = [
   {
     key: 'migrate',
     label: '初始化/迁移数据库',
-    command: 'sh',
-    args: ['-lc', migrateCommand],
+    command: 'go',
+    args: ['-C', 'fanda-server', 'run', 'cmd/migrate/main.go'],
   },
 ]
 

@@ -159,10 +159,11 @@ function logout() {
   document.getElementById('adminPass').value = '';
 }
 
-function api(path, params) {
+function api(path, params, options = {}) {
   const qs = params ? '?' + new URLSearchParams(params).toString() : '';
   return fetch(API + path + qs, {
-    headers: { 'Authorization': 'Bearer ' + token }
+    ...options,
+    headers: { ...options.headers, 'Authorization': 'Bearer ' + token }
   }).then(r => {
     if (r.status === 401) { logout(); throw new Error('未授权'); }
     return r.json();
@@ -236,9 +237,8 @@ function loadDishes(page) {
       html += '<tr class="empty-row"><td colspan="6">暂无数据</td></tr>';
     } else {
       const typeMap = { dish: '菜品', takeout: '外卖', dineout: '外食' };
-      const groupMap = { couple: '情侣', buddy: '饭搭子' };
       d.list.forEach(d => {
-        html += `<tr><td>${esc(d.name)}</td><td><span class="badge badge-info">${typeMap[d.dish_type]||d.dish_type}</span></td><td><span class="badge badge-default">${groupMap[d.group_type]||d.group_type}</span></td><td>${d.price>0?'¥'+d.price:'-'}</td><td>${fmtDate(d.created_at)}</td><td><button class="delete-btn" onclick="delDish('${d.id}',this)">删除</button></td></tr>`;
+        html += `<tr><td>${esc(d.name)}</td><td><span class="badge badge-info">${typeMap[d.dish_type]||d.dish_type}</span></td><td><span class="badge badge-default">${esc(d.table_id)||'-'}</span></td><td>${d.price>0?'¥'+d.price:'-'}</td><td>${fmtDate(d.created_at)}</td><td><button class="delete-btn" onclick="delDish('${d.id}',this)">删除</button></td></tr>`;
       });
     }
     html += '</tbody></table>' + paginationHtml(d.total, page, 20, 'loadDishes') + '</div>';
@@ -248,7 +248,7 @@ function loadDishes(page) {
 
 function delDish(id, btn) {
   if (!confirm('确定删除这道菜品吗？')) return;
-  api('/dishes/' + id, { method: 'DELETE' }).then(data => {
+  api('/dishes/' + id, undefined, { method: 'DELETE' }).then(data => {
     if (data.code === 0) {
       btn.closest('tr').remove();
     }
@@ -267,12 +267,11 @@ function loadOrders(page) {
     if (!d.list || d.list.length === 0) {
       html += '<tr class="empty-row"><td colspan="5">暂无数据</td></tr>';
     } else {
-      const groupMap = { couple: '情侣', buddy: '饭搭子' };
       const modeMap = { together: '共同就餐', solo: '个人就餐' };
       const statusMap = { pending: '待确认', confirmed: '已确认', rejected: '已拒绝', cancelled: '已取消', voted: '投票中' };
       const statusClass = { pending: 'badge-warning', confirmed: 'badge-success', rejected: 'badge-danger', cancelled: 'badge-default', voted: 'badge-info' };
       d.list.forEach(o => {
-        html += `<tr><td><span class="badge badge-default">${groupMap[o.group_type]||o.group_type}</span></td><td>${modeMap[o.dine_mode]||o.dine_mode}</td><td><span class="badge ${statusClass[o.status]||'badge-default'}">${statusMap[o.status]||o.status}</span></td><td>${o.total_amount>0?'¥'+o.total_amount:'-'}</td><td>${fmtDate(o.created_at)}</td></tr>`;
+        html += `<tr><td><span class="badge badge-default">${esc(o.table_id)||'-'}</span></td><td>${modeMap[o.dine_mode]||o.dine_mode}</td><td><span class="badge ${statusClass[o.status]||'badge-default'}">${statusMap[o.status]||o.status}</span></td><td>${o.total_amount>0?'¥'+o.total_amount:'-'}</td><td>${fmtDate(o.created_at)}</td></tr>`;
       });
     }
     html += '</tbody></table>' + paginationHtml(d.total, page, 20, 'loadOrders') + '</div>';
@@ -292,10 +291,9 @@ function loadRecords(page) {
     if (!d.list || d.list.length === 0) {
       html += '<tr class="empty-row"><td colspan="5">暂无数据</td></tr>';
     } else {
-      const groupMap = { couple: '情侣', buddy: '饭搭子' };
       const mealMap = { cook: '自己做饭', takeout: '外卖', dineout: '外食' };
       d.list.forEach(r => {
-        html += `<tr><td>${r.record_date}</td><td><span class="badge badge-default">${groupMap[r.group_type]||r.group_type}</span></td><td><span class="badge badge-info">${mealMap[r.meal_type]||r.meal_type}</span></td><td>${r.amount>0?'¥'+r.amount:'-'}</td><td>${fmtDate(r.created_at)}</td></tr>`;
+        html += `<tr><td>${r.record_date}</td><td><span class="badge badge-default">${esc(r.table_id)||'-'}</span></td><td><span class="badge badge-info">${mealMap[r.meal_type]||r.meal_type}</span></td><td>${r.amount>0?'¥'+r.amount:'-'}</td><td>${fmtDate(r.created_at)}</td></tr>`;
       });
     }
     html += '</tbody></table>' + paginationHtml(d.total, page, 20, 'loadRecords') + '</div>';

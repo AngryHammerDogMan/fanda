@@ -84,8 +84,11 @@ brew install node go postgresql@16
 
 ```bash
 npm install
+npm run bootstrap
 cp fanda-server/.env.example fanda-server/.env
 ```
+
+`npm install` 的 `postinstall` 只配置前端 npm 源，会跳过前端依赖安装和后端 Go 依赖下载；首次完整初始化需要继续执行 `npm run bootstrap`。
 
 编辑 `fanda-server/.env` 后启动数据库并迁移：
 
@@ -94,7 +97,15 @@ npm run db:start
 npm run db:migrate
 ```
 
-`npm run db:migrate` 会按顺序执行 `001_init.sql`、`002_add_phone.sql`、`003_tables_refactor.sql` 和 `004_finalize_table_model.sql`，任一迁移失败都会停止。
+`npm run db:migrate` 读取 `fanda-server/.env` 的数据库配置，通过 `schema_migrations` 记录版本和校验和，只执行尚未应用的迁移，任一迁移失败都会停止并回滚当前版本。
+
+如果数据库此前已手动执行完 `001` 到 `004`，第一次切换到版本化迁移时先执行：
+
+```bash
+go -C fanda-server run cmd/migrate/main.go -baseline 004
+```
+
+该命令会验证核心表和列，结构不完整时拒绝登记。baseline 成功后再执行 `npm run db:migrate`。
 
 ### Windows
 
@@ -104,6 +115,7 @@ npm run db:migrate
 
 ```powershell
 npm install
+npm run bootstrap
 Copy-Item fanda-server\.env.example fanda-server\.env
 ```
 
@@ -111,13 +123,10 @@ Copy-Item fanda-server\.env.example fanda-server\.env
 
 ```powershell
 psql -U postgres -h localhost -W -c "CREATE DATABASE fanda;"
-psql -U postgres -h localhost -W -d fanda -f fanda-server/migrations/001_init.sql
-psql -U postgres -h localhost -W -d fanda -f fanda-server/migrations/002_add_phone.sql
-psql -U postgres -h localhost -W -d fanda -f fanda-server/migrations/003_tables_refactor.sql
-psql -U postgres -h localhost -W -d fanda -f fanda-server/migrations/004_finalize_table_model.sql
+npm run db:migrate
 ```
 
-Windows 不使用 `npm run db:start` 和 `npm run db:migrate`，因为这两个脚本依赖 macOS 的 Homebrew 或 Unix `sh`。
+Windows 不使用 `npm run db:start`，因为该脚本依赖 macOS 的 Homebrew；版本化的 `npm run db:migrate` 使用 Go，可在 Windows 运行。
 
 ## 日常启动
 
@@ -167,13 +176,14 @@ Redis 当前是可选依赖。后端启动时会检查 Redis，但现有业务�
 
 | 命令 | macOS | Windows | 用途 |
 |---|---:|---:|---|
-| `npm install` | 支持 | 支持 | 安装项目依赖 |
+| `npm install` | 支持 | 支持 | 轻量安装并配置 npm 源 |
+| `npm run bootstrap` | 支持 | 支持 | 安装前端依赖并下载 Go 依赖 |
 | `npm run dev:h5` | 支持 | 支持 | 启动 H5 |
 | `npm run dev:server` | 支持 | 支持 | 启动后端 |
 | `npm run build:h5` | 支持 | 支持 | 构建 H5 |
 | `npm test` | 支持 | 支持 | 根目录脚本测试 |
 | `npm run db:start` | 支持 | 不支持 | macOS Homebrew 脚本 |
-| `npm run db:migrate` | 支持，自动执行 `001`-`004` | 不支持 | 依赖 Unix `sh` |
+| `npm run db:migrate` | 支持 | 支持 | 读取 `.env` 并执行未应用的版本化迁移 |
 | `node scripts/start.js redis` | 支持 | 不支持 | macOS Homebrew 脚本 |
 
 ## 小程序开发

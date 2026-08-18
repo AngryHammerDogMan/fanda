@@ -24,22 +24,24 @@ func setupPhoneMergeTestDB(t *testing.T) {
 
 	stmts := []string{
 		`CREATE TABLE users (uid TEXT PRIMARY KEY, wx_openid TEXT UNIQUE, dy_openid TEXT UNIQUE, phone TEXT UNIQUE, nickname TEXT NOT NULL, avatar TEXT, points INTEGER, created_at DATETIME, updated_at DATETIME)`,
-		`CREATE TABLE dishes (id TEXT PRIMARY KEY, owner_id TEXT, updated_at DATETIME)`,
-		`CREATE TABLE orders (id TEXT PRIMARY KEY, creator_id TEXT, updated_at DATETIME)`,
-		`CREATE TABLE calendar_records (id TEXT PRIMARY KEY, user_id TEXT, updated_at DATETIME)`,
+		`CREATE TABLE dishes (id TEXT PRIMARY KEY, owner_id TEXT, table_id TEXT, updated_at DATETIME)`,
+		`CREATE TABLE orders (id TEXT PRIMARY KEY, creator_id TEXT, table_id TEXT, updated_at DATETIME)`,
+		`CREATE TABLE calendar_records (id TEXT PRIMARY KEY, user_id TEXT, table_id TEXT, updated_at DATETIME)`,
 		`CREATE TABLE record_comments (id TEXT PRIMARY KEY, user_id TEXT, updated_at DATETIME)`,
-		`CREATE TABLE wish_items (id TEXT PRIMARY KEY, user_id TEXT)`,
+		`CREATE TABLE wish_items (id TEXT PRIMARY KEY, user_id TEXT, table_id TEXT)`,
 		`CREATE TABLE checkins (id TEXT PRIMARY KEY, user_id TEXT)`,
 		`CREATE TABLE point_records (id TEXT PRIMARY KEY, user_id TEXT)`,
-		`CREATE TABLE budget_settings (id TEXT PRIMARY KEY, user_id TEXT, updated_at DATETIME)`,
-		`CREATE TABLE shopping_baskets (id TEXT PRIMARY KEY, user_id TEXT, updated_at DATETIME)`,
+		`CREATE TABLE budget_settings (id TEXT PRIMARY KEY, user_id TEXT, table_id TEXT, month TEXT, budget REAL, created_at DATETIME, updated_at DATETIME, UNIQUE(user_id, table_id, month))`,
+		`CREATE TABLE shopping_baskets (id TEXT PRIMARY KEY, user_id TEXT, table_id TEXT, updated_at DATETIME)`,
 		`CREATE TABLE order_votes (id TEXT PRIMARY KEY, user_id TEXT)`,
-		`CREATE TABLE couples (id TEXT PRIMARY KEY, user1_id TEXT, user2_id TEXT)`,
+		`CREATE TABLE couples (id TEXT PRIMARY KEY, user1_id TEXT, user2_id TEXT, status TEXT, created_at DATETIME)`,
+		`CREATE TABLE couple_members (id TEXT PRIMARY KEY, couple_id TEXT NOT NULL, user_id TEXT NOT NULL, status TEXT NOT NULL, UNIQUE(user_id))`,
 		`CREATE TABLE buddy_members (id TEXT PRIMARY KEY, user_id TEXT)`,
 		`CREATE TABLE buddy_groups (id TEXT PRIMARY KEY, owner_id TEXT, updated_at DATETIME)`,
 		`CREATE TABLE couple_invites (id TEXT PRIMARY KEY, inviter_id TEXT)`,
 		`CREATE TABLE buddy_invites (id TEXT PRIMARY KEY, inviter_id TEXT)`,
 		`CREATE TABLE tables (id TEXT PRIMARY KEY, type TEXT NOT NULL, name TEXT NOT NULL, owner_id TEXT NOT NULL, status TEXT NOT NULL, created_at DATETIME, updated_at DATETIME)`,
+		`CREATE UNIQUE INDEX idx_one_owned_personal_table_per_user ON tables(owner_id) WHERE type = 'personal' AND status = 'active'`,
 		`CREATE TABLE table_members (id TEXT PRIMARY KEY, table_id TEXT NOT NULL, user_id TEXT NOT NULL, role TEXT NOT NULL, status TEXT NOT NULL, joined_at DATETIME, UNIQUE(table_id, user_id))`,
 		`CREATE TABLE order_participants (id TEXT PRIMARY KEY, order_id TEXT NOT NULL, user_id TEXT NOT NULL, status TEXT NOT NULL, created_at DATETIME, updated_at DATETIME, UNIQUE(order_id, user_id))`,
 	}
@@ -231,4 +233,168 @@ func TestBindPhoneRemovesConflictingTableMembersAndOrderParticipants(t *testing.
 	require.NoError(t, database.DB.First(&participant, "order_id = ?", orderID).Error)
 	require.Equal(t, targetUID, participant.UserID)
 	require.Equal(t, "accepted", participant.Status)
+}
+
+func TestBindPhoneMergesTwoActivePersonalTablesIntoTargetTable(t *testing.T) {
+	setupPhoneMergeTestDB(t)
+
+	phone := "13800138003"
+	targetUID := uuid.New()
+	sourceUID := uuid.New()
+	targetTableID := uuid.New()
+	sourceTableID := uuid.New()
+
+	require.NoError(t, database.DB.Create(&model.User{
+		UID: targetUID, Phone: &phone, Nickname: "phone-user",
+	}).Error)
+	require.NoError(t, database.DB.Create(&model.User{
+		UID: sourceUID, Nickname: "platform-user",
+	}).Error)
+	require.NoError(t, database.DB.Create(&model.Table{
+		ID: targetTableID, Type: "personal", Name: "目标个人餐桌", OwnerID: targetUID, Status: "active",
+	}).Error)
+	require.NoError(t, database.DB.Create(&model.Table{
+		ID: sourceTableID, Type: "personal", Name: "来源个人餐桌", OwnerID: sourceUID, Status: "active",
+	}).Error)
+	require.NoError(t, database.DB.Create(&model.TableMember{
+		ID: uuid.New(), TableID: targetTableID, UserID: targetUID, Role: "owner", Status: "active",
+	}).Error)
+	require.NoError(t, database.DB.Create(&model.TableMember{
+		ID: uuid.New(), TableID: sourceTableID, UserID: sourceUID, Role: "owner", Status: "active",
+	}).Error)
+
+	dishID := uuid.New()
+	orderID := uuid.New()
+	recordID := uuid.New()
+	require.NoError(t, database.DB.Exec(
+		`INSERT INTO dishes (id, owner_id, table_id) VALUES (?, ?, ?)`,
+		dishID, sourceUID, sourceTableID,
+	).Error)
+	require.NoError(t, database.DB.Exec(
+		`INSERT INTO orders (id, creator_id, table_id) VALUES (?, ?, ?)`,
+		orderID, sourceUID, sourceTableID,
+	).Error)
+	require.NoError(t, database.DB.Exec(
+		`INSERT INTO calendar_records (id, user_id, table_id) VALUES (?, ?, ?)`,
+		recordID, sourceUID, sourceTableID,
+	).Error)
+
+	require.NoError(t, NewAuthService(nil).BindPhone(context.Background(), sourceUID, phone))
+
+	var activePersonalTables []model.Table
+	require.NoError(t, database.DB.Where(
+		"type = ? AND status = ? AND owner_id = ?", "personal", "active", targetUID,
+	).Find(&activePersonalTables).Error)
+	require.Len(t, activePersonalTables, 1)
+	require.Equal(t, targetTableID, activePersonalTables[0].ID)
+
+	var sourceTableCount int64
+	require.NoError(t, database.DB.Model(&model.Table{}).Where("id = ?", sourceTableID).Count(&sourceTableCount).Error)
+	require.Zero(t, sourceTableCount)
+
+	for tableName, id := range map[string]uuid.UUID{
+		"dishes": dishID, "orders": orderID, "calendar_records": recordID,
+	} {
+		var tableID string
+		require.NoError(t, database.DB.Raw(
+			"SELECT table_id FROM "+tableName+" WHERE id = ?", id,
+		).Scan(&tableID).Error)
+		require.Equal(t, targetTableID.String(), tableID, tableName)
+	}
+}
+
+func TestBindPhoneKeepsTargetBudgetOnSameMonthPersonalTableConflict(t *testing.T) {
+	setupPhoneMergeTestDB(t)
+
+	phone := "13800138005"
+	targetUID := uuid.New()
+	sourceUID := uuid.New()
+	targetTableID := uuid.New()
+	sourceTableID := uuid.New()
+	require.NoError(t, database.DB.Create(&model.User{
+		UID: targetUID, Phone: &phone, Nickname: "phone-user",
+	}).Error)
+	require.NoError(t, database.DB.Create(&model.User{
+		UID: sourceUID, Nickname: "platform-user",
+	}).Error)
+	require.NoError(t, database.DB.Create(&model.Table{
+		ID: targetTableID, Type: "personal", Name: "目标个人餐桌", OwnerID: targetUID, Status: "active",
+	}).Error)
+	require.NoError(t, database.DB.Create(&model.Table{
+		ID: sourceTableID, Type: "personal", Name: "来源个人餐桌", OwnerID: sourceUID, Status: "active",
+	}).Error)
+	require.NoError(t, database.DB.Create(&model.BudgetSetting{
+		ID: uuid.New(), UserID: targetUID, TableID: targetTableID, Month: "2026-08", Budget: 1200,
+	}).Error)
+	require.NoError(t, database.DB.Create(&model.BudgetSetting{
+		ID: uuid.New(), UserID: sourceUID, TableID: sourceTableID, Month: "2026-08", Budget: 800,
+	}).Error)
+
+	require.NoError(t, NewAuthService(nil).BindPhone(context.Background(), sourceUID, phone))
+
+	var budgets []model.BudgetSetting
+	require.NoError(t, database.DB.Where(
+		"user_id = ? AND table_id = ? AND month = ?", targetUID, targetTableID, "2026-08",
+	).Find(&budgets).Error)
+	require.Len(t, budgets, 1)
+	require.Equal(t, 1200.0, budgets[0].Budget)
+}
+
+func TestCreateCoupleMembersRejectsUserAlreadyInAnotherActiveCouple(t *testing.T) {
+	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
+	require.NoError(t, err)
+	require.NoError(t, db.Exec(`
+		CREATE TABLE couple_members (
+			id TEXT PRIMARY KEY,
+			couple_id TEXT NOT NULL,
+			user_id TEXT NOT NULL,
+			status TEXT NOT NULL
+		)
+	`).Error)
+	require.NoError(t, db.Exec(`
+		CREATE UNIQUE INDEX idx_couple_members_active_user
+		ON couple_members(user_id) WHERE status = 'active'
+	`).Error)
+
+	first := model.Couple{ID: uuid.New(), User1ID: uuid.New(), User2ID: uuid.New(), Status: "active"}
+	require.NoError(t, createCoupleMembers(db, first))
+
+	second := model.Couple{ID: uuid.New(), User1ID: first.User2ID, User2ID: uuid.New(), Status: "active"}
+	require.Error(t, createCoupleMembers(db, second))
+
+	var count int64
+	require.NoError(t, db.Model(&model.CoupleMember{}).Where("couple_id = ?", first.ID).Count(&count).Error)
+	require.Equal(t, int64(2), count)
+}
+
+func TestBindPhoneMigratesNormalizedCoupleMember(t *testing.T) {
+	setupPhoneMergeTestDB(t)
+
+	phone := "13800138004"
+	targetUID := uuid.New()
+	sourceUID := uuid.New()
+	partnerUID := uuid.New()
+	coupleID := uuid.New()
+	for _, user := range []model.User{
+		{UID: targetUID, Phone: &phone, Nickname: "phone-user"},
+		{UID: sourceUID, Nickname: "platform-user"},
+		{UID: partnerUID, Nickname: "partner"},
+	} {
+		require.NoError(t, database.DB.Create(&user).Error)
+	}
+	require.NoError(t, database.DB.Create(&model.Couple{
+		ID: coupleID, User1ID: sourceUID, User2ID: partnerUID, Status: "active",
+	}).Error)
+	require.NoError(t, createCoupleMembers(database.DB, model.Couple{
+		ID: coupleID, User1ID: sourceUID, User2ID: partnerUID, Status: "active",
+	}))
+
+	require.NoError(t, NewAuthService(nil).BindPhone(context.Background(), sourceUID, phone))
+
+	var member model.CoupleMember
+	require.NoError(t, database.DB.First(&member, "couple_id = ? AND user_id = ?", coupleID, targetUID).Error)
+	require.Equal(t, "active", member.Status)
+	var sourceCount int64
+	require.NoError(t, database.DB.Model(&model.CoupleMember{}).Where("user_id = ?", sourceUID).Count(&sourceCount).Error)
+	require.Zero(t, sourceCount)
 }

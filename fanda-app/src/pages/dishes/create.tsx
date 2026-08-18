@@ -10,7 +10,7 @@ const DISH_TYPES = [
   { key: 'dish', label: '菜品' },
   { key: 'takeout', label: '外卖' },
   { key: 'dineout', label: '外食' },
-]
+] satisfies ReadonlyArray<{ key: DishPayload['dish_type']; label: string }>
 
 const CATEGORIES = [
   '家常菜', '川菜', '粤菜', '湘菜', '鲁菜',
@@ -39,7 +39,7 @@ export default function DishCreate() {
   const isEdit = !!id
 
   // 表单状态
-  const [dishType, setDishType] = useState('dish')
+  const [dishType, setDishType] = useState<DishPayload['dish_type']>('dish')
   const [name, setName] = useState('')
   const [category, setCategory] = useState('')
   const [difficulty, setDifficulty] = useState<number | null>(null)
@@ -168,6 +168,8 @@ export default function DishCreate() {
 
   // 提交
   const handleSubmit = async () => {
+    if (submitting) return
+
     if (!name.trim()) {
       Taro.showToast({ title: '请输入菜品名称', icon: 'none' })
       return
@@ -506,7 +508,7 @@ export default function DishCreate() {
 
       {/* 底部提交按钮 */}
       <View className='bottom-submit safe-bottom'>
-        <View className={`submit-btn ${submitting ? 'disabled' : ''}`} onClick={handleSubmit}>
+        <View className={`submit-btn ${submitting ? 'disabled' : ''}`} onClick={submitting ? undefined : handleSubmit}>
           <Text className='submit-text'>{submitting ? '提交中...' : isEdit ? '保存修改' : '提交'}</Text>
         </View>
       </View>

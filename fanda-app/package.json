@@ -15,6 +15,8 @@
     "dev:tt": "npm run build:tt -- --watch",
     "dev:h5": "node scripts/dev-h5.js",
     "test": "node --test src/__tests__/*.test.cjs",
+    "typecheck": "tsc --noEmit",
+    "check": "npm run test && npm run typecheck && npm run lint",
     "lint": "eslint --ext .ts,.tsx,.js,.jsx \"src/**/*.{ts,tsx,js,jsx}\"",
     "lint:fix": "eslint --ext .ts,.tsx,.js,.jsx --fix \"src/**/*.{ts,tsx,js,jsx}\""
   },

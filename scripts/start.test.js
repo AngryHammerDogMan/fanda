@@ -47,12 +47,12 @@ test('invalid explicit task exits without opening the interactive menu', () => {
   assert.doesNotMatch(result.stdout, /请选择要启动的服务/)
 })
 
-test('migrate task runs all migrations with strict shell failure handling', () => {
+test('migrate task uses the versioned Go runner without hard-coded database credentials', () => {
   const source = fs.readFileSync('scripts/start.js', 'utf8')
+  const task = resolveTask('migrate')
 
-  assert.match(source, /set -euo pipefail/)
-  assert.match(source, /001_init\.sql/)
-  assert.match(source, /002_add_phone\.sql/)
-  assert.match(source, /003_tables_refactor\.sql/)
-  assert.match(source, /004_finalize_table_model\.sql/)
+  assert.equal(task.command, 'go')
+  assert.deepEqual(task.args, ['-C', 'fanda-server', 'run', 'cmd/migrate/main.go'])
+  assert.doesNotMatch(source, /-U postgres/)
+  assert.doesNotMatch(source, /-d fanda/)
 })

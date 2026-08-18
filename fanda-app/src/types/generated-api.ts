@@ -483,16 +483,16 @@ export type operations = {
         month?: number
       }
     }
-    response: ApiResponse<PaginatedData<components['schemas']['CalendarRecord']>>
+    response: ApiResponse<components['schemas']['CalendarRecord'][]>
   }
   listCalendarRecordsByDate: {
     parameters: {
       query: {
         table_id: string
-        date?: string
+        date: string
       }
     }
-    response: ApiResponse<PaginatedData<components['schemas']['CalendarRecord']>>
+    response: ApiResponse<components['schemas']['CalendarRecord'][]>
   }
   getCalendarRecord: {
     response: ApiResponse<components['schemas']['CalendarRecord']>

@@ -48,11 +48,12 @@ CanAccessRecord(ctx, uid, id)     // 读取 calendar_records.table_id 后校验�
 
 1. openid 先从 source 清空，再写入 target，避免唯一约束冲突。
 2. 菜品、订单、日历、留言、心愿、签到、积分记录、预算、菜篮子按 `user_id` 或 `owner_id` 迁移。
-3. `tables.owner_id` 从 source 改为 target。
-4. `table_members` 若 target 已经在同一餐桌中，则删除 source 成员；否则把成员迁移到 target。
-5. `order_participants` 使用同样的冲突策略，避免同一订单重复参与人。
-6. `order_votes`、情侣关系、饭搭子成员、饭搭子群主和邀请码同步迁移。
-7. 积分采用累加策略，把 source 积分加到 target。
+3. 双方都有 active 个人餐桌时保留 target 餐桌，把 source 餐桌资源迁入 target；同月预算冲突保留 target 记录。
+4. source 的其他餐桌 `owner_id` 改为 target。
+5. `table_members` 若 target 已经在同一餐桌中，则删除 source 成员；否则把成员迁移到 target。
+6. `order_participants` 使用同样的冲突策略，避免同一订单重复参与人。
+7. `order_votes`、情侣关系、规范化情侣成员、饭搭子成员、饭搭子群主和邀请码同步迁移。
+8. 积分采用累加策略，把 source 积分加到 target。
 
 这条路径保证账号合并后，统一餐桌权限和订单参与关系不会残留到被删除用户。
 
@@ -133,12 +134,10 @@ fanda-app/src/services/request.ts      真实请求、Authorization、401 跳转
 
 ## H5 预览边界
 
-H5 mock 只服务本地浏览器预览，不属于生产能力。启用条件在 `fanda-app/src/services/h5-preview.ts` 中显式声明：
+H5 mock 只服务本地浏览器预览，不属于生产能力。构建配置将环境条件计算为 `H5_PREVIEW_MOCK_ENABLED`，登录页与请求层共同通过 `fanda-app/src/services/h5-preview-mode.ts` 读取：
 
 ```ts
-process.env.TARO_ENV === 'h5'
-  && process.env.NODE_ENV !== 'production'
-  && process.env.ENABLE_H5_PREVIEW_MOCK === 'true'
+isH5PreviewEnabled() === H5_PREVIEW_MOCK_ENABLED
 ```
 
 同时还要求 token 为 `h5-preview-token`。真实请求路径仍由 `request.ts` 使用 `API_BASE_URL` 访问后端；mock 只在上述条件全部满足时拦截并返回内置演示数据。
@@ -158,11 +157,12 @@ process.env.TARO_ENV === 'h5'
 2. `002_add_phone.sql` 增加手机号能力。
 3. `003_tables_refactor.sql` 引入统一餐桌、餐桌成员、订单参与人和各业务表的 `table_id`。
 4. `004_finalize_table_model.sql` 把旧 `group_id` 数据回填到 `table_id`，把核心业务表的 `table_id` 收紧为非空，并放宽旧 `group_type/group_id` 的非空要求。
+5. `005_couple_members.sql` 规范化情侣成员，并对 active 用户建立跨 `user1_id/user2_id` 的统一唯一约束。
 
-macOS 使用：
+macOS 和 Windows 都使用：
 
 ```bash
 npm run db:migrate
 ```
 
-该命令通过 `scripts/start.js` 执行 `001` 到 `004`，并使用 `set -euo pipefail` 与 `psql -v ON_ERROR_STOP=1` 在任一迁移失败时退出。Windows 标准 PowerShell 不运行该 Unix shell 脚本，应按开发环境指南手动执行四个 SQL 文件。
+该命令读取 `fanda-server/.env`，使用 `schema_migrations` 保存版本与校验和，并用 PostgreSQL advisory lock 防止并发迁移。每个未应用版本在独立事务中执行；已手动执行 `001` 到 `004` 的旧数据库需要先运行 `go -C fanda-server run cmd/migrate/main.go -baseline 004`，验证结构后登记历史版本。

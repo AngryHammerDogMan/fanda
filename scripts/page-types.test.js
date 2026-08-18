@@ -6,6 +6,13 @@ const test = require('node:test')
 const srcDir = path.join(process.cwd(), 'fanda-app/src')
 const pagesDir = path.join(process.cwd(), 'fanda-app/src/pages')
 
+test('fanda-app exposes typecheck and unified check scripts', () => {
+  const packageJson = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'fanda-app/package.json'), 'utf8'))
+
+  assert.equal(packageJson.scripts.typecheck, 'tsc --noEmit')
+  assert.equal(packageJson.scripts.check, 'npm run test && npm run typecheck && npm run lint')
+})
+
 function collectSourceFiles(dir) {
   const entries = fs.readdirSync(dir, { withFileTypes: true })
   return entries.flatMap((entry) => {

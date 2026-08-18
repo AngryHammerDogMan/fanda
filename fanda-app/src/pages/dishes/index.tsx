@@ -1,8 +1,9 @@
 import { View, Text, Image, Input, ScrollView } from '@tarojs/components'
 import Taro, { useDidShow, useReachBottom } from '@tarojs/taro'
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useRef } from 'react'
 import { dishAPI, tableAPI } from '@/services/api'
 import type { Dish, DishListParams, Table } from '@/types'
+import { LatestRequest } from '@/utils/latest-request'
 import { getStoredTableId, getTableDisplayName, rememberTableId } from '@/utils/table'
 import './index.scss'
 
@@ -33,14 +34,15 @@ export default function DishesIndex() {
   const [page, setPage] = useState(1)
   const [loading, setLoading] = useState(false)
   const [hasMore, setHasMore] = useState(true)
+  const dishRequestRef = useRef(new LatestRequest())
 
   const pageSize = 10
 
   const loadDishes = useCallback(async (pageNum: number, append: boolean, options?: { tableId?: string; dishType?: string; keyword?: string }) => {
+    const requestId = dishRequestRef.current.start()
     const tableId = options?.tableId ?? activeTableId
     const dishType = options?.dishType ?? activeTab
     const nextKeyword = options?.keyword ?? searchKeyword
-    if (loading) return
     if (!tableId) return
     setLoading(true)
 
@@ -61,6 +63,7 @@ export default function DishesIndex() {
       }
 
       const res = await dishAPI.list(params)
+      if (!dishRequestRef.current.isLatest(requestId)) return
       const data = res.data
 
       if (append) {
@@ -72,11 +75,15 @@ export default function DishesIndex() {
       setPage(pageNum)
       setHasMore(pageNum * pageSize < data.total)
     } catch (err) {
-      console.error('加载菜品列表失败', err)
+      if (dishRequestRef.current.isLatest(requestId)) {
+        console.error('加载菜品列表失败', err)
+      }
     } finally {
-      setLoading(false)
+      if (dishRequestRef.current.isLatest(requestId)) {
+        setLoading(false)
+      }
     }
-  }, [activeTab, activeTableId, searchKeyword, loading])
+  }, [activeTab, activeTableId, searchKeyword])
 
   const loadTables = async () => {
     try {

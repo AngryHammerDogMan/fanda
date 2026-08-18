@@ -20,6 +20,7 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type AuthService struct {
@@ -241,6 +242,10 @@ func (s *AuthService) mergeAccounts(sourceUID, targetUID uuid.UUID) error {
 		tx.Rollback()
 		return fmt.Errorf("迁移菜篮子失败: %w", err)
 	}
+	if err := mergePersonalTables(tx, sourceUID, targetUID); err != nil {
+		tx.Rollback()
+		return err
+	}
 	if err := tx.Model(&model.Table{}).Where("owner_id = ?", sourceUID).Update("owner_id", targetUID).Error; err != nil {
 		tx.Rollback()
 		return fmt.Errorf("迁移餐桌归属失败: %w", err)
@@ -266,6 +271,10 @@ func (s *AuthService) mergeAccounts(sourceUID, targetUID uuid.UUID) error {
 	if err := tx.Model(&model.Couple{}).Where("user2_id = ?", sourceUID).Update("user2_id", targetUID).Error; err != nil {
 		tx.Rollback()
 		return fmt.Errorf("迁移情侣关系失败: %w", err)
+	}
+	if err := mergeCoupleMembers(tx, sourceUID, targetUID); err != nil {
+		tx.Rollback()
+		return err
 	}
 	// 饭搭子成员
 	if err := tx.Model(&model.BuddyMember{}).Where("user_id = ?", sourceUID).Update("user_id", targetUID).Error; err != nil {
@@ -301,6 +310,73 @@ func (s *AuthService) mergeAccounts(sourceUID, targetUID uuid.UUID) error {
 	return tx.Commit().Error
 }
 
+func mergePersonalTables(tx *gorm.DB, sourceUID, targetUID uuid.UUID) error {
+	var personalTables []model.Table
+	if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
+		Where("type = ? AND status = ? AND owner_id IN ?", "personal", "active", []uuid.UUID{sourceUID, targetUID}).
+		Find(&personalTables).Error; err != nil {
+		return fmt.Errorf("锁定个人餐桌失败: %w", err)
+	}
+
+	var sourceTable, targetTable *model.Table
+	for i := range personalTables {
+		switch personalTables[i].OwnerID {
+		case sourceUID:
+			sourceTable = &personalTables[i]
+		case targetUID:
+			targetTable = &personalTables[i]
+		}
+	}
+	if sourceTable == nil || targetTable == nil {
+		return nil
+	}
+
+	if err := tx.Model(&model.Dish{}).Where("table_id = ?", sourceTable.ID).
+		Update("table_id", targetTable.ID).Error; err != nil {
+		return fmt.Errorf("迁移个人餐桌菜品失败: %w", err)
+	}
+	if err := tx.Model(&model.Order{}).Where("table_id = ?", sourceTable.ID).
+		Update("table_id", targetTable.ID).Error; err != nil {
+		return fmt.Errorf("迁移个人餐桌订单失败: %w", err)
+	}
+	if err := tx.Model(&model.CalendarRecord{}).Where("table_id = ?", sourceTable.ID).
+		Update("table_id", targetTable.ID).Error; err != nil {
+		return fmt.Errorf("迁移个人餐桌日历失败: %w", err)
+	}
+	if err := tx.Model(&model.WishItem{}).Where("table_id = ?", sourceTable.ID).
+		Update("table_id", targetTable.ID).Error; err != nil {
+		return fmt.Errorf("迁移个人餐桌心愿失败: %w", err)
+	}
+	if err := tx.Model(&model.ShoppingBasket{}).Where("table_id = ?", sourceTable.ID).
+		Update("table_id", targetTable.ID).Error; err != nil {
+		return fmt.Errorf("迁移个人餐桌菜篮子失败: %w", err)
+	}
+	if err := tx.Exec(`
+		DELETE FROM budget_settings AS source_budget
+		WHERE source_budget.table_id = ?
+		  AND EXISTS (
+			SELECT 1
+			FROM budget_settings AS target_budget
+			WHERE target_budget.table_id = ?
+			  AND target_budget.user_id = source_budget.user_id
+			  AND target_budget.month = source_budget.month
+		  )
+	`, sourceTable.ID, targetTable.ID).Error; err != nil {
+		return fmt.Errorf("处理个人餐桌预算冲突失败: %w", err)
+	}
+	if err := tx.Model(&model.BudgetSetting{}).Where("table_id = ?", sourceTable.ID).
+		Update("table_id", targetTable.ID).Error; err != nil {
+		return fmt.Errorf("迁移个人餐桌预算失败: %w", err)
+	}
+	if err := tx.Delete(&model.TableMember{}, "table_id = ?", sourceTable.ID).Error; err != nil {
+		return fmt.Errorf("删除源个人餐桌成员失败: %w", err)
+	}
+	if err := tx.Delete(&model.Table{}, "id = ?", sourceTable.ID).Error; err != nil {
+		return fmt.Errorf("删除源个人餐桌失败: %w", err)
+	}
+	return nil
+}
+
 func mergeTableMembers(tx *gorm.DB, sourceUID, targetUID uuid.UUID) error {
 	var members []model.TableMember
 	if err := tx.Where("user_id = ?", sourceUID).Find(&members).Error; err != nil {
@@ -325,6 +401,28 @@ func mergeTableMembers(tx *gorm.DB, sourceUID, targetUID uuid.UUID) error {
 		}
 	}
 
+	return nil
+}
+
+func mergeCoupleMembers(tx *gorm.DB, sourceUID, targetUID uuid.UUID) error {
+	var sourceMembers []model.CoupleMember
+	if err := tx.Where("user_id = ?", sourceUID).Find(&sourceMembers).Error; err != nil {
+		return fmt.Errorf("查询情侣成员失败: %w", err)
+	}
+	for _, member := range sourceMembers {
+		var targetCount int64
+		if err := tx.Model(&model.CoupleMember{}).
+			Where("user_id = ? AND status = ?", targetUID, "active").Count(&targetCount).Error; err != nil {
+			return fmt.Errorf("查询情侣成员冲突失败: %w", err)
+		}
+		if targetCount > 0 && member.Status == "active" {
+			return errors.New("源账号和目标账号均存在有效情侣关系，无法自动合并")
+		}
+		if err := tx.Model(&model.CoupleMember{}).Where("id = ?", member.ID).
+			Update("user_id", targetUID).Error; err != nil {
+			return fmt.Errorf("迁移情侣成员失败: %w", err)
+		}
+	}
 	return nil
 }
 
@@ -475,6 +573,10 @@ func (s *AuthService) JoinCouple(ctx context.Context, userID uuid.UUID, code str
 		tx.Rollback()
 		return fmt.Errorf("创建情侣关系失败: %w", err)
 	}
+	if err := createCoupleMembers(tx, couple); err != nil {
+		tx.Rollback()
+		return fmt.Errorf("创建情侣成员失败: %w", err)
+	}
 	if err := NewTableService().CreateCoupleTable(ctx, tx, couple.ID, invite.InviterID, userID); err != nil {
 		tx.Rollback()
 		return fmt.Errorf("创建情侣餐桌失败: %w", err)
@@ -487,6 +589,14 @@ func (s *AuthService) JoinCouple(ctx context.Context, userID uuid.UUID, code str
 	}
 
 	return tx.Commit().Error
+}
+
+func createCoupleMembers(tx *gorm.DB, couple model.Couple) error {
+	members := []model.CoupleMember{
+		{ID: uuid.New(), CoupleID: couple.ID, UserID: couple.User1ID, Status: couple.Status},
+		{ID: uuid.New(), CoupleID: couple.ID, UserID: couple.User2ID, Status: couple.Status},
+	}
+	return tx.Create(&members).Error
 }
 
 // CreateBuddyGroup 创建饭搭子组合，并同步把创建人写为 owner 成员。

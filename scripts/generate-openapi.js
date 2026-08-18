@@ -6,12 +6,14 @@ const openapiPath = path.join(rootDir, 'docs/openapi.json')
 const generatedApiPath = path.join(rootDir, 'fanda-app/src/types/generated-api.ts')
 
 const stringSchema = () => ({ type: 'string' })
+const dateSchema = () => ({ type: 'string', format: 'date' })
 const dateTimeSchema = () => ({ type: 'string', format: 'date-time' })
 const uuidSchema = () => ({ type: 'string', format: 'uuid' })
 const numberSchema = () => ({ type: 'number' })
 const integerSchema = () => ({ type: 'integer' })
 const booleanSchema = () => ({ type: 'boolean' })
 const nullable = (schema) => ({ ...schema, nullable: true })
+const emptySchema = () => ({ type: 'object', nullable: true })
 const arrayOf = (items) => ({ type: 'array', items })
 const ref = (name) => ({ $ref: `#/components/schemas/${name}` })
 
@@ -441,22 +443,22 @@ const spec = {
     },
     schemas,
   },
-  paths: {
+  paths: Object.fromEntries(Object.entries({
     '/api/v1/auth/login': {
       post: makeOperation({ operationId: 'authLogin', summary: '平台登录', security: [], requestBody: ref('LoginPayload'), dataSchema: ref('LoginResult') }),
     },
     '/api/v1/auth/profile': {
       get: makeOperation({ operationId: 'getProfile', summary: '获取当前用户资料', dataSchema: ref('User') }),
-      put: makeOperation({ operationId: 'updateProfile', summary: '更新用户资料', requestBody: ref('ProfileUpdatePayload'), dataSchema: { type: 'null' } }),
+      put: makeOperation({ operationId: 'updateProfile', summary: '更新用户资料', requestBody: ref('ProfileUpdatePayload'), dataSchema: emptySchema() }),
     },
     '/api/v1/auth/bind-phone': {
-      post: makeOperation({ operationId: 'bindPhone', summary: '绑定手机号', requestBody: objectSchema({ phone: stringSchema() }), dataSchema: { type: 'null' } }),
+      post: makeOperation({ operationId: 'bindPhone', summary: '绑定手机号', requestBody: objectSchema({ phone: stringSchema() }), dataSchema: emptySchema() }),
     },
     '/api/v1/couple/invite': {
       post: makeOperation({ operationId: 'createCoupleInvite', summary: '创建情侣邀请码', dataSchema: ref('InviteResult') }),
     },
     '/api/v1/couple/join': {
-      post: makeOperation({ operationId: 'joinCouple', summary: '加入情侣关系', requestBody: ref('JoinInvitePayload'), dataSchema: { type: 'null' } }),
+      post: makeOperation({ operationId: 'joinCouple', summary: '加入情侣关系', requestBody: ref('JoinInvitePayload'), dataSchema: emptySchema() }),
     },
     '/api/v1/buddy/groups': {
       post: makeOperation({ operationId: 'createBuddyGroup', summary: '创建饭搭子组合', requestBody: ref('CreateBuddyGroupPayload'), dataSchema: ref('BuddyGroupSummary') }),
@@ -465,10 +467,10 @@ const spec = {
       post: makeOperation({ operationId: 'createBuddyInvite', summary: '创建饭搭子邀请码', parameters: [pathParam('id')], dataSchema: ref('InviteResult') }),
     },
     '/api/v1/buddy/groups/{id}/join': {
-      post: makeOperation({ operationId: 'joinBuddyGroup', summary: '加入饭搭子组合', parameters: [pathParam('id')], requestBody: ref('JoinInvitePayload'), dataSchema: { type: 'null' } }),
+      post: makeOperation({ operationId: 'joinBuddyGroup', summary: '加入饭搭子组合', parameters: [pathParam('id')], requestBody: ref('JoinInvitePayload'), dataSchema: emptySchema() }),
     },
     '/api/v1/buddy/groups/{id}/members/{uid}': {
-      delete: makeOperation({ operationId: 'removeBuddyMember', summary: '移除饭搭子成员', parameters: [pathParam('id'), pathParam('uid')], dataSchema: { type: 'null' } }),
+      delete: makeOperation({ operationId: 'removeBuddyMember', summary: '移除饭搭子成员', parameters: [pathParam('id'), pathParam('uid')], dataSchema: emptySchema() }),
     },
     '/api/v1/tables': {
       get: makeOperation({ operationId: 'listTables', summary: '列出餐桌', dataSchema: arrayOf(ref('Table')) }),
@@ -487,8 +489,8 @@ const spec = {
     },
     '/api/v1/dishes/{id}': {
       get: makeOperation({ operationId: 'getDish', summary: '获取菜品', parameters: [pathParam('id')], dataSchema: ref('Dish') }),
-      put: makeOperation({ operationId: 'updateDish', summary: '更新菜品', parameters: [pathParam('id')], requestBody: ref('DishUpdatePayload'), dataSchema: { type: 'null' } }),
-      delete: makeOperation({ operationId: 'deleteDish', summary: '删除菜品', parameters: [pathParam('id')], dataSchema: { type: 'null' } }),
+      put: makeOperation({ operationId: 'updateDish', summary: '更新菜品', parameters: [pathParam('id')], requestBody: ref('DishUpdatePayload'), dataSchema: emptySchema() }),
+      delete: makeOperation({ operationId: 'deleteDish', summary: '删除菜品', parameters: [pathParam('id')], dataSchema: emptySchema() }),
     },
     '/api/v1/dishes/import': {
       post: makeOperation({ operationId: 'importDish', summary: '从学菜广场导入', requestBody: ref('ImportDishPayload'), dataSchema: ref('Dish') }),
@@ -517,16 +519,16 @@ const spec = {
       get: makeOperation({ operationId: 'getOrder', summary: '获取订单', parameters: [pathParam('id')], dataSchema: ref('Order') }),
     },
     '/api/v1/orders/{id}/confirm': {
-      post: makeOperation({ operationId: 'confirmOrder', summary: '确认订单', parameters: [pathParam('id')], dataSchema: { type: 'null' } }),
+      post: makeOperation({ operationId: 'confirmOrder', summary: '确认订单', parameters: [pathParam('id')], dataSchema: emptySchema() }),
     },
     '/api/v1/orders/{id}/reject': {
-      post: makeOperation({ operationId: 'rejectOrder', summary: '拒绝订单', parameters: [pathParam('id')], dataSchema: { type: 'null' } }),
+      post: makeOperation({ operationId: 'rejectOrder', summary: '拒绝订单', parameters: [pathParam('id')], dataSchema: emptySchema() }),
     },
     '/api/v1/orders/{id}/cancel': {
-      post: makeOperation({ operationId: 'cancelOrder', summary: '取消订单', parameters: [pathParam('id')], dataSchema: { type: 'null' } }),
+      post: makeOperation({ operationId: 'cancelOrder', summary: '取消订单', parameters: [pathParam('id')], dataSchema: emptySchema() }),
     },
     '/api/v1/orders/{id}/vote': {
-      post: makeOperation({ operationId: 'voteOrder', summary: '订单投票', parameters: [pathParam('id')], requestBody: ref('VoteOrderPayload'), dataSchema: { type: 'null' } }),
+      post: makeOperation({ operationId: 'voteOrder', summary: '订单投票', parameters: [pathParam('id')], requestBody: ref('VoteOrderPayload'), dataSchema: emptySchema() }),
     },
     '/api/v1/orders/{id}/votes': {
       get: makeOperation({ operationId: 'getOrderVotes', summary: '订单投票结果', parameters: [pathParam('id')], dataSchema: ref('OrderVotes') }),
@@ -536,7 +538,7 @@ const spec = {
         operationId: 'listCalendarRecords',
         summary: '按月列出日历记录',
         parameters: [query('table_id', uuidSchema(), true), query('year', integerSchema()), query('month', integerSchema())],
-        dataSchema: paginated(ref('CalendarRecord')),
+        dataSchema: arrayOf(ref('CalendarRecord')),
       }),
       post: makeOperation({ operationId: 'createCalendarRecord', summary: '创建日历记录', requestBody: ref('CalendarRecordPayload'), dataSchema: ref('CalendarRecord') }),
     },
@@ -544,14 +546,14 @@ const spec = {
       get: makeOperation({
         operationId: 'listCalendarRecordsByDate',
         summary: '按日期列出日历记录',
-        parameters: [query('table_id', uuidSchema(), true), query('date', stringSchema(), true)],
-        dataSchema: paginated(ref('CalendarRecord')),
+        parameters: [query('table_id', uuidSchema(), true), query('date', dateSchema(), true)],
+        dataSchema: arrayOf(ref('CalendarRecord')),
       }),
     },
     '/api/v1/calendar/records/{id}': {
       get: makeOperation({ operationId: 'getCalendarRecord', summary: '获取日历记录', parameters: [pathParam('id')], dataSchema: ref('CalendarRecord') }),
-      put: makeOperation({ operationId: 'updateCalendarRecord', summary: '更新日历记录', parameters: [pathParam('id')], requestBody: ref('CalendarRecordUpdatePayload'), dataSchema: { type: 'null' } }),
-      delete: makeOperation({ operationId: 'deleteCalendarRecord', summary: '删除日历记录', parameters: [pathParam('id')], dataSchema: { type: 'null' } }),
+      put: makeOperation({ operationId: 'updateCalendarRecord', summary: '更新日历记录', parameters: [pathParam('id')], requestBody: ref('CalendarRecordUpdatePayload'), dataSchema: emptySchema() }),
+      delete: makeOperation({ operationId: 'deleteCalendarRecord', summary: '删除日历记录', parameters: [pathParam('id')], dataSchema: emptySchema() }),
     },
     '/api/v1/calendar/records/{id}/comments': {
       post: makeOperation({ operationId: 'addRecordComment', summary: '新增记录留言', parameters: [pathParam('id')], requestBody: objectSchema({ content: stringSchema() }), dataSchema: ref('RecordComment') }),
@@ -572,10 +574,10 @@ const spec = {
       post: makeOperation({ operationId: 'createWish', summary: '创建心愿', requestBody: ref('CreateWishPayload'), dataSchema: ref('WishItem') }),
     },
     '/api/v1/wishes/{id}/complete': {
-      post: makeOperation({ operationId: 'completeWish', summary: '完成心愿', parameters: [pathParam('id')], dataSchema: { type: 'null' } }),
+      post: makeOperation({ operationId: 'completeWish', summary: '完成心愿', parameters: [pathParam('id')], dataSchema: emptySchema() }),
     },
     '/api/v1/wishes/{id}': {
-      delete: makeOperation({ operationId: 'deleteWish', summary: '删除心愿', parameters: [pathParam('id')], dataSchema: { type: 'null' } }),
+      delete: makeOperation({ operationId: 'deleteWish', summary: '删除心愿', parameters: [pathParam('id')], dataSchema: emptySchema() }),
     },
     '/api/v1/checkin': {
       post: makeOperation({ operationId: 'checkin', summary: '签到', dataSchema: ref('CheckinResult') }),
@@ -588,10 +590,10 @@ const spec = {
       post: makeOperation({ operationId: 'addToBasket', summary: '添加菜篮子项', requestBody: ref('BasketPayload'), dataSchema: ref('BasketItem') }),
     },
     '/api/v1/basket/{id}/toggle': {
-      post: makeOperation({ operationId: 'toggleBasket', summary: '切换菜篮子购买状态', parameters: [pathParam('id')], dataSchema: { type: 'null' } }),
+      post: makeOperation({ operationId: 'toggleBasket', summary: '切换菜篮子购买状态', parameters: [pathParam('id')], dataSchema: emptySchema() }),
     },
     '/api/v1/basket/{id}': {
-      delete: makeOperation({ operationId: 'deleteBasket', summary: '删除菜篮子项', parameters: [pathParam('id')], dataSchema: { type: 'null' } }),
+      delete: makeOperation({ operationId: 'deleteBasket', summary: '删除菜篮子项', parameters: [pathParam('id')], dataSchema: emptySchema() }),
     },
     '/api/v1/budget': {
       get: makeOperation({ operationId: 'getBudget', summary: '获取预算', parameters: [query('table_id', uuidSchema(), true), query('month', stringSchema(), true)], dataSchema: ref('BudgetSetting') }),
@@ -605,7 +607,7 @@ const spec = {
         dataSchema: paginated(ref('PointRecord')),
       }),
     },
-  },
+  }).map(([route, pathItem]) => [route.replace(/^\/api\/v1/, ''), pathItem])),
 }
 
 const generatedApiSource = `// This file is generated by scripts/generate-openapi.js. Do not edit manually.
@@ -1093,16 +1095,16 @@ export type operations = {
         month?: number
       }
     }
-    response: ApiResponse<PaginatedData<components['schemas']['CalendarRecord']>>
+    response: ApiResponse<components['schemas']['CalendarRecord'][]>
   }
   listCalendarRecordsByDate: {
     parameters: {
       query: {
         table_id: string
-        date?: string
+        date: string
       }
     }
-    response: ApiResponse<PaginatedData<components['schemas']['CalendarRecord']>>
+    response: ApiResponse<components['schemas']['CalendarRecord'][]>
   }
   getCalendarRecord: {
     response: ApiResponse<components['schemas']['CalendarRecord']>

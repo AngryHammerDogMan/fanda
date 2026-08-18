@@ -2,14 +2,13 @@ import { View, Text, Button, Input, Image } from '@tarojs/components'
 import Taro, { useDidHide, useDidShow } from '@tarojs/taro'
 import { useState } from 'react'
 import { authAPI } from '@/services/api'
+import { isH5PreviewEnabled } from '@/services/h5-preview-mode'
 import { getErrorMessage } from '@/utils/error'
 import './index.scss'
 
 // 登录页：承接平台授权、首次昵称设置、手机号绑定与 H5 预览登录入口。
 // 自动检测当前平台，用于区分真实小程序登录能力与浏览器预览 mock。
-declare const H5_PREVIEW_MOCK_ENABLED: boolean
-
-const IS_H5_PREVIEW = H5_PREVIEW_MOCK_ENABLED
+const IS_H5_PREVIEW = isH5PreviewEnabled()
 const CURRENT_PLATFORM = process.env.TARO_ENV === 'weapp' ? 'wechat' : 'douyin'
 const PLATFORM_NAME = IS_H5_PREVIEW ? '浏览器预览' : CURRENT_PLATFORM === 'wechat' ? '微信' : '抖音'
 const sticker = (name: string) => `/assets/stickers/${name}.png`

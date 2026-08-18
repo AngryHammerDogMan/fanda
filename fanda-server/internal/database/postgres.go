@@ -13,7 +13,7 @@ import (
 
 var DB *gorm.DB
 
-func InitPostgres(cfg *config.Config) {
+func OpenPostgres(cfg *config.Config) (*gorm.DB, error) {
 	// 使用 URL 格式的 DSN，pgx 驱动对 key=value 格式的 dbname 参数支持有问题
 	dsn := fmt.Sprintf(
 		"postgres://%s:%s@%s:%s/%s?sslmode=%s&TimeZone=Asia/Shanghai",
@@ -25,17 +25,24 @@ func InitPostgres(cfg *config.Config) {
 		logLevel = logger.Warn
 	}
 
-	var err error
-	DB, err = gorm.Open(postgres.Open(dsn), &gorm.Config{
+	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{
 		Logger: logger.Default.LogMode(logLevel),
 	})
 	if err != nil {
-		log.Fatalf("无法连接数据库: %v", err)
+		return nil, err
 	}
 
-	sqlDB, _ := DB.DB()
+	sqlDB, _ := db.DB()
 	sqlDB.SetMaxIdleConns(10)
 	sqlDB.SetMaxOpenConns(100)
+	return db, nil
+}
 
+func InitPostgres(cfg *config.Config) {
+	var err error
+	DB, err = OpenPostgres(cfg)
+	if err != nil {
+		log.Fatalf("无法连接数据库: %v", err)
+	}
 	log.Println("PostgreSQL 连接成功")
 }

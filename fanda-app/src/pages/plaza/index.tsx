@@ -1,9 +1,10 @@
 import { View, Text, Input, ScrollView, Image } from '@tarojs/components'
 import Taro, { useDidShow } from '@tarojs/taro'
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { dishAPI, tableAPI } from '@/services/api'
 import type { PlazaDish, PlazaSearchParams, Table } from '@/types'
 import { getErrorMessage } from '@/utils/error'
+import { LatestRequest } from '@/utils/latest-request'
 import { getStoredTableId, getTableDisplayName, rememberTableId } from '@/utils/table'
 import './index.scss'
 
@@ -21,6 +22,7 @@ export default function Plaza() {
   const [hasMore, setHasMore] = useState(true)
   const [tables, setTables] = useState<Table[]>([])
   const [activeTableId, setActiveTableId] = useState('')
+  const plazaRequestRef = useRef(new LatestRequest())
 
   useDidShow(() => {
     loadTables()
@@ -52,9 +54,9 @@ export default function Plaza() {
   }
 
   const loadDishes = async (reset = false, options?: { category?: string; keyword?: string }) => {
+    const requestId = plazaRequestRef.current.start()
     const nextCategory = options?.category ?? activeCategory
     const nextKeyword = options?.keyword ?? keyword
-    if (loading) return
     setLoading(true)
     const currentPage = reset ? 1 : page
     try {
@@ -63,6 +65,7 @@ export default function Plaza() {
       if (nextCategory !== '全部') params.category = nextCategory
       if (nextKeyword) params.keyword = nextKeyword
       const res = await dishAPI.searchPlaza(params)
+      if (!plazaRequestRef.current.isLatest(requestId)) return
       const list: PlazaDish[] = res.data?.list || res.data || []
       const total = res.data?.total || 0
       if (reset) {
@@ -74,9 +77,13 @@ export default function Plaza() {
       }
       setHasMore(reset ? list.length < total : (currentPage * 20) < total)
     } catch (err) {
-      console.error('加载菜品失败', err)
+      if (plazaRequestRef.current.isLatest(requestId)) {
+        console.error('加载菜品失败', err)
+      }
     } finally {
-      setLoading(false)
+      if (plazaRequestRef.current.isLatest(requestId)) {
+        setLoading(false)
+      }
     }
   }
 

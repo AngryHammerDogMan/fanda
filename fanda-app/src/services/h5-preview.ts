@@ -1,5 +1,8 @@
 import type { ApiResponse, components, PaginatedData } from '@/types/generated-api'
 import type Taro from '@tarojs/taro'
+import { isH5PreviewRequest as isPreviewRequest } from './h5-preview-mode'
+
+export const isH5PreviewRequest = (token: string): boolean => isPreviewRequest(token)
 
 type BasketItem = components['schemas']['BasketItem']
 type CreateOrderPayload = components['schemas']['CreateOrderPayload']
@@ -7,12 +10,6 @@ type Dish = components['schemas']['Dish']
 type Order = components['schemas']['Order']
 type Table = components['schemas']['Table']
 type User = components['schemas']['User']
-
-declare const H5_PREVIEW_MOCK_ENABLED: boolean
-
-export const isH5PreviewRequest = (token: string) => {
-  return H5_PREVIEW_MOCK_ENABLED && token === 'h5-preview-token'
-}
 
 // H5 预览用户：覆盖账号绑定、伴侣、饭搭成员等核心关系字段，保证主要页面可直接演示。
 const h5User: User = {

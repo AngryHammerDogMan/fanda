@@ -1,9 +1,9 @@
 import Taro from '@tarojs/taro'
 import type { ApiResponse } from '@/types'
 import { getAuthToken, redirectToLoginOnce, resetAuthRedirect } from './auth-session'
+import { isH5PreviewRequest } from './h5-preview-mode'
 
 declare const API_BASE_URL: string
-declare const H5_PREVIEW_MOCK_ENABLED: boolean
 
 const BASE_URL = API_BASE_URL
 
@@ -30,8 +30,6 @@ const normalizeApiResponse = <T>(data: unknown): ApiResponse<T> => {
 
   return response
 }
-
-const isH5PreviewRequest = (token: string) => H5_PREVIEW_MOCK_ENABLED && token === 'h5-preview-token'
 
 // 请求拦截器：统一真实请求、Authorization、401 跳转、响应校验和 H5 预览 mock。
 export const request = async <T>(options: Taro.request.Option): Promise<ApiResponse<T>> => {

@@ -38,6 +38,14 @@ type Couple struct {
 	CreatedAt time.Time `json:"created_at"`
 }
 
+// CoupleMember 将情侣双方规范化为行，跨 user1_id/user2_id 保证每个用户至多属于一段 active 关系。
+type CoupleMember struct {
+	ID       uuid.UUID `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
+	CoupleID uuid.UUID `gorm:"type:uuid;not null;index" json:"couple_id"`
+	UserID   uuid.UUID `gorm:"type:uuid;not null;index" json:"user_id"`
+	Status   string    `gorm:"type:varchar(15);not null;default:'active'" json:"status"`
+}
+
 // CoupleInvite 情侣邀请码表；邀请码有过期和使用状态，用于一次性建立情侣关系。
 type CoupleInvite struct {
 	ID        uuid.UUID `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
@@ -80,6 +88,7 @@ type BuddyInvite struct {
 }
 
 func (Couple) TableName() string       { return "couples" }
+func (CoupleMember) TableName() string { return "couple_members" }
 func (CoupleInvite) TableName() string { return "couple_invites" }
 func (BuddyGroup) TableName() string   { return "buddy_groups" }
 func (BuddyMember) TableName() string  { return "buddy_members" }

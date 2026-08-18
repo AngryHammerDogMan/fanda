@@ -1,8 +1,9 @@
 import { View, Text, ScrollView, Image } from '@tarojs/components'
 import Taro, { useDidShow } from '@tarojs/taro'
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo, useEffect, useRef } from 'react'
 import { calendarAPI, tableAPI } from '@/services/api'
 import type { CalendarRecord, MonthlyStats, Table } from '@/types'
+import { LatestRequest } from '@/utils/latest-request'
 import { getStoredTableId, getTableDisplayName, rememberTableId } from '@/utils/table'
 import './index.scss'
 
@@ -24,6 +25,8 @@ export default function Calendar() {
   const [dateRecordsMap, setDateRecordsMap] = useState<Record<string, CalendarRecord[]>>({})
   const [selectedDateRecords, setSelectedDateRecords] = useState<CalendarRecord[]>([])
   const [monthlyStats, setMonthlyStats] = useState<MonthlyStats | null>(null)
+  const monthRequestRef = useRef(new LatestRequest())
+  const dateRequestRef = useRef(new LatestRequest())
 
   // 日历网格数据：补齐上月尾部和下月开头，保证 UI 始终按完整周渲染。
   const calendarGrid = useMemo(() => {
@@ -78,10 +81,13 @@ export default function Calendar() {
 
   // 当餐桌或月份变化时加载数据
   useEffect(() => {
+    const requestId = monthRequestRef.current.start()
+
     const loadMonthRecords = async () => {
       if (!activeTableId) return
       try {
         const res = await calendarAPI.listByMonth(activeTableId, currentYear, currentMonth)
+        if (!monthRequestRef.current.isLatest(requestId)) return
         const records: CalendarRecord[] = Array.isArray(res.data) ? res.data : res.data?.list || []
         const map: Record<string, CalendarRecord[]> = {}
         // 按日期聚合记录，供日历格子快速判断当天有哪些 meal_type 圆点。
@@ -94,7 +100,9 @@ export default function Calendar() {
         })
         setDateRecordsMap(map)
       } catch (err) {
-        console.error('加载日历记录失败', err)
+        if (monthRequestRef.current.isLatest(requestId)) {
+          console.error('加载日历记录失败', err)
+        }
       }
     }
 
@@ -102,9 +110,12 @@ export default function Calendar() {
       if (!activeTableId) return
       try {
         const res = await calendarAPI.getStats(activeTableId, currentYear, currentMonth)
+        if (!monthRequestRef.current.isLatest(requestId)) return
         setMonthlyStats(res.data)
       } catch (err) {
-        console.error('加载统计失败', err)
+        if (monthRequestRef.current.isLatest(requestId)) {
+          console.error('加载统计失败', err)
+        }
       }
     }
 
@@ -115,13 +126,17 @@ export default function Calendar() {
   }, [activeTableId, currentYear, currentMonth])
 
   const loadDateRecords = async (date: string) => {
+    const requestId = dateRequestRef.current.start()
     if (!activeTableId) return
     try {
       const res = await calendarAPI.listByDate(activeTableId, date)
+      if (!dateRequestRef.current.isLatest(requestId)) return
       setSelectedDateRecords(Array.isArray(res.data) ? res.data : res.data?.list || [])
     } catch (err) {
-      console.error('加载日期记录失败', err)
-      setSelectedDateRecords([])
+      if (dateRequestRef.current.isLatest(requestId)) {
+        console.error('加载日期记录失败', err)
+        setSelectedDateRecords([])
+      }
     }
   }
 
@@ -132,6 +147,7 @@ export default function Calendar() {
     } else {
       setCurrentMonth(currentMonth - 1)
     }
+    dateRequestRef.current.start()
     setSelectedDate('')
     setSelectedDateRecords([])
   }
@@ -143,6 +159,7 @@ export default function Calendar() {
     } else {
       setCurrentMonth(currentMonth + 1)
     }
+    dateRequestRef.current.start()
     setSelectedDate('')
     setSelectedDateRecords([])
   }
@@ -156,6 +173,7 @@ export default function Calendar() {
   const handleTableChange = (tableId: string) => {
     setActiveTableId(tableId)
     rememberTableId(tableId)
+    dateRequestRef.current.start()
     setSelectedDate('')
     setSelectedDateRecords([])
   }
