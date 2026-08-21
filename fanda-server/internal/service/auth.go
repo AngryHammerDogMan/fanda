@@ -758,23 +758,40 @@ func (s *AuthService) RemoveBuddyMember(ctx context.Context, userID uuid.UUID, g
 		return errors.New("成员ID无效")
 	}
 
-	// 检查权限
-	var member model.BuddyMember
-	if err := database.DB.Where("group_id = ? AND user_id = ? AND role IN ('owner','admin')", gID, userID).First(&member).Error; err != nil {
-		return errors.New("没有移除权限")
-	}
-
 	// 不能移除自己
 	if userID == tID {
 		return errors.New("不能移除自己")
 	}
 
-	result := database.DB.Where("group_id = ? AND user_id = ?", gID, tID).Delete(&model.BuddyMember{})
-	if result.RowsAffected == 0 {
-		return errors.New("成员不存在")
-	}
+	return database.DB.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		var member model.BuddyMember
+		if err := tx.WithContext(ctx).
+			Where("group_id = ? AND user_id = ? AND role IN ('owner','admin')", gID, userID).
+			First(&member).Error; err != nil {
+			return errors.New("没有移除权限")
+		}
 
-	return nil
+		tableResult := tx.WithContext(ctx).
+			Where("table_id = ? AND user_id = ?", gID, tID).
+			Delete(&model.TableMember{})
+		if tableResult.Error != nil {
+			return fmt.Errorf("移除餐桌成员失败: %w", tableResult.Error)
+		}
+		if tableResult.RowsAffected == 0 {
+			return errors.New("成员不存在")
+		}
+
+		buddyResult := tx.WithContext(ctx).
+			Where("group_id = ? AND user_id = ?", gID, tID).
+			Delete(&model.BuddyMember{})
+		if buddyResult.Error != nil {
+			return fmt.Errorf("移除饭搭成员失败: %w", buddyResult.Error)
+		}
+		if buddyResult.RowsAffected == 0 {
+			return errors.New("成员不存在")
+		}
+		return nil
+	})
 }
 
 // ---- 辅助函数 ----

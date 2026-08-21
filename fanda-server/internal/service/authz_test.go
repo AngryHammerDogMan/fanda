@@ -8,6 +8,7 @@ import (
 	"fanda-server/internal/model"
 
 	"github.com/google/uuid"
+	"github.com/stretchr/testify/require"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )
@@ -25,7 +26,7 @@ func setupAuthzTestDB(t *testing.T) *gorm.DB {
 		`CREATE TABLE couples (id TEXT PRIMARY KEY, user1_id TEXT NOT NULL, user2_id TEXT NOT NULL, status TEXT NOT NULL, created_at DATETIME)`,
 		`CREATE TABLE buddy_groups (id TEXT PRIMARY KEY, name TEXT NOT NULL, owner_id TEXT NOT NULL, max_member INTEGER, status TEXT NOT NULL, created_at DATETIME, updated_at DATETIME)`,
 		`CREATE TABLE buddy_members (id TEXT PRIMARY KEY, group_id TEXT NOT NULL, user_id TEXT NOT NULL, role TEXT NOT NULL, joined_at DATETIME)`,
-		`CREATE TABLE tables (id TEXT PRIMARY KEY, type TEXT NOT NULL, name TEXT NOT NULL, owner_id TEXT NOT NULL, status TEXT NOT NULL)`,
+		`CREATE TABLE tables (id TEXT PRIMARY KEY, type TEXT NOT NULL, name TEXT NOT NULL, owner_id TEXT NOT NULL, status TEXT NOT NULL, created_at DATETIME, updated_at DATETIME)`,
 		`CREATE TABLE table_members (id TEXT PRIMARY KEY, table_id TEXT NOT NULL, user_id TEXT NOT NULL, role TEXT NOT NULL, status TEXT NOT NULL, joined_at DATETIME)`,
 		`CREATE TABLE wish_items (id TEXT PRIMARY KEY, user_id TEXT NOT NULL, table_id TEXT NOT NULL, name TEXT NOT NULL, note TEXT, dish_id TEXT, is_completed BOOLEAN, created_at DATETIME)`,
 		`CREATE TABLE shopping_baskets (id TEXT PRIMARY KEY, user_id TEXT NOT NULL, table_id TEXT NOT NULL, name TEXT NOT NULL, quantity TEXT, is_purchased BOOLEAN, created_at DATETIME)`,
@@ -195,4 +196,81 @@ func TestToggleBasketRejectsNonOwner(t *testing.T) {
 	if item.IsPurchased {
 		t.Fatal("越权切换失败后菜篮子状态不应改变")
 	}
+}
+
+func TestRemoveBuddyMemberRevokesTableAccess(t *testing.T) {
+	_, ownerID, targetID, groupID := setupBuddyRemovalFixture(t)
+	ctx := context.Background()
+	require.NoError(t, CanAccessTable(ctx, targetID, groupID))
+
+	err := NewAuthService(nil).RemoveBuddyMember(ctx, ownerID, groupID.String(), targetID.String())
+
+	require.NoError(t, err)
+	require.Error(t, CanAccessTable(ctx, targetID, groupID))
+}
+
+func TestRemoveBuddyMemberRejectsSelfRemoval(t *testing.T) {
+	_, ownerID, _, groupID := setupBuddyRemovalFixture(t)
+	err := NewAuthService(nil).RemoveBuddyMember(context.Background(), ownerID, groupID.String(), ownerID.String())
+	require.EqualError(t, err, "不能移除自己")
+}
+
+func TestRemoveBuddyMemberRejectsNonAdmin(t *testing.T) {
+	db, _, targetID, groupID := setupBuddyRemovalFixture(t)
+	nonAdminID := uuid.New()
+	require.NoError(t, db.Create(&model.User{UID: nonAdminID, Nickname: "普通成员"}).Error)
+	require.NoError(t, db.Create(&model.BuddyMember{
+		ID: uuid.New(), GroupID: groupID, UserID: nonAdminID, Role: "member",
+	}).Error)
+
+	err := NewAuthService(nil).RemoveBuddyMember(context.Background(), nonAdminID, groupID.String(), targetID.String())
+
+	require.EqualError(t, err, "没有移除权限")
+	require.NoError(t, CanAccessTable(context.Background(), targetID, groupID))
+}
+
+func TestRemoveBuddyMemberRollsBackWhenTableMemberDeleteFails(t *testing.T) {
+	db, ownerID, targetID, groupID := setupBuddyRemovalFixture(t)
+	require.NoError(t, db.Exec(`
+		CREATE TRIGGER fail_table_member_delete
+		BEFORE DELETE ON table_members
+		BEGIN
+			SELECT RAISE(FAIL, 'forced table member delete failure');
+		END
+	`).Error)
+
+	err := NewAuthService(nil).RemoveBuddyMember(context.Background(), ownerID, groupID.String(), targetID.String())
+
+	require.Error(t, err)
+	var count int64
+	require.NoError(t, db.Model(&model.BuddyMember{}).
+		Where("group_id = ? AND user_id = ?", groupID, targetID).Count(&count).Error)
+	require.Equal(t, int64(1), count)
+}
+
+func setupBuddyRemovalFixture(t *testing.T) (*gorm.DB, uuid.UUID, uuid.UUID, uuid.UUID) {
+	t.Helper()
+	db := setupAuthzTestDB(t)
+	ownerID, targetID, groupID := uuid.New(), uuid.New(), uuid.New()
+	require.NoError(t, db.Create(&model.User{UID: ownerID, Nickname: "群主"}).Error)
+	require.NoError(t, db.Create(&model.User{UID: targetID, Nickname: "待移除成员"}).Error)
+	require.NoError(t, db.Create(&model.BuddyGroup{
+		ID: groupID, Name: "测试饭搭", OwnerID: ownerID, MaxMember: 10, Status: "active",
+	}).Error)
+	require.NoError(t, db.Create(&model.BuddyMember{
+		ID: uuid.New(), GroupID: groupID, UserID: ownerID, Role: "owner",
+	}).Error)
+	require.NoError(t, db.Create(&model.BuddyMember{
+		ID: uuid.New(), GroupID: groupID, UserID: targetID, Role: "member",
+	}).Error)
+	require.NoError(t, db.Create(&model.Table{
+		ID: groupID, Type: "buddy", Name: "测试饭搭", OwnerID: ownerID, Status: "active",
+	}).Error)
+	require.NoError(t, db.Create(&model.TableMember{
+		ID: uuid.New(), TableID: groupID, UserID: ownerID, Role: "owner", Status: "active",
+	}).Error)
+	require.NoError(t, db.Create(&model.TableMember{
+		ID: uuid.New(), TableID: groupID, UserID: targetID, Role: "member", Status: "active",
+	}).Error)
+	return db, ownerID, targetID, groupID
 }

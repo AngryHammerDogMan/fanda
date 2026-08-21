@@ -24,13 +24,14 @@ type Order struct {
 
 func (Order) TableName() string { return "orders" }
 
-// OrderItem 订单菜品关联表；保存订单中的菜品、数量和下单时单价快照。
+// OrderItem 订单菜品关联表；UnitPrice 保存下单时参考单价快照，ConfirmedAmount 保存该订单项本次合计实际金额。
 type OrderItem struct {
-	ID        uuid.UUID `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
-	OrderID   uuid.UUID `gorm:"type:uuid;not null;index" json:"order_id"`
-	DishID    uuid.UUID `gorm:"type:uuid;not null" json:"dish_id"`
-	Quantity  int       `gorm:"default:1" json:"quantity"`
-	UnitPrice *float64  `gorm:"type:decimal(10,2)" json:"unit_price"`
+	ID              uuid.UUID `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
+	OrderID         uuid.UUID `gorm:"type:uuid;not null;index" json:"order_id"`
+	DishID          uuid.UUID `gorm:"type:uuid;not null" json:"dish_id"`
+	Quantity        int       `gorm:"default:1" json:"quantity"`
+	UnitPrice       *float64  `gorm:"type:decimal(10,2)" json:"unit_price"`
+	ConfirmedAmount *float64  `gorm:"type:decimal(10,2)" json:"confirmed_amount"`
 }
 
 func (OrderItem) TableName() string { return "order_items" }

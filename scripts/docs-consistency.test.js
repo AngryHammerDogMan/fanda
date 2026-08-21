@@ -38,3 +38,16 @@ test('architecture docs point to the shared H5 preview mode module', () => {
   assert.match(architecture, /h5-preview-mode\.ts/)
   assert.match(architecture, /H5_PREVIEW_MOCK_ENABLED/)
 })
+
+test('README and architecture docs describe confirmed amount flow and migration 006', () => {
+  const readme = read('README.md')
+  const architecture = read('docs/architecture.md')
+
+  for (const content of [readme, architecture]) {
+    assert.match(content, /参考金额/)
+    assert.match(content, /本次确认金额/)
+    assert.match(content, /订单项确认金额汇总/)
+    assert.match(content, /订单来源日历不能直接修改总金额/)
+    assert.match(content, /006_order_item_confirmed_amount\.sql/)
+  }
+})

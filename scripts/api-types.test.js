@@ -21,6 +21,9 @@ test('api.ts uses concrete request and parameter types', () => {
   assert.match(typesSource, /export type CreateOrderPayload = operations\['createOrder'\]\['requestBody'\]/)
   assert.match(typesSource, /export type DishListParams = operations\['listDishes'\]\['parameters'\]\['query'\]/)
   assert.match(typesSource, /export type BasketPayload = operations\['addToBasket'\]\['requestBody'\]/)
+  assert.match(typesSource, /export type CalendarOrderItem = components\['schemas'\]\['CalendarOrderItem'\]/)
+  assert.match(typesSource, /export type CalendarOrder = components\['schemas'\]\['CalendarOrder'\]/)
+  assert.match(typesSource, /export type CalendarRecordUpdateOrderItem = components\['schemas'\]\['CalendarRecordUpdateOrderItem'\]/)
   assert.doesNotMatch(typesSource, /group_type|group_id|order_items:/)
 })
 

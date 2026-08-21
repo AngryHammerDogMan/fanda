@@ -233,7 +233,8 @@ const schemas = {
     dish_name: stringSchema(),
     quantity: integerSchema(),
     unit_price: nullable(numberSchema()),
-  }, ['id', 'order_id', 'dish_id', 'quantity', 'unit_price']),
+    confirmed_amount: nullable(numberSchema()),
+  }, ['id', 'order_id', 'dish_id', 'quantity', 'unit_price', 'confirmed_amount']),
   OrderParticipant: objectSchema({
     id: uuidSchema(),
     order_id: uuidSchema(),
@@ -265,7 +266,7 @@ const schemas = {
   OrderItemPayload: objectSchema({
     dish_id: uuidSchema(),
     quantity: integerSchema(),
-    unit_price: nullable(numberSchema()),
+    confirmed_amount: nullable(numberSchema()),
   }),
   OrderBasketItemPayload: objectSchema({
     name: stringSchema(),
@@ -302,6 +303,18 @@ const schemas = {
     content: stringSchema(),
     created_at: dateTimeSchema(),
   }),
+  CalendarOrderItem: objectSchema({
+    id: uuidSchema(),
+    dish_id: uuidSchema(),
+    dish_name: stringSchema(),
+    quantity: integerSchema(),
+    unit_price: nullable(numberSchema()),
+    confirmed_amount: nullable(numberSchema()),
+  }),
+  CalendarOrder: objectSchema({
+    id: uuidSchema(),
+    items: arrayOf(ref('CalendarOrderItem')),
+  }),
   CalendarRecord: objectSchema({
     id: uuidSchema(),
     user_id: uuidSchema(),
@@ -316,8 +329,9 @@ const schemas = {
     status: stringSchema(),
     photos: arrayOf(ref('RecordPhoto')),
     comments: arrayOf(ref('RecordComment')),
+    order: nullable(ref('CalendarOrder')),
     created_at: dateTimeSchema(),
-  }),
+  }, ['id', 'user_id', 'table_id', 'record_date', 'meal_type', 'meal_period', 'dish_ids', 'restaurant', 'amount', 'source', 'status', 'photos', 'comments', 'created_at']),
   PhotoPayload: objectSchema({
     url: stringSchema(),
     type: stringSchema(),
@@ -333,11 +347,16 @@ const schemas = {
     photos: arrayOf(ref('PhotoPayload')),
     content: stringSchema(),
   }, ['table_id', 'record_date', 'meal_type']),
+  CalendarRecordUpdateOrderItem: objectSchema({
+    id: uuidSchema(),
+    confirmed_amount: nullable(numberSchema()),
+  }),
   CalendarRecordUpdatePayload: objectSchema({
     meal_type: stringSchema(),
     meal_period: stringSchema(),
     restaurant: stringSchema(),
     amount: nullable(numberSchema()),
+    order_items: arrayOf(ref('CalendarRecordUpdateOrderItem')),
   }, []),
   MonthlyStats: objectSchema({
     total_amount: numberSchema(),
@@ -788,6 +807,7 @@ export type components = {
       dish_name?: string
       quantity: number
       unit_price: number | null
+      confirmed_amount: number | null
     }
     OrderParticipant: {
       id: string
@@ -820,7 +840,7 @@ export type components = {
     OrderItemPayload: {
       dish_id: string
       quantity: number
-      unit_price: number | null
+      confirmed_amount: number | null
     }
     OrderBasketItemPayload: {
       name: string
@@ -857,6 +877,18 @@ export type components = {
       content: string
       created_at: string
     }
+    CalendarOrderItem: {
+      id: string
+      dish_id: string
+      dish_name: string
+      quantity: number
+      unit_price: number | null
+      confirmed_amount: number | null
+    }
+    CalendarOrder: {
+      id: string
+      items: components['schemas']['CalendarOrderItem'][]
+    }
     CalendarRecord: {
       id: string
       user_id: string
@@ -871,6 +903,7 @@ export type components = {
       status: string
       photos: components['schemas']['RecordPhoto'][]
       comments: components['schemas']['RecordComment'][]
+      order?: components['schemas']['CalendarOrder'] | null
       created_at: string
     }
     PhotoPayload: {
@@ -888,11 +921,16 @@ export type components = {
       photos?: components['schemas']['PhotoPayload'][]
       content?: string
     }
+    CalendarRecordUpdateOrderItem: {
+      id: string
+      confirmed_amount: number | null
+    }
     CalendarRecordUpdatePayload: {
       meal_type?: string
       meal_period?: string
       restaurant?: string
       amount?: number | null
+      order_items?: components['schemas']['CalendarRecordUpdateOrderItem'][]
     }
     MonthlyStats: {
       total_amount: number

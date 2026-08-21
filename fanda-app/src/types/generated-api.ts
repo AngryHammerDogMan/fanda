@@ -171,6 +171,7 @@ export type components = {
       dish_name?: string
       quantity: number
       unit_price: number | null
+      confirmed_amount: number | null
     }
     OrderParticipant: {
       id: string
@@ -203,7 +204,7 @@ export type components = {
     OrderItemPayload: {
       dish_id: string
       quantity: number
-      unit_price: number | null
+      confirmed_amount: number | null
     }
     OrderBasketItemPayload: {
       name: string
@@ -240,6 +241,18 @@ export type components = {
       content: string
       created_at: string
     }
+    CalendarOrderItem: {
+      id: string
+      dish_id: string
+      dish_name: string
+      quantity: number
+      unit_price: number | null
+      confirmed_amount: number | null
+    }
+    CalendarOrder: {
+      id: string
+      items: components['schemas']['CalendarOrderItem'][]
+    }
     CalendarRecord: {
       id: string
       user_id: string
@@ -254,6 +267,7 @@ export type components = {
       status: string
       photos: components['schemas']['RecordPhoto'][]
       comments: components['schemas']['RecordComment'][]
+      order?: components['schemas']['CalendarOrder'] | null
       created_at: string
     }
     PhotoPayload: {
@@ -271,11 +285,16 @@ export type components = {
       photos?: components['schemas']['PhotoPayload'][]
       content?: string
     }
+    CalendarRecordUpdateOrderItem: {
+      id: string
+      confirmed_amount: number | null
+    }
     CalendarRecordUpdatePayload: {
       meal_type?: string
       meal_period?: string
       restaurant?: string
       amount?: number | null
+      order_items?: components['schemas']['CalendarRecordUpdateOrderItem'][]
     }
     MonthlyStats: {
       total_amount: number

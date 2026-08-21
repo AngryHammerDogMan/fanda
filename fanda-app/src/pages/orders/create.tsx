@@ -4,12 +4,15 @@ import { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { dishAPI, orderAPI, tableAPI } from '@/services/api'
 import type { Dish, Table, TableMember } from '@/types'
 import { getErrorMessage } from '@/utils/error'
+import { getDefaultConfirmedAmount, parseAmountInput, sumNullableAmounts, validateAmountInput } from '@/utils/amount'
 import { LAST_ORDER_TABLE_KEY } from '@/utils/table'
 import './create.scss'
 
 interface SelectedDish {
   dish: Dish
   quantity: number
+  confirmedAmount: string
+  amountTouched: boolean
 }
 
 interface DishCategoryGroup {
@@ -165,6 +168,12 @@ export default function CreateOrder() {
     }
     return sum
   }, 0)
+  const hasInvalidConfirmedAmount = selectedDishes.some(item => validateAmountInput(item.confirmedAmount))
+  const confirmedTotal = sumNullableAmounts(
+    selectedDishes.map(item => validateAmountInput(item.confirmedAmount) == null
+      ? parseAmountInput(item.confirmedAmount)
+      : null)
+  )
 
   const purchaseCandidates = useMemo<PurchaseCandidate[]>(() => {
     const candidateMap = new Map<string, PurchaseCandidate>()
@@ -286,11 +295,25 @@ export default function CreateOrder() {
       if (existing) {
         return prev.map(item =>
           item.dish.id === dish.id
-            ? { ...item, quantity: Math.min(99, item.quantity + 1) }
+            ? (() => {
+              const quantity = Math.min(99, item.quantity + 1)
+              return {
+                ...item,
+                quantity,
+                confirmedAmount: item.amountTouched
+                  ? item.confirmedAmount
+                  : getDefaultConfirmedAmount(item.dish.price, quantity),
+              }
+            })()
             : item
         )
       }
-      return [...prev, { dish, quantity: 1 }]
+      return [...prev, {
+        dish,
+        quantity: 1,
+        confirmedAmount: getDefaultConfirmedAmount(dish.price, 1),
+        amountTouched: false,
+      }]
     })
   }
 
@@ -298,12 +321,27 @@ export default function CreateOrder() {
     setSelectedDishes(prev => {
       const next = prev.map(item => {
         if (item.dish.id === dishId) {
-          return { ...item, quantity: Math.max(0, Math.min(99, item.quantity + delta)) }
+          const quantity = Math.max(0, Math.min(99, item.quantity + delta))
+          return {
+            ...item,
+            quantity,
+            confirmedAmount: item.amountTouched
+              ? item.confirmedAmount
+              : getDefaultConfirmedAmount(item.dish.price, quantity),
+          }
         }
         return item
       })
       return next.filter(item => item.quantity > 0)
     })
+  }
+
+  const handleConfirmedAmountChange = (dishId: string, value: string) => {
+    setSelectedDishes(prev => prev.map(item => (
+      item.dish.id === dishId
+        ? { ...item, confirmedAmount: value, amountTouched: true }
+        : item
+    )))
   }
 
   const handleDishListQuantityClick = (
@@ -357,6 +395,14 @@ export default function CreateOrder() {
       Taro.showToast({ title: '请先选择菜品', icon: 'none' })
       return
     }
+    const invalidItem = selectedDishes.find(item => validateAmountInput(item.confirmedAmount))
+    if (invalidItem) {
+      Taro.showToast({
+        title: `${invalidItem.dish.name}：${validateAmountInput(invalidItem.confirmedAmount)}`,
+        icon: 'none',
+      })
+      return
+    }
     setSubmitting(true)
     try {
       await orderAPI.create({
@@ -366,7 +412,7 @@ export default function CreateOrder() {
         items: selectedDishes.map(item => ({
           dish_id: item.dish.id,
           quantity: item.quantity,
-          unit_price: item.dish.price,
+          confirmed_amount: parseAmountInput(item.confirmedAmount),
         })),
         basket_items: needPurchase
           ? purchaseCandidates
@@ -665,12 +711,30 @@ export default function CreateOrder() {
               </View>
               {selectedDishes.map(item => (
                 <View key={item.dish.id} className='confirm-dish-row'>
-                  <Text>{item.dish.name} × {item.quantity}</Text>
-                  <Text className='confirm-price'>
-                    {item.dish.price != null ? `¥${(item.dish.price * item.quantity).toFixed(2)}` : '待估价'}
-                  </Text>
+                  <View className='confirm-dish-info'>
+                    <Text>{item.dish.name} × {item.quantity}</Text>
+                    <Text className='confirm-reference'>
+                      参考单价 {item.dish.price == null ? '待填写' : `¥${item.dish.price.toFixed(2)}`}
+                    </Text>
+                  </View>
+                  <View className='confirm-amount-field'>
+                    <Text className='confirm-amount-label'>本次确认金额</Text>
+                    <Input
+                      className='confirm-amount-input'
+                      type='digit'
+                      value={item.confirmedAmount}
+                      placeholder='待填写'
+                      onInput={event => handleConfirmedAmountChange(item.dish.id, event.detail.value)}
+                    />
+                  </View>
                 </View>
               ))}
+              <View className='confirm-total-row'>
+                <Text className='confirm-total-label'>本餐总金额</Text>
+                <Text className='confirm-total-value'>
+                  {hasInvalidConfirmedAmount ? '金额格式有误' : confirmedTotal == null ? '待填写' : `¥${confirmedTotal.toFixed(2)}`}
+                </Text>
+              </View>
             </View>
             <View className='confirm-section'>
               <View className='confirm-section-head'>

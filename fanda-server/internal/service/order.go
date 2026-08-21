@@ -16,6 +16,30 @@ import (
 // OrderService 管理点单、一起吃确认、取消和饭搭子投票流程。
 type OrderService struct{}
 
+type orderRequestError struct {
+	err error
+}
+
+func (e *orderRequestError) Error() string { return e.err.Error() }
+func (e *orderRequestError) Unwrap() error { return e.err }
+
+func newOrderRequestError(err error) error {
+	return &orderRequestError{err: err}
+}
+
+// IsOrderRequestError 判断创建订单失败是否由请求内容或业务校验导致。
+func IsOrderRequestError(err error) bool {
+	var requestErr *orderRequestError
+	return errors.As(err, &requestErr)
+}
+
+func handleOrderAuthorizationError(err error, notFoundMessage string) error {
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return newOrderRequestError(errors.New(notFoundMessage))
+	}
+	return err
+}
+
 // NewOrderService 创建订单服务，负责订单创建、状态流转和投票聚合。
 func NewOrderService() *OrderService {
 	return &OrderService{}
@@ -24,7 +48,7 @@ func NewOrderService() *OrderService {
 // CreateOrder 创建订单：先做餐桌鉴权，再用事务同时创建订单、订单项、日历记录和可选参与人。
 func (s *OrderService) CreateOrder(ctx context.Context, uid uuid.UUID, req CreateOrderReq) (*model.Order, error) {
 	if err := CanAccessTable(ctx, uid, req.TableID); err != nil {
-		return nil, err
+		return nil, handleOrderAuthorizationError(err, "无权访问该餐桌")
 	}
 
 	status := "confirmed"
@@ -36,22 +60,18 @@ func (s *OrderService) CreateOrder(ctx context.Context, uid uuid.UUID, req Creat
 	if req.DineMode == "together" {
 		for _, participantID := range req.ParticipantIDs {
 			if participantID == uid {
-				return nil, errors.New("不能邀请自己")
+				return nil, newOrderRequestError(errors.New("不能邀请自己"))
 			}
 			if err := CanAccessTable(ctx, participantID, req.TableID); err != nil {
-				return nil, errors.New("参与人不属于该餐桌")
+				return nil, handleOrderAuthorizationError(err, "参与人不属于该餐桌")
 			}
 		}
 	}
 	for _, basketItem := range req.BasketItems {
 		if basketItem.Name == "" {
-			return nil, errors.New("采购项名称不能为空")
+			return nil, newOrderRequestError(errors.New("采购项名称不能为空"))
 		}
 	}
-	if err := validateOrderDishes(ctx, req.TableID, req.Items); err != nil {
-		return nil, err
-	}
-
 	order := model.Order{
 		ID:        uuid.New(),
 		CreatorID: uid,
@@ -61,34 +81,46 @@ func (s *OrderService) CreateOrder(ctx context.Context, uid uuid.UUID, req Creat
 	}
 
 	tx := database.DB.WithContext(ctx).Begin()
+	dishes, err := loadOrderDishes(ctx, tx, req.TableID, req.Items)
+	if err != nil {
+		tx.Rollback()
+		return nil, err
+	}
 
 	if err := tx.Create(&order).Error; err != nil {
 		tx.Rollback()
 		return nil, fmt.Errorf("创建订单失败: %w", err)
 	}
 
-	var totalAmount float64
+	confirmedAmounts := make([]*float64, 0, len(req.Items))
 	dishIDs := make([]string, 0, len(req.Items))
 	for _, item := range req.Items {
+		confirmedAmount, err := normalizeAmount(item.ConfirmedAmount)
+		if err != nil {
+			tx.Rollback()
+			return nil, newOrderRequestError(fmt.Errorf("确认金额无效: %w", err))
+		}
+		dish := dishes[item.DishID]
 		orderItem := model.OrderItem{
-			ID:       uuid.New(),
-			OrderID:  order.ID,
-			DishID:   item.DishID,
-			Quantity: item.Quantity,
+			ID:              uuid.New(),
+			OrderID:         order.ID,
+			DishID:          item.DishID,
+			Quantity:        item.Quantity,
+			UnitPrice:       dish.Price,
+			ConfirmedAmount: confirmedAmount,
 		}
 		dishIDs = append(dishIDs, item.DishID.String())
-		if item.UnitPrice != nil {
-			orderItem.UnitPrice = item.UnitPrice
-			totalAmount += *item.UnitPrice * float64(item.Quantity)
-		}
+		confirmedAmounts = append(confirmedAmounts, confirmedAmount)
 		if err := tx.Create(&orderItem).Error; err != nil {
 			tx.Rollback()
 			return nil, fmt.Errorf("添加订单项失败: %w", err)
 		}
 	}
 
-	if totalAmount > 0 {
-		order.TotalAmount = &totalAmount
+	order.TotalAmount = sumAmounts(confirmedAmounts)
+	if err := validateAmountTotal(order.TotalAmount); err != nil {
+		tx.Rollback()
+		return nil, newOrderRequestError(fmt.Errorf("订单总金额无效: %w", err))
 	}
 
 	record := model.CalendarRecord{
@@ -252,10 +284,10 @@ func (s *OrderService) CancelOrder(ctx context.Context, uid uuid.UUID, orderID u
 	return s.updateOrderState(ctx, order, "cancelled", uid)
 }
 
-// validateOrderDishes 批量确认订单内菜品都属于当前餐桌且未被软删除。
-func validateOrderDishes(ctx context.Context, tableID uuid.UUID, items []OrderItemReq) error {
+// loadOrderDishes 批量读取订单菜品，并确认其都属于当前餐桌且未被软删除。
+func loadOrderDishes(ctx context.Context, tx *gorm.DB, tableID uuid.UUID, items []OrderItemReq) (map[uuid.UUID]model.Dish, error) {
 	if len(items) == 0 {
-		return errors.New("订单至少包含一个菜品")
+		return nil, newOrderRequestError(errors.New("订单至少包含一个菜品"))
 	}
 
 	seen := make(map[uuid.UUID]struct{}, len(items))
@@ -268,16 +300,20 @@ func validateOrderDishes(ctx context.Context, tableID uuid.UUID, items []OrderIt
 		dishIDs = append(dishIDs, item.DishID)
 	}
 
-	var count int64
-	if err := database.DB.WithContext(ctx).Model(&model.Dish{}).
+	var dishes []model.Dish
+	if err := tx.WithContext(ctx).
 		Where("id IN ? AND table_id = ? AND is_deleted = ?", dishIDs, tableID, false).
-		Count(&count).Error; err != nil {
-		return fmt.Errorf("校验菜品失败: %w", err)
+		Find(&dishes).Error; err != nil {
+		return nil, fmt.Errorf("校验菜品失败: %w", err)
 	}
-	if count != int64(len(dishIDs)) {
-		return errors.New("订单包含不存在或无权访问的菜品")
+	if len(dishes) != len(dishIDs) {
+		return nil, newOrderRequestError(errors.New("订单包含不存在或无权访问的菜品"))
 	}
-	return nil
+	result := make(map[uuid.UUID]model.Dish, len(dishes))
+	for _, dish := range dishes {
+		result[dish.ID] = dish
+	}
+	return result, nil
 }
 
 // updateOrderState 同步订单状态、关联日历记录状态和当前参与人的确认状态。
@@ -428,9 +464,9 @@ type CreateOrderReq struct {
 
 // OrderItemReq 描述订单中的一个菜品条目。
 type OrderItemReq struct {
-	DishID    uuid.UUID `json:"dish_id" binding:"required"`        // 菜品 ID
-	Quantity  int       `json:"quantity" binding:"required,min=1"` // 数量
-	UnitPrice *float64  `json:"unit_price"`                        // 下单时单价快照
+	DishID          uuid.UUID `json:"dish_id" binding:"required"`        // 菜品 ID
+	Quantity        int       `json:"quantity" binding:"required,min=1"` // 数量
+	ConfirmedAmount *float64  `json:"confirmed_amount"`                  // 本订单项合计确认金额
 }
 
 // OrderBasketItemReq 描述创建订单时同步加入菜篮子的采购项。

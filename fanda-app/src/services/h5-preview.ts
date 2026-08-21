@@ -1,15 +1,21 @@
 import type { ApiResponse, components, PaginatedData } from '@/types/generated-api'
+import { sumNullableAmounts } from '@/utils/amount'
 import type Taro from '@tarojs/taro'
 import { isH5PreviewRequest as isPreviewRequest } from './h5-preview-mode'
 
 export const isH5PreviewRequest = (token: string): boolean => isPreviewRequest(token)
 
 type BasketItem = components['schemas']['BasketItem']
+type CalendarRecord = components['schemas']['CalendarRecord']
+type CalendarRecordPayload = components['schemas']['CalendarRecordPayload']
+type CalendarRecordUpdatePayload = components['schemas']['CalendarRecordUpdatePayload']
 type CreateOrderPayload = components['schemas']['CreateOrderPayload']
 type Dish = components['schemas']['Dish']
 type Order = components['schemas']['Order']
+type OrderVote = components['schemas']['OrderVote']
 type Table = components['schemas']['Table']
 type User = components['schemas']['User']
+type VoteOrderPayload = components['schemas']['VoteOrderPayload']
 
 // H5 预览用户：覆盖账号绑定、伴侣、饭搭成员等核心关系字段，保证主要页面可直接演示。
 const h5User: User = {
@@ -156,12 +162,107 @@ let h5PreviewBasketItems: BasketItem[] = [
 const ok = <T>(data: T): ApiResponse<T> => ({ code: 0, message: 'ok', data })
 
 const list = <T>(items: T[]): PaginatedData<T> => ({ list: items, total: items.length, page: 1, page_size: 20 })
+const formatLocalDate = (date: Date): string => [
+  date.getFullYear(),
+  String(date.getMonth() + 1).padStart(2, '0'),
+  String(date.getDate()).padStart(2, '0'),
+].join('-')
+
+let h5CalendarRecords: CalendarRecord[] = [{
+  id: 'h5-record-1',
+  user_id: 'h5-preview-user',
+  table_id: 'h5-buddy-table',
+  record_date: '2026-08-21',
+  meal_type: 'dineout',
+  meal_period: '晚餐',
+  dish_ids: ['h5-dish-4'],
+  restaurant: '烧鸟小馆',
+  amount: 168,
+  source: 'order',
+  status: 'pending',
+  photos: [],
+  comments: [],
+  order: {
+    id: 'h5-order-1',
+    items: [{
+      id: 'h5-order-item-1',
+      dish_id: 'h5-dish-4',
+      dish_name: '烧鸟拼盘',
+      quantity: 1,
+      unit_price: 128,
+      confirmed_amount: 168,
+    }],
+  },
+  created_at: '2026-08-10T19:30:00Z',
+}]
+
+let h5Orders: Order[] = [{
+  id: 'h5-order-1',
+  creator_id: 'h5-preview-user',
+  table_id: 'h5-buddy-table',
+  dine_mode: 'together',
+  status: 'pending',
+  total_amount: 168,
+  calendar_record_id: 'h5-record-1',
+  order_items: [{
+    id: 'h5-order-item-1',
+    order_id: 'h5-order-1',
+    dish_id: 'h5-dish-4',
+    dish_name: '烧鸟拼盘',
+    quantity: 1,
+    unit_price: 128,
+    confirmed_amount: 168,
+  }],
+  participants: [{
+    id: 'h5-order-participant-1',
+    order_id: 'h5-order-1',
+    user_id: 'h5-partner',
+    status: 'invited',
+    created_at: '2026-08-10T18:30:00Z',
+    updated_at: '2026-08-10T18:30:00Z',
+  }],
+  created_at: '2026-08-10T18:30:00Z',
+}]
+
+let h5OrderVotes: OrderVote[] = []
+
+const updatePreviewOrderState = (
+  orderId: string,
+  status: 'confirmed' | 'rejected' | 'cancelled',
+): void => {
+  const orderIndex = h5Orders.findIndex(order => order.id === orderId)
+  if (orderIndex < 0) return
+
+  const order = h5Orders[orderIndex]
+  const participantStatus = status === 'confirmed'
+    ? 'accepted'
+    : status === 'rejected' ? 'rejected' : 'skipped'
+  h5Orders[orderIndex] = {
+    ...order,
+    status,
+    participants: order.participants?.map(participant => ({
+      ...participant,
+      status: participantStatus,
+      updated_at: new Date().toISOString(),
+    })),
+  }
+
+  if (!order.calendar_record_id) return
+  const recordIndex = h5CalendarRecords.findIndex(record => record.id === order.calendar_record_id)
+  if (recordIndex < 0) return
+  h5CalendarRecords[recordIndex] = {
+    ...h5CalendarRecords[recordIndex],
+    status: status === 'confirmed' ? 'confirmed' : 'cancelled',
+  }
+}
 
 const createPreviewOrder = (payload: CreateOrderPayload): Order => {
   const createdAt = new Date().toISOString()
-  const orderId = `h5-order-${Date.now()}`
+  const timestamp = Date.now()
+  const orderId = `h5-order-${timestamp}`
+  const calendarRecordId = `h5-record-${timestamp}`
   const createdBasketItems = (payload.basket_items || []).map((item, index): BasketItem => ({
-    id: `h5-basket-created-${Date.now()}-${index}`,
+    id: `h5-basket-created-${timestamp}-${index}`,
     user_id: 'h5-preview-user',
     table_id: payload.table_id,
     name: item.name,
@@ -172,24 +273,63 @@ const createPreviewOrder = (payload: CreateOrderPayload): Order => {
 
   h5PreviewBasketItems = [...createdBasketItems, ...h5PreviewBasketItems]
 
-  return {
+  const order: Order = {
     id: orderId,
     creator_id: 'h5-preview-user',
     table_id: payload.table_id,
     dine_mode: payload.dine_mode,
     status: payload.dine_mode === 'together' ? 'pending' : 'confirmed',
-    total_amount: payload.items.reduce((sum, item) => sum + ((item.unit_price || 0) * item.quantity), 0),
-    calendar_record_id: `h5-record-${Date.now()}`,
-    order_items: payload.items.map((item, index) => ({
-      id: `h5-order-item-${index}`,
-      order_id: orderId,
-      dish_id: item.dish_id,
-      quantity: item.quantity,
-      unit_price: item.unit_price,
-    })),
+    total_amount: sumNullableAmounts(payload.items.map(item => item.confirmed_amount)),
+    calendar_record_id: calendarRecordId,
+    order_items: payload.items.map((item, index) => {
+      const dish = h5Dishes.find(candidate => candidate.id === item.dish_id)
+      return {
+        id: `h5-order-item-${index}`,
+        order_id: orderId,
+        dish_id: item.dish_id,
+        dish_name: dish?.name,
+        quantity: item.quantity,
+        unit_price: dish?.price ?? null,
+        confirmed_amount: item.confirmed_amount,
+      }
+    }),
     participants: [],
     created_at: createdAt,
   }
+
+  const firstDish = h5Dishes.find(dish => dish.id === payload.items[0]?.dish_id)
+  const mealType = firstDish?.dish_type === 'takeout' || firstDish?.dish_type === 'dineout'
+    ? firstDish.dish_type
+    : 'cook'
+  h5Orders = [order, ...h5Orders]
+  h5CalendarRecords = [{
+    id: calendarRecordId,
+    user_id: 'h5-preview-user',
+    table_id: payload.table_id,
+    record_date: formatLocalDate(new Date()),
+    meal_type: mealType,
+    meal_period: '晚餐',
+    dish_ids: payload.items.map(item => item.dish_id),
+    restaurant: firstDish?.restaurant || '',
+    amount: order.total_amount,
+    source: 'order',
+    status: order.status,
+    photos: [],
+    comments: [],
+    order: {
+      id: order.id,
+      items: order.order_items.map(item => ({
+        id: item.id,
+        dish_id: item.dish_id,
+        dish_name: item.dish_name || '',
+        quantity: item.quantity,
+        unit_price: item.unit_price,
+        confirmed_amount: item.confirmed_amount,
+      })),
+    },
+    created_at: createdAt,
+  }, ...h5CalendarRecords]
+  return order
 }
 
 // H5 mock 响应路由：按真实接口 path 返回轻量数据，避免浏览器预览依赖小程序登录和后端服务。
@@ -211,40 +351,142 @@ export const createH5PreviewResponse = <T>(options: Taro.request.Option): ApiRes
     if (options.method === 'POST') {
       return ok(createPreviewOrder(options.data as CreateOrderPayload)) as ApiResponse<T>
     }
-    return ok(list([
-      {
-        id: 'h5-order-1',
-        creator_id: 'h5-preview-user',
-        table_id: 'h5-buddy-table',
-        dine_mode: 'together',
-        status: 'pending',
-        total_amount: 58,
-        order_items: [{ id: 'h5-order-item-1', order_id: 'h5-order-1', dish_id: 'h5-dish-1', quantity: 1, unit_price: 42 }],
-        participants: [{ id: 'h5-order-participant-1', order_id: 'h5-order-1', user_id: 'h5-partner', status: 'invited', created_at: '2026-08-10T18:30:00Z', updated_at: '2026-08-10T18:30:00Z' }],
-        created_at: '2026-08-10T18:30:00Z',
-      },
-    ])) as ApiResponse<T>
+    const query = (options.data || {}) as { table_id?: string; status?: string; page?: number; page_size?: number }
+    const filteredOrders = h5Orders.filter(order => (
+      (!query.table_id || order.table_id === query.table_id)
+      && (!query.status || order.status === query.status)
+    ))
+    const page = query.page || 1
+    const pageSize = query.page_size || 20
+    const start = (page - 1) * pageSize
+    return ok({
+      list: filteredOrders.slice(start, start + pageSize),
+      total: filteredOrders.length,
+      page,
+      page_size: pageSize,
+    }) as ApiResponse<T>
+  }
+  const orderId = url.match(/^\/orders\/([^/]+)$/)?.[1]
+  if (orderId) return ok(h5Orders.find(order => order.id === orderId)) as ApiResponse<T>
+  const orderAction = url.match(/^\/orders\/([^/]+)\/(confirm|reject|cancel)$/)
+  if (orderAction && options.method === 'POST') {
+    updatePreviewOrderState(
+      orderAction[1],
+      orderAction[2] === 'confirm' ? 'confirmed' : orderAction[2] === 'reject' ? 'rejected' : 'cancelled',
+    )
+    return ok(undefined) as ApiResponse<T>
+  }
+  const orderVote = url.match(/^\/orders\/([^/]+)\/vote$/)
+  if (orderVote && options.method === 'POST') {
+    const payload = options.data as VoteOrderPayload
+    const existingIndex = h5OrderVotes.findIndex(vote => (
+      vote.order_id === orderVote[1] && vote.user_id === h5User.uid
+    ))
+    if (existingIndex >= 0) {
+      h5OrderVotes[existingIndex] = { ...h5OrderVotes[existingIndex], vote: payload.vote }
+    } else {
+      h5OrderVotes.push({
+        id: `h5-order-vote-${Date.now()}`,
+        order_id: orderVote[1],
+        user_id: h5User.uid,
+        vote: payload.vote,
+        created_at: new Date().toISOString(),
+      })
+    }
+    return ok(undefined) as ApiResponse<T>
+  }
+  const orderVotes = url.match(/^\/orders\/([^/]+)\/votes$/)
+  if (orderVotes) {
+    const votes = h5OrderVotes.filter(vote => vote.order_id === orderVotes[1])
+    return ok({
+      approve: votes.filter(vote => vote.vote === 'approve').length,
+      reject: votes.filter(vote => vote.vote === 'reject').length,
+      skip: votes.filter(vote => vote.vote === 'skip').length,
+      total: votes.length,
+      votes,
+    }) as ApiResponse<T>
   }
 
+  if (url === '/calendar/records' && options.method === 'POST') {
+    const payload = options.data as CalendarRecordPayload
+    const record: CalendarRecord = {
+      id: `h5-record-${Date.now()}`,
+      user_id: 'h5-preview-user',
+      table_id: payload.table_id,
+      record_date: payload.record_date,
+      meal_type: payload.meal_type,
+      meal_period: payload.meal_period || '',
+      dish_ids: payload.dish_ids || [],
+      restaurant: payload.restaurant || '',
+      amount: payload.amount ?? null,
+      source: 'manual',
+      status: 'confirmed',
+      photos: [],
+      comments: [],
+      created_at: new Date().toISOString(),
+    }
+    h5CalendarRecords = [record, ...h5CalendarRecords]
+    return ok(record) as ApiResponse<T>
+  }
   if (url === '/calendar/records' || url === '/calendar/records/date') {
-    return ok(list([
-      {
-        id: 'h5-record-1',
-        user_id: 'h5-preview-user',
-        table_id: 'h5-buddy-table',
-        record_date: today,
-        meal_type: 'dineout',
-        meal_period: 'dinner',
-        dish_ids: [],
-        restaurant: '烧鸟小馆',
-        amount: 168,
-        source: 'manual',
-        status: 'confirmed',
-        photos: [],
-        comments: [],
-        created_at: '2026-08-10T19:30:00Z',
-      },
-    ])) as ApiResponse<T>
+    const query = (options.data || {}) as { table_id?: string; year?: number; month?: number; date?: string }
+    const month = query.year && query.month
+      ? `${query.year}-${String(query.month).padStart(2, '0')}`
+      : ''
+    const records = h5CalendarRecords.filter(record => (
+      (!query.table_id || record.table_id === query.table_id)
+      && (url === '/calendar/records/date'
+        ? record.record_date.slice(0, 10) === query.date
+        : !month || record.record_date.slice(0, 7) === month)
+    ))
+    return ok(records) as ApiResponse<T>
+  }
+  const calendarRecordId = url.match(/^\/calendar\/records\/([^/]+)$/)?.[1]
+  if (calendarRecordId) {
+    const recordIndex = h5CalendarRecords.findIndex(record => record.id === calendarRecordId)
+    const h5CalendarRecord = h5CalendarRecords[recordIndex]
+    if (!h5CalendarRecord) return ok(undefined) as ApiResponse<T>
+    if (options.method === 'DELETE') {
+      h5CalendarRecords = h5CalendarRecords.filter(record => record.id !== calendarRecordId)
+      return ok(undefined) as ApiResponse<T>
+    }
+    if (options.method === 'PUT') {
+      const payload = options.data as CalendarRecordUpdatePayload
+      const nextItems = h5CalendarRecord.order?.items.map(item => {
+        const update = payload.order_items?.find(candidate => candidate.id === item.id)
+        return update ? { ...item, confirmed_amount: update.confirmed_amount } : item
+      })
+      const nextAmount = h5CalendarRecord.source === 'order'
+        ? sumNullableAmounts((nextItems || []).map(item => item.confirmed_amount))
+        : 'amount' in payload ? payload.amount ?? null : h5CalendarRecord.amount
+      if (h5CalendarRecord.source === 'order' && h5CalendarRecord.order) {
+        const linkedOrderIndex = h5Orders.findIndex(order => order.id === h5CalendarRecord.order?.id)
+        if (linkedOrderIndex >= 0) {
+          const linkedOrder = h5Orders[linkedOrderIndex]
+          const nextOrderItems = linkedOrder.order_items.map(item => {
+            const update = payload.order_items?.find(candidate => candidate.id === item.id)
+            return update ? { ...item, confirmed_amount: update.confirmed_amount } : item
+          })
+          h5Orders[linkedOrderIndex] = {
+            ...linkedOrder,
+            total_amount: nextAmount,
+            order_items: nextOrderItems,
+          }
+        }
+      }
+      h5CalendarRecords[recordIndex] = {
+        ...h5CalendarRecord,
+        meal_type: payload.meal_type ?? h5CalendarRecord.meal_type,
+        meal_period: payload.meal_period ?? h5CalendarRecord.meal_period,
+        restaurant: payload.restaurant ?? h5CalendarRecord.restaurant,
+        amount: nextAmount,
+        order: h5CalendarRecord.order
+          ? { ...h5CalendarRecord.order, items: nextItems || [] }
+          : undefined,
+      }
+      return ok(undefined) as ApiResponse<T>
+    }
+    return ok(h5CalendarRecords[recordIndex]) as ApiResponse<T>
   }
   if (url === '/calendar/stats') {
     return ok({

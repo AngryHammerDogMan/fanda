@@ -79,6 +79,24 @@ CanAccessRecord(ctx, uid, id)     // 读取 calendar_records.table_id 后校验�
 
 因此订单、日历和参与人不会出现部分更新。
 
+## 金额数据流
+
+金额按参考信息、用户确认和业务汇总分层：
+
+```text
+dishes.price
+  -> order_items.unit_price 下单时的参考金额快照
+  -> order_items.confirmed_amount 用户填写的本次确认金额（该订单项合计）
+  -> orders.total_amount 订单项确认金额汇总
+  -> calendar_records.amount 订单来源日历的同步金额
+```
+
+创建订单时，服务端从当前菜品读取 `dishes.price` 并保存为不可变的 `order_items.unit_price`，前端提交的 `confirmed_amount` 表示该订单项本次合计金额。`quantity` 只参与前端默认值计算，汇总时不再相乘，因此后续修改菜品参考金额也不会影响历史订单。
+
+确认金额可以为空或为 `0`：全部为空时订单和日历金额为空，存在已填写项时只汇总非空值，`0` 保持为有效金额。创建订单或修改订单项时，订单项、`orders.total_amount` 和 `calendar_records.amount` 在同一数据库事务内更新。
+
+订单来源日历不能直接修改总金额，只能修改关联订单的逐项确认金额；服务端随后读取该订单的全部订单项重新汇总，并同步订单与日历。手工日历记录没有关联订单项，仍可直接修改本餐金额。
+
 ## API 契约
 
 后端 API 以 `/api/v1` 为前缀，统一返回：
@@ -158,6 +176,7 @@ isH5PreviewEnabled() === H5_PREVIEW_MOCK_ENABLED
 3. `003_tables_refactor.sql` 引入统一餐桌、餐桌成员、订单参与人和各业务表的 `table_id`。
 4. `004_finalize_table_model.sql` 把旧 `group_id` 数据回填到 `table_id`，把核心业务表的 `table_id` 收紧为非空，并放宽旧 `group_type/group_id` 的非空要求。
 5. `005_couple_members.sql` 规范化情侣成员，并对 active 用户建立跨 `user1_id/user2_id` 的统一唯一约束。
+6. `006_order_item_confirmed_amount.sql` 新增订单项确认金额，按历史 `unit_price × quantity` 回填，再以订单项确认金额汇总 `orders.total_amount` 并同步关联的 `calendar_records.amount`。
 
 macOS 和 Windows 都使用：
 

@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	"fanda-server/internal/database"
@@ -25,7 +26,7 @@ func setupOrderTestDB(t *testing.T) *gorm.DB {
 		`CREATE TABLE table_members (id TEXT PRIMARY KEY, table_id TEXT NOT NULL, user_id TEXT NOT NULL, role TEXT NOT NULL, status TEXT NOT NULL, joined_at DATETIME)`,
 		`CREATE TABLE dishes (id TEXT PRIMARY KEY, owner_id TEXT NOT NULL, table_id TEXT NOT NULL, dish_type TEXT NOT NULL, name TEXT NOT NULL, category TEXT, difficulty INTEGER, duration INTEGER, price REAL, ingredients TEXT, steps TEXT, photos TEXT, tags TEXT, restaurant TEXT, restaurant_note TEXT, source TEXT, is_deleted BOOLEAN, created_at DATETIME, updated_at DATETIME)`,
 		`CREATE TABLE orders (id TEXT PRIMARY KEY, creator_id TEXT NOT NULL, table_id TEXT NOT NULL, dine_mode TEXT NOT NULL, status TEXT NOT NULL, total_amount REAL, vote_deadline DATETIME, calendar_record_id TEXT, created_at DATETIME)`,
-		`CREATE TABLE order_items (id TEXT PRIMARY KEY, order_id TEXT NOT NULL, dish_id TEXT NOT NULL, quantity INTEGER, unit_price REAL)`,
+		`CREATE TABLE order_items (id TEXT PRIMARY KEY, order_id TEXT NOT NULL, dish_id TEXT NOT NULL, quantity INTEGER, unit_price REAL, confirmed_amount REAL)`,
 		`CREATE TABLE calendar_records (id TEXT PRIMARY KEY, user_id TEXT NOT NULL, table_id TEXT NOT NULL, record_date DATETIME NOT NULL, meal_type TEXT NOT NULL, meal_period TEXT, dish_ids TEXT, restaurant TEXT, amount REAL, source TEXT, status TEXT NOT NULL, created_at DATETIME)`,
 		`CREATE TABLE order_participants (id TEXT PRIMARY KEY, order_id TEXT NOT NULL, user_id TEXT NOT NULL, status TEXT NOT NULL, created_at DATETIME, updated_at DATETIME)`,
 		`CREATE TABLE shopping_baskets (id TEXT PRIMARY KEY, user_id TEXT NOT NULL, table_id TEXT NOT NULL, name TEXT NOT NULL, quantity TEXT, is_purchased BOOLEAN, created_at DATETIME)`,
@@ -56,9 +57,9 @@ func TestCreateOrderCreatesSelectedBasketItems(t *testing.T) {
 		TableID:  tableID,
 		DineMode: "solo",
 		Items: []OrderItemReq{{
-			DishID:    dishID,
-			Quantity:  1,
-			UnitPrice: &price,
+			DishID:          dishID,
+			Quantity:        1,
+			ConfirmedAmount: &price,
 		}},
 		BasketItems: []OrderBasketItemReq{
 			{Name: "牛腩", Quantity: "500g"},
@@ -98,9 +99,9 @@ func TestCreateOrderCreatesCalendarRecord(t *testing.T) {
 		TableID:  tableID,
 		DineMode: "solo",
 		Items: []OrderItemReq{{
-			DishID:    dishID,
-			Quantity:  2,
-			UnitPrice: &price,
+			DishID:          dishID,
+			Quantity:        2,
+			ConfirmedAmount: &price,
 		}},
 	})
 
@@ -136,9 +137,9 @@ func TestCreateTogetherOrderCreatesParticipants(t *testing.T) {
 		DineMode:       "together",
 		ParticipantIDs: []uuid.UUID{participantID},
 		Items: []OrderItemReq{{
-			DishID:    dishID,
-			Quantity:  1,
-			UnitPrice: &price,
+			DishID:          dishID,
+			Quantity:        1,
+			ConfirmedAmount: &price,
 		}},
 	})
 
@@ -177,9 +178,9 @@ func TestCreateOrderRejectsDishFromAnotherTable(t *testing.T) {
 		TableID:  tableA,
 		DineMode: "solo",
 		Items: []OrderItemReq{{
-			DishID:    dishFromTableB,
-			Quantity:  1,
-			UnitPrice: &price,
+			DishID:          dishFromTableB,
+			Quantity:        1,
+			ConfirmedAmount: &price,
 		}},
 	})
 
@@ -206,14 +207,210 @@ func TestCreateOrderRejectsDeletedDish(t *testing.T) {
 		TableID:  tableID,
 		DineMode: "solo",
 		Items: []OrderItemReq{{
-			DishID:    dishID,
-			Quantity:  1,
-			UnitPrice: &price,
+			DishID:          dishID,
+			Quantity:        1,
+			ConfirmedAmount: &price,
 		}},
 	})
 
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "菜品")
+}
+
+func TestCreateOrderUsesDishPriceAsReferenceSnapshot(t *testing.T) {
+	_, uid, tableID, dishIDs := setupOrderAmountFixture(t, 20)
+	confirmed := 55.0
+
+	order, err := NewOrderService().CreateOrder(context.Background(), uid, CreateOrderReq{
+		TableID: tableID, DineMode: "solo",
+		Items: []OrderItemReq{{DishID: dishIDs[0], Quantity: 3, ConfirmedAmount: &confirmed}},
+	})
+
+	require.NoError(t, err)
+	require.Len(t, order.OrderItems, 1)
+	require.NotNil(t, order.OrderItems[0].UnitPrice)
+	require.Equal(t, 20.0, *order.OrderItems[0].UnitPrice)
+}
+
+func TestCreateOrderPersistsConfirmedAmountWithoutMultiplyingQuantity(t *testing.T) {
+	db, uid, tableID, dishIDs := setupOrderAmountFixture(t, 20)
+	confirmed := 55.0
+
+	order, err := NewOrderService().CreateOrder(context.Background(), uid, CreateOrderReq{
+		TableID: tableID, DineMode: "solo",
+		Items: []OrderItemReq{{DishID: dishIDs[0], Quantity: 3, ConfirmedAmount: &confirmed}},
+	})
+
+	require.NoError(t, err)
+	require.NotNil(t, order.OrderItems[0].ConfirmedAmount)
+	require.Equal(t, 55.0, *order.OrderItems[0].ConfirmedAmount)
+	require.NotNil(t, order.TotalAmount)
+	require.Equal(t, 55.0, *order.TotalAmount)
+	var record model.CalendarRecord
+	require.NoError(t, db.First(&record, "id = ?", *order.CalendarRecordID).Error)
+	require.NotNil(t, record.Amount)
+	require.Equal(t, 55.0, *record.Amount)
+}
+
+func TestCreateOrderAggregatesConfirmedAmounts(t *testing.T) {
+	_, uid, tableID, dishIDs := setupOrderAmountFixture(t, 10.1, 2.2)
+	first, second := 10.1, 2.2
+
+	order, err := NewOrderService().CreateOrder(context.Background(), uid, CreateOrderReq{
+		TableID: tableID, DineMode: "solo",
+		Items: []OrderItemReq{
+			{DishID: dishIDs[0], Quantity: 1, ConfirmedAmount: &first},
+			{DishID: dishIDs[1], Quantity: 4, ConfirmedAmount: &second},
+		},
+	})
+
+	require.NoError(t, err)
+	require.NotNil(t, order.TotalAmount)
+	require.Equal(t, 12.3, *order.TotalAmount)
+}
+
+func TestCreateOrderKeepsAllNullAmountsNull(t *testing.T) {
+	_, uid, tableID, dishIDs := setupOrderAmountFixture(t, 10)
+
+	order, err := NewOrderService().CreateOrder(context.Background(), uid, CreateOrderReq{
+		TableID: tableID, DineMode: "solo",
+		Items: []OrderItemReq{{DishID: dishIDs[0], Quantity: 1}},
+	})
+
+	require.NoError(t, err)
+	require.Nil(t, order.TotalAmount)
+	require.Nil(t, order.OrderItems[0].ConfirmedAmount)
+}
+
+func TestCreateOrderKeepsZeroAmountNonNull(t *testing.T) {
+	_, uid, tableID, dishIDs := setupOrderAmountFixture(t, 10)
+	zero := 0.0
+
+	order, err := NewOrderService().CreateOrder(context.Background(), uid, CreateOrderReq{
+		TableID: tableID, DineMode: "solo",
+		Items: []OrderItemReq{{DishID: dishIDs[0], Quantity: 1, ConfirmedAmount: &zero}},
+	})
+
+	require.NoError(t, err)
+	require.NotNil(t, order.TotalAmount)
+	require.Equal(t, 0.0, *order.TotalAmount)
+}
+
+func TestCreateOrderRejectsInvalidConfirmedAmount(t *testing.T) {
+	tests := []struct {
+		name   string
+		amount float64
+	}{
+		{name: "negative", amount: -0.01},
+		{name: "three decimals", amount: 12.345},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, uid, tableID, dishIDs := setupOrderAmountFixture(t, 10)
+			_, err := NewOrderService().CreateOrder(context.Background(), uid, CreateOrderReq{
+				TableID: tableID, DineMode: "solo",
+				Items: []OrderItemReq{{DishID: dishIDs[0], Quantity: 1, ConfirmedAmount: &tt.amount}},
+			})
+			require.Error(t, err)
+			require.Contains(t, err.Error(), "确认金额无效")
+		})
+	}
+}
+
+func TestCreateOrderRejectsConfirmedAmountTotalAboveDatabaseLimit(t *testing.T) {
+	db, uid, tableID, dishIDs := setupOrderAmountFixture(t, 10, 20)
+	first, second := 60000000.0, 60000000.0
+
+	_, err := NewOrderService().CreateOrder(context.Background(), uid, CreateOrderReq{
+		TableID: tableID, DineMode: "solo",
+		Items: []OrderItemReq{
+			{DishID: dishIDs[0], Quantity: 1, ConfirmedAmount: &first},
+			{DishID: dishIDs[1], Quantity: 1, ConfirmedAmount: &second},
+		},
+	})
+
+	require.Error(t, err)
+	require.True(t, IsOrderRequestError(err))
+	require.Contains(t, err.Error(), "99999999.99")
+	var count int64
+	require.NoError(t, db.Model(&model.Order{}).Count(&count).Error)
+	require.Zero(t, count)
+}
+
+func TestCreateOrderPreservesCreatorAuthorizationDatabaseError(t *testing.T) {
+	db, uid, tableID, dishIDs := setupOrderAmountFixture(t, 10)
+	require.NoError(t, db.Migrator().DropTable("table_members"))
+
+	_, err := NewOrderService().CreateOrder(context.Background(), uid, CreateOrderReq{
+		TableID: tableID, DineMode: "solo",
+		Items: []OrderItemReq{{DishID: dishIDs[0], Quantity: 1}},
+	})
+
+	require.Error(t, err)
+	require.False(t, IsOrderRequestError(err))
+	require.Contains(t, err.Error(), "table_members")
+}
+
+func TestCreateOrderMapsAuthorizationNotFoundToRequestError(t *testing.T) {
+	_, _, tableID, dishIDs := setupOrderAmountFixture(t, 10)
+
+	_, err := NewOrderService().CreateOrder(context.Background(), uuid.New(), CreateOrderReq{
+		TableID: tableID, DineMode: "solo",
+		Items: []OrderItemReq{{DishID: dishIDs[0], Quantity: 1}},
+	})
+
+	require.Error(t, err)
+	require.True(t, IsOrderRequestError(err))
+}
+
+func TestCreateOrderPreservesParticipantAuthorizationDatabaseError(t *testing.T) {
+	db, uid, tableID, dishIDs := setupOrderAmountFixture(t, 10)
+	participantID := uuid.New()
+	require.NoError(t, db.Create(&model.User{UID: participantID, Nickname: "participant"}).Error)
+	require.NoError(t, db.Create(&model.TableMember{
+		ID: uuid.New(), TableID: tableID, UserID: participantID, Role: "member", Status: "active",
+	}).Error)
+	databaseErr := errors.New("forced participant authorization database failure")
+	queryCount := 0
+	require.NoError(t, db.Callback().Query().Before("gorm:query").Register("fail_participant_authorization", func(tx *gorm.DB) {
+		if tx.Statement.Table != "table_members" {
+			return
+		}
+		queryCount++
+		if queryCount == 2 {
+			tx.AddError(databaseErr)
+		}
+	}))
+
+	_, err := NewOrderService().CreateOrder(context.Background(), uid, CreateOrderReq{
+		TableID:        tableID,
+		DineMode:       "together",
+		ParticipantIDs: []uuid.UUID{participantID},
+		Items:          []OrderItemReq{{DishID: dishIDs[0], Quantity: 1}},
+	})
+
+	require.ErrorIs(t, err, databaseErr)
+	require.False(t, IsOrderRequestError(err))
+}
+
+func setupOrderAmountFixture(t *testing.T, prices ...float64) (*gorm.DB, uuid.UUID, uuid.UUID, []uuid.UUID) {
+	t.Helper()
+	db := setupOrderTestDB(t)
+	database.DB = db
+	uid, tableID := uuid.New(), uuid.New()
+	require.NoError(t, db.Create(&model.User{UID: uid, Nickname: "tester"}).Error)
+	require.NoError(t, db.Create(&model.Table{ID: tableID, Type: "personal", Name: "金额餐桌", OwnerID: uid, Status: "active"}).Error)
+	require.NoError(t, db.Create(&model.TableMember{ID: uuid.New(), TableID: tableID, UserID: uid, Role: "owner", Status: "active"}).Error)
+	dishIDs := make([]uuid.UUID, 0, len(prices))
+	for i := range prices {
+		dishID := uuid.New()
+		dishIDs = append(dishIDs, dishID)
+		require.NoError(t, db.Create(&model.Dish{
+			ID: dishID, OwnerID: uid, TableID: tableID, DishType: "dish",
+			Name: "金额菜", Price: &prices[i],
+		}).Error)
+	}
+	return db, uid, tableID, dishIDs
 }
 
 func TestConfirmOrderSyncsCalendarRecordAndParticipant(t *testing.T) {
@@ -277,9 +474,9 @@ func createPendingOrderForStateTest(t *testing.T, db *gorm.DB) (uuid.UUID, uuid.
 		DineMode:       "together",
 		ParticipantIDs: []uuid.UUID{participantID},
 		Items: []OrderItemReq{{
-			DishID:    dishID,
-			Quantity:  1,
-			UnitPrice: &price,
+			DishID:          dishID,
+			Quantity:        1,
+			ConfirmedAmount: &price,
 		}},
 	})
 	require.NoError(t, err)

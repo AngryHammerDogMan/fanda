@@ -1,10 +1,11 @@
 import { View, Text, ScrollView, Image } from '@tarojs/components'
 import Taro, { useDidShow, useReachBottom, usePullDownRefresh } from '@tarojs/taro'
-import { useState, useCallback } from 'react'
-import { orderAPI } from '@/services/api'
-import type { Order, OrderListParams } from '@/types'
+import { useState, useCallback, useRef } from 'react'
+import { orderAPI, tableAPI } from '@/services/api'
+import type { Order, OrderListParams, Table } from '@/types'
 import { getErrorMessage } from '@/utils/error'
-import { LAST_ORDER_TABLE_KEY } from '@/utils/table'
+import { getStoredTableId, getTableDisplayName, rememberTableId } from '@/utils/table'
+import { LatestRequest } from '@/utils/latest-request'
 import './index.scss'
 
 // 订单列表页：按状态筛选点单记录，并提供确认、拒绝、投票和取消等订单操作。
@@ -30,8 +31,6 @@ const DINE_MODE_MAP: Record<string, string> = {
 }
 
 const sticker = (name: string) => `/assets/stickers/${name}.png`
-const DEFAULT_TABLE_ID = 'h5-personal-table'
-
 const PAGE_SIZE = 10
 
 export default function Orders() {
@@ -42,9 +41,12 @@ export default function Orders() {
   const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
+  const [tables, setTables] = useState<Table[]>([])
+  const [activeTableId, setActiveTableId] = useState('')
+  const orderRequestRef = useRef(new LatestRequest())
 
   useDidShow(() => {
-    loadOrders(1, true)
+    loadTablesAndOrders()
   })
 
   usePullDownRefresh(() => {
@@ -61,20 +63,27 @@ export default function Orders() {
     }
   })
 
-  const loadOrders = useCallback(async (pageNum: number, reset = false) => {
-    if (loading) return
+  const loadOrders = useCallback(async (
+    pageNum: number,
+    reset = false,
+    tableId = activeTableId,
+    status = activeTab,
+  ) => {
+    if (!tableId) return
+    const requestId = orderRequestRef.current.start()
     setLoading(true)
     try {
       const params: OrderListParams = {
-        table_id: Taro.getStorageSync(LAST_ORDER_TABLE_KEY) || DEFAULT_TABLE_ID,
+        table_id: tableId,
         page: pageNum,
         page_size: PAGE_SIZE,
       }
       // 空状态代表“全部”，不传 status 以复用后端默认列表逻辑。
-      if (activeTab) {
-        params.status = activeTab
+      if (status) {
+        params.status = status
       }
       const res = await orderAPI.list(params)
+      if (!orderRequestRef.current.isLatest(requestId)) return
       const data = res.data
       if (reset) {
         setOrders(data.list || [])
@@ -84,12 +93,39 @@ export default function Orders() {
         setPage(pageNum)
       }
       setTotal(data.total || 0)
-    } catch (err) {
-      console.error('加载订单失败', err)
+    } catch (err: unknown) {
+      if (orderRequestRef.current.isLatest(requestId)) {
+        Taro.showToast({ title: getErrorMessage(err, '加载订单失败'), icon: 'none' })
+      }
     } finally {
-      setLoading(false)
+      if (orderRequestRef.current.isLatest(requestId)) {
+        setLoading(false)
+      }
     }
-  }, [activeTab, loading])
+  }, [activeTab, activeTableId])
+
+  const loadTablesAndOrders = async () => {
+    const requestId = orderRequestRef.current.start()
+    try {
+      const res = await tableAPI.list()
+      if (!orderRequestRef.current.isLatest(requestId)) return
+      const list = res.data || []
+      const tableId = getStoredTableId(list)
+      setTables(list)
+      setActiveTableId(tableId)
+      if (!tableId) {
+        setOrders([])
+        setTotal(0)
+        return
+      }
+      rememberTableId(tableId)
+      await loadOrders(1, true, tableId)
+    } catch (err: unknown) {
+      if (orderRequestRef.current.isLatest(requestId)) {
+        Taro.showToast({ title: getErrorMessage(err, '加载订单失败'), icon: 'none' })
+      }
+    }
+  }
 
   const switchTab = async (key: string) => {
     if (key === activeTab) return
@@ -98,27 +134,11 @@ export default function Orders() {
     setOrders([])
     setPage(1)
     setTotal(0)
-    setLoading(true)
-    try {
-      const params: OrderListParams = {
-        table_id: Taro.getStorageSync(LAST_ORDER_TABLE_KEY) || DEFAULT_TABLE_ID,
-        page: 1,
-        page_size: PAGE_SIZE,
-      }
-      // 这里直接使用入参 key 查询，避免等待 activeTab 的异步状态更新。
-      if (key) {
-        params.status = key
-      }
-      const res = await orderAPI.list(params)
-      const data = res.data
-      setOrders(data.list || [])
-      setTotal(data.total || 0)
-    } catch (err) {
-      console.error('加载订单失败', err)
-    } finally {
-      setLoading(false)
-    }
+    if (!activeTableId) return
+    await loadOrders(1, true, activeTableId, key)
   }
+
+  const activeTable = tables.find(table => table.id === activeTableId) || null
 
   const handleConfirm = async (id: string) => {
     try {
@@ -221,7 +241,7 @@ export default function Orders() {
               <View className='order-header'>
                 <View className='order-meta'>
                   <Text className='order-type'>
-                    {order.table_id}
+                    {getTableDisplayName(tables.find(table => table.id === order.table_id) || activeTable)}
                   </Text>
                   <Text className='order-dine-mode'>
                     {DINE_MODE_MAP[order.dine_mode] || order.dine_mode}
@@ -238,8 +258,8 @@ export default function Orders() {
                   <View key={item.id} className='dish-item'>
                     <Text className='dish-name'>{item.dish_name || `菜品`}</Text>
                     <Text className='dish-quantity'>x{item.quantity}</Text>
-                    {item.unit_price != null && (
-                      <Text className='dish-price'>¥{(item.unit_price / 100).toFixed(2)}</Text>
+                    {item.confirmed_amount != null && (
+                      <Text className='dish-price'>实际 ¥{item.confirmed_amount.toFixed(2)}</Text>
                     )}
                   </View>
                 ))}
@@ -251,7 +271,7 @@ export default function Orders() {
                   <Text className='order-time'>{formatTime(order.created_at)}</Text>
                   {order.total_amount != null && (
                     <Text className='order-total'>
-                      合计：<Text className='total-price'>¥{(order.total_amount / 100).toFixed(2)}</Text>
+                      合计：<Text className='total-price'>¥{order.total_amount.toFixed(2)}</Text>
                     </Text>
                   )}
                 </View>

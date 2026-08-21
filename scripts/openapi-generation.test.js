@@ -120,3 +120,32 @@ test('front-end API types are derived from generated API schemas', () => {
   assert.match(apiTypesSource, /export type DishListParams = operations\['listDishes'\]\['parameters'\]\['query'\]/)
   assert.doesNotMatch(apiTypesSource, /export interface (User|Dish|Order|Table|BudgetSetting|BasketItem|WishItem)\b/)
 })
+
+test('openapi and generated types expose confirmed item amounts and calendar order details', () => {
+  const spec = readJson(openapiPath)
+  const generatedSource = fs.readFileSync(generatedApiPath, 'utf8')
+  const schemaNames = [
+    'CalendarOrderItem',
+    'CalendarOrder',
+    'CalendarRecordUpdateOrderItem',
+  ]
+
+  for (const schemaName of schemaNames) {
+    assert.ok(spec.components.schemas[schemaName], `${schemaName} schema must exist`)
+    assert.match(generatedSource, new RegExp(`\\b${schemaName}: \\{`))
+  }
+
+  assert.ok(spec.components.schemas.OrderItem.properties.confirmed_amount)
+  assert.ok(spec.components.schemas.OrderItemPayload.properties.confirmed_amount)
+  assert.equal('unit_price' in spec.components.schemas.OrderItemPayload.properties, false)
+  assert.ok(spec.components.schemas.CalendarRecord.properties.order)
+  assert.ok(spec.components.schemas.CalendarRecordUpdatePayload.properties.order_items)
+  assert.match(generatedSource, /OrderItem:[\s\S]*?confirmed_amount: number \| null/)
+  assert.match(generatedSource, /OrderItemPayload:[\s\S]*?confirmed_amount: number \| null/)
+  assert.doesNotMatch(
+    generatedSource.match(/OrderItemPayload: \{[\s\S]*?\n    \}/)?.[0] || '',
+    /unit_price/,
+  )
+  assert.match(generatedSource, /CalendarRecord:[\s\S]*?order\?: components\['schemas'\]\['CalendarOrder'\] \| null/)
+  assert.match(generatedSource, /CalendarRecordUpdatePayload:[\s\S]*?order_items\?: components\['schemas'\]\['CalendarRecordUpdateOrderItem'\]\[\]/)
+})

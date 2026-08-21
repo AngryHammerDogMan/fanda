@@ -35,6 +35,14 @@ func (h *CalendarHandler) CreateRecord(c *gin.Context) {
 
 	record, err := h.service.CreateRecord(c.Request.Context(), uid, req)
 	if err != nil {
+		if service.IsCalendarNotFoundError(err) {
+			c.JSON(http.StatusNotFound, gin.H{"code": 404, "message": "餐桌不存在"})
+			return
+		}
+		if service.IsCalendarRequestError(err) {
+			c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": err.Error()})
+			return
+		}
 		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": err.Error()})
 		return
 	}
@@ -58,7 +66,11 @@ func (h *CalendarHandler) UpdateRecord(c *gin.Context) {
 	}
 
 	if err := h.service.UpdateRecord(c.Request.Context(), uid, recordID, req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": err.Error()})
+		if service.IsCalendarRequestError(err) {
+			c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": err.Error()})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": err.Error()})
 		return
 	}
 
@@ -93,7 +105,11 @@ func (h *CalendarHandler) GetRecord(c *gin.Context) {
 
 	record, err := h.service.GetRecord(c.Request.Context(), uid, recordID)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"code": 404, "message": err.Error()})
+		if service.IsCalendarNotFoundError(err) {
+			c.JSON(http.StatusNotFound, gin.H{"code": 404, "message": err.Error()})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": err.Error()})
 		return
 	}
 

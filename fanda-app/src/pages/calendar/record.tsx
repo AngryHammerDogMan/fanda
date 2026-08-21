@@ -1,9 +1,11 @@
 import { View, Text, Image, Input, Button, Picker } from '@tarojs/components'
 import Taro, { useRouter, useDidShow } from '@tarojs/taro'
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { calendarAPI, tableAPI } from '@/services/api'
-import type { CalendarRecord, PickerChangeEvent, Table } from '@/types'
+import type { CalendarOrderItem, CalendarRecord, CalendarRecordUpdatePayload, PickerChangeEvent, Table } from '@/types'
 import { getStoredTableId, getTableDisplayName, rememberTableId } from '@/utils/table'
+import { getErrorMessage } from '@/utils/error'
+import { parseAmountInput, sumNullableAmounts, validateAmountInput } from '@/utils/amount'
 import './record.scss'
 
 const MEAL_LABELS: Record<string, string> = { cook: '做饭', takeout: '外卖', dineout: '外出' }
@@ -15,6 +17,10 @@ const MEAL_TYPES = [
 ]
 const MEAL_PERIODS = ['早餐', '午餐', '晚餐', '夜宵']
 const sticker = (name: string) => `/assets/stickers/${name}.png`
+
+interface EditableOrderItem extends CalendarOrderItem {
+  confirmedAmount: string
+}
 
 const getToday = () => {
   const now = new Date()
@@ -29,6 +35,7 @@ export default function RecordDetail() {
   const router = useRouter()
   const recordId = router.params?.id as string | undefined
   const isCreateMode = !recordId
+  const isEditMode = router.params?.edit === '1'
 
   // 详情态和创建态共用页面：record/commentText 服务详情评论，recordDate/mealType 等字段服务补记表单。
   const [record, setRecord] = useState<CalendarRecord | null>(null)
@@ -43,11 +50,13 @@ export default function RecordDetail() {
   const [restaurant, setRestaurant] = useState('')
   const [amount, setAmount] = useState('')
   const [content, setContent] = useState('')
+  const [editableItems, setEditableItems] = useState<EditableOrderItem[]>([])
+  const editFormInitializedRef = useRef(false)
 
   useDidShow(() => {
     if (isCreateMode) {
       loadCreateTables()
-    } else {
+    } else if (!(isEditMode && editFormInitializedRef.current)) {
       loadRecord()
     }
   })
@@ -72,6 +81,15 @@ export default function RecordDetail() {
     try {
       const res = await calendarAPI.get(recordId)
       setRecord(res.data)
+      setMealType(res.data.meal_type)
+      setMealPeriod(res.data.meal_period)
+      setRestaurant(res.data.restaurant)
+      setAmount(res.data.amount == null ? '' : res.data.amount.toFixed(2))
+      setEditableItems((res.data.order?.items || []).map(item => ({
+        ...item,
+        confirmedAmount: item.confirmed_amount == null ? '' : item.confirmed_amount.toFixed(2),
+      })))
+      if (isEditMode) editFormInitializedRef.current = true
     } catch (err) {
       console.error('加载记录失败', err)
       Taro.showToast({ title: '加载记录失败', icon: 'none' })
@@ -80,9 +98,60 @@ export default function RecordDetail() {
     }
   }
 
+  const handleSaveRecord = async () => {
+    if (!recordId || !record || submitting) return
+    const commonPayload = {
+      meal_type: mealType,
+      meal_period: mealPeriod,
+      restaurant: restaurant.trim(),
+    }
+    let payload: CalendarRecordUpdatePayload
+    if (record.source === 'order') {
+      const invalidItem = editableItems.find(item => validateAmountInput(item.confirmedAmount))
+      if (invalidItem) {
+        Taro.showToast({
+          title: `${invalidItem.dish_name}：${validateAmountInput(invalidItem.confirmedAmount)}`,
+          icon: 'none',
+        })
+        return
+      }
+      payload = {
+        ...commonPayload,
+        order_items: editableItems.map(item => ({
+          id: item.id,
+          confirmed_amount: parseAmountInput(item.confirmedAmount),
+        })),
+      }
+    } else {
+      const error = validateAmountInput(amount)
+      if (error) {
+        Taro.showToast({ title: error, icon: 'none' })
+        return
+      }
+      payload = { ...commonPayload, amount: parseAmountInput(amount) }
+    }
+
+    setSubmitting(true)
+    try {
+      await calendarAPI.update(recordId, payload)
+      Taro.showToast({ title: '保存成功', icon: 'success' })
+      await loadRecord()
+      Taro.redirectTo({ url: `/pages/calendar/record?id=${recordId}` })
+    } catch (err: unknown) {
+      Taro.showToast({ title: getErrorMessage(err, '保存失败'), icon: 'none' })
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
   const handleCreateRecord = async () => {
     if (!activeTableId) {
       Taro.showToast({ title: '请选择餐桌', icon: 'none' })
+      return
+    }
+    const amountError = validateAmountInput(amount)
+    if (amountError) {
+      Taro.showToast({ title: amountError, icon: 'none' })
       return
     }
     // 补记只提交当前表单字段，成功后缓存餐桌并返回日历页由上级刷新。
@@ -94,7 +163,7 @@ export default function RecordDetail() {
         meal_type: mealType,
         meal_period: mealPeriod,
         restaurant: restaurant.trim(),
-        amount: amount ? Number(amount) : null,
+        amount: parseAmountInput(amount),
         content: content.trim(),
       })
       rememberTableId(activeTableId)
@@ -182,6 +251,14 @@ export default function RecordDetail() {
   const activeTableIndex = Math.max(0, tables.findIndex(table => table.id === activeTableId))
   const activeMealTypeIndex = Math.max(0, MEAL_TYPES.findIndex(type => type.value === mealType))
   const activeMealPeriodIndex = Math.max(0, MEAL_PERIODS.findIndex(period => period === mealPeriod))
+  const hasInvalidEditableAmount = editableItems.some(item => (
+    validateAmountInput(item.confirmedAmount) != null
+  ))
+  const editableTotal = sumNullableAmounts(editableItems.map(item => (
+    validateAmountInput(item.confirmedAmount) == null
+      ? parseAmountInput(item.confirmedAmount)
+      : null
+  )))
 
   if (isCreateMode) {
     return (
@@ -256,6 +333,83 @@ export default function RecordDetail() {
           <Image className='empty-icon' src={sticker('calendar')} mode='aspectFit' />
           <Text className='empty-text'>记录不存在</Text>
         </View>
+      </View>
+    )
+  }
+
+  if (isEditMode) {
+    return (
+      <View className='page-record edit-record-page'>
+        <View className='record-form-header compact'>
+          <Text className='form-title'>编辑用餐记录</Text>
+          <Text className='form-subtitle'>
+            {record.source === 'order' ? '逐项确认实际花费，总金额自动汇总' : '修改本餐信息与实际花费'}
+          </Text>
+        </View>
+        <View className='record-form'>
+          <View className='form-row'>
+            <Text className='form-label'>类型</Text>
+            <Picker mode='selector' range={MEAL_TYPES.map(type => type.label)} value={activeMealTypeIndex} onChange={handleMealTypeChange}>
+              <View className='form-picker'>{MEAL_TYPES[activeMealTypeIndex]?.label || '做饭'}</View>
+            </Picker>
+          </View>
+          <View className='form-row'>
+            <Text className='form-label'>餐次</Text>
+            <Picker mode='selector' range={MEAL_PERIODS} value={activeMealPeriodIndex} onChange={handleMealPeriodChange}>
+              <View className='form-picker'>{mealPeriod}</View>
+            </Picker>
+          </View>
+          <View className='form-row'>
+            <Text className='form-label'>餐厅/备注</Text>
+            <Input className='form-input' value={restaurant} onInput={event => setRestaurant(event.detail.value)} />
+          </View>
+          {record.source === 'manual' && (
+            <View className='form-row'>
+              <Text className='form-label'>本餐金额</Text>
+              <Input className='form-input' type='digit' value={amount} onInput={event => setAmount(event.detail.value)} placeholder='可不填' />
+            </View>
+          )}
+        </View>
+
+        {record.source === 'order' && (
+          <View className='order-amount-section'>
+            <Text className='section-title'>逐项确认金额</Text>
+            {editableItems.map(item => (
+              <View key={item.id} className='order-amount-row'>
+                <View className='order-amount-info'>
+                  <Text className='order-amount-name'>{item.dish_name} × {item.quantity}</Text>
+                  <Text className='order-amount-reference'>
+                    参考单价 {item.unit_price == null ? '未填写' : `¥${item.unit_price.toFixed(2)}`}
+                  </Text>
+                </View>
+                <Input
+                  className='order-amount-input'
+                  type='digit'
+                  value={item.confirmedAmount}
+                  placeholder='待填写'
+                  onInput={event => setEditableItems(current => current.map(candidate => (
+                    candidate.id === item.id
+                      ? { ...candidate, confirmedAmount: event.detail.value }
+                      : candidate
+                  )))}
+                />
+              </View>
+            ))}
+            <View className='order-amount-total'>
+              <Text>本餐总金额</Text>
+              <Text>
+                {hasInvalidEditableAmount
+                  ? '金额格式有误'
+                  : editableTotal == null ? '待填写' : `¥${editableTotal.toFixed(2)}`}
+              </Text>
+            </View>
+          </View>
+        )}
+
+        <Button className='form-submit' loading={submitting} disabled={submitting} onClick={handleSaveRecord}>
+          保存修改
+        </Button>
+        <View className='safe-bottom' />
       </View>
     )
   }

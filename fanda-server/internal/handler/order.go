@@ -34,6 +34,10 @@ func (h *OrderHandler) CreateOrder(c *gin.Context) {
 
 	order, err := h.service.CreateOrder(c.Request.Context(), uid, req)
 	if err != nil {
+		if service.IsOrderRequestError(err) {
+			c.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": err.Error()})
+			return
+		}
 		c.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": err.Error()})
 		return
 	}

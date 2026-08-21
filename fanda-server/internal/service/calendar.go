@@ -1,7 +1,9 @@
 package service
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"time"
@@ -11,10 +13,84 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/lib/pq"
+	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 // CalendarService 管理餐桌日历记录、照片、留言和月度聚合统计。
 type CalendarService struct{}
+
+type calendarRequestError struct {
+	err error
+}
+
+func (e *calendarRequestError) Error() string { return e.err.Error() }
+func (e *calendarRequestError) Unwrap() error { return e.err }
+
+func newCalendarRequestError(err error) error {
+	return &calendarRequestError{err: err}
+}
+
+// IsCalendarRequestError 判断日历写操作失败是否由请求内容或业务校验导致。
+func IsCalendarRequestError(err error) bool {
+	var requestErr *calendarRequestError
+	return errors.As(err, &requestErr) || IsAmountValidationError(err)
+}
+
+// IsCalendarNotFoundError 判断日历写操作是否因资源不存在或不可见而失败。
+func IsCalendarNotFoundError(err error) bool {
+	return errors.Is(err, gorm.ErrRecordNotFound) || errors.Is(err, ErrNotFound)
+}
+
+// OptionalAmount 区分 JSON 字段缺省、显式 null 和数字三种输入。
+type OptionalAmount struct {
+	Set   bool
+	Value *float64
+}
+
+func (a *OptionalAmount) UnmarshalJSON(data []byte) error {
+	a.Set = true
+	if bytes.Equal(bytes.TrimSpace(data), []byte("null")) {
+		a.Value = nil
+		return nil
+	}
+	var value float64
+	if err := json.Unmarshal(data, &value); err != nil {
+		return err
+	}
+	a.Value = &value
+	return nil
+}
+
+// OptionalString 区分 JSON 字段缺省和显式字符串（包括空字符串）两种输入。
+type OptionalString struct {
+	Set   bool
+	Value string
+}
+
+func (s *OptionalString) UnmarshalJSON(data []byte) error {
+	s.Set = true
+	return json.Unmarshal(data, &s.Value)
+}
+
+type CalendarOrderItemDetail struct {
+	ID              uuid.UUID `json:"id"`
+	DishID          uuid.UUID `json:"dish_id"`
+	DishName        string    `json:"dish_name"`
+	Quantity        int       `json:"quantity"`
+	UnitPrice       *float64  `json:"unit_price"`
+	ConfirmedAmount *float64  `json:"confirmed_amount"`
+}
+
+type CalendarOrderDetail struct {
+	ID    uuid.UUID                 `json:"id"`
+	Items []CalendarOrderItemDetail `json:"items"`
+}
+
+type CalendarRecordDetail struct {
+	model.CalendarRecord
+	Order *CalendarOrderDetail `json:"order,omitempty"`
+}
 
 // NewCalendarService 创建日历记录服务，封装吃饭记录、附件、留言和月度统计。
 func NewCalendarService() *CalendarService {
@@ -26,10 +102,14 @@ func (s *CalendarService) CreateRecord(ctx context.Context, uid uuid.UUID, req C
 	if err := CanAccessTable(ctx, uid, req.TableID); err != nil {
 		return nil, err
 	}
+	amount, err := normalizeAmount(req.Amount)
+	if err != nil {
+		return nil, err
+	}
 
 	recordDate, err := time.Parse("2006-01-02", req.RecordDate)
 	if err != nil {
-		return nil, errors.New("日期格式错误，应为 YYYY-MM-DD")
+		return nil, newCalendarRequestError(errors.New("日期格式错误，应为 YYYY-MM-DD"))
 	}
 
 	record := model.CalendarRecord{
@@ -46,11 +126,9 @@ func (s *CalendarService) CreateRecord(ctx context.Context, uid uuid.UUID, req C
 	if req.DishIDs != nil {
 		record.DishIDs = pq.StringArray(req.DishIDs)
 	}
-	if req.Amount != nil {
-		record.Amount = req.Amount
-	}
+	record.Amount = amount
 
-	tx := database.DB.Begin()
+	tx := database.DB.WithContext(ctx).Begin()
 
 	if err := tx.Create(&record).Error; err != nil {
 		tx.Rollback()
@@ -99,47 +177,119 @@ func (s *CalendarService) CreateRecord(ctx context.Context, uid uuid.UUID, req C
 // UpdateRecord 更新日历记录：仅创建人可修改，空更新保持幂等返回 nil。
 func (s *CalendarService) UpdateRecord(ctx context.Context, uid uuid.UUID, recordID uuid.UUID, req UpdateRecordReq) error {
 	var record model.CalendarRecord
-	if err := database.DB.Where("id = ? AND user_id = ?", recordID, uid).First(&record).Error; err != nil {
-		return errors.New("记录不存在")
+	if err := database.DB.WithContext(ctx).Where("id = ? AND user_id = ?", recordID, uid).First(&record).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return newCalendarRequestError(errors.New("记录不存在"))
+		}
+		return err
 	}
 
-	tx := database.DB.Begin()
-	updated := false
-	if req.MealType != "" {
-		if err := tx.Model(&record).Update("meal_type", req.MealType).Error; err != nil {
-			tx.Rollback()
-			return err
+	return database.DB.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		recordQuery := tx.Model(&model.CalendarRecord{}).Where("id = ?", record.ID)
+		hasUpdates := false
+		if req.MealType != "" {
+			if err := recordQuery.Update("meal_type", req.MealType).Error; err != nil {
+				return err
+			}
+			hasUpdates = true
 		}
-		updated = true
-	}
-	if req.MealPeriod != "" {
-		if err := tx.Model(&record).Update("meal_period", req.MealPeriod).Error; err != nil {
-			tx.Rollback()
-			return err
+		if req.MealPeriod != "" {
+			if err := recordQuery.Update("meal_period", req.MealPeriod).Error; err != nil {
+				return err
+			}
+			hasUpdates = true
 		}
-		updated = true
-	}
-	if req.Restaurant != "" {
-		if err := tx.Model(&record).Update("restaurant", req.Restaurant).Error; err != nil {
-			tx.Rollback()
-			return err
+		if req.Restaurant.Set {
+			if err := recordQuery.Update("restaurant", req.Restaurant.Value).Error; err != nil {
+				return err
+			}
+			hasUpdates = true
 		}
-		updated = true
-	}
-	if req.Amount != nil {
-		if err := tx.Model(&record).Update("amount", *req.Amount).Error; err != nil {
-			tx.Rollback()
-			return err
-		}
-		updated = true
-	}
 
-	if !updated {
-		tx.Rollback()
+		switch record.Source {
+		case "manual":
+			if len(req.OrderItems) > 0 {
+				return newCalendarRequestError(errors.New("手工记录不能提交订单项金额"))
+			}
+			if req.Amount.Set {
+				amount, err := normalizeAmount(req.Amount.Value)
+				if err != nil {
+					return err
+				}
+				if err := recordQuery.Update("amount", amount).Error; err != nil {
+					return err
+				}
+				hasUpdates = true
+			}
+		case "order":
+			if req.Amount.Set {
+				return newCalendarRequestError(errors.New("订单来源记录不能直接修改本餐总金额"))
+			}
+			if err := updateCalendarOrderAmounts(tx, record, req.OrderItems); err != nil {
+				return err
+			}
+		default:
+			return newCalendarRequestError(errors.New("记录来源无效"))
+		}
+
+		if !hasUpdates {
+			return nil
+		}
 		return nil
+	})
+}
+
+func updateCalendarOrderAmounts(tx *gorm.DB, record model.CalendarRecord, requested []UpdateOrderItemAmountReq) error {
+	var order model.Order
+	if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
+		Where("calendar_record_id = ?", record.ID).First(&order).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return newCalendarRequestError(errors.New("关联订单不存在"))
+		}
+		return err
+	}
+	seen := make(map[uuid.UUID]struct{}, len(requested))
+	for _, item := range requested {
+		if _, exists := seen[item.ID]; exists {
+			return newCalendarRequestError(errors.New("请求包含重复订单项"))
+		}
+		seen[item.ID] = struct{}{}
+		if !item.ConfirmedAmount.Set {
+			return newCalendarRequestError(errors.New("订单项确认金额不能为空"))
+		}
+		amount, err := normalizeAmount(item.ConfirmedAmount.Value)
+		if err != nil {
+			return fmt.Errorf("确认金额无效: %w", err)
+		}
+		result := tx.Model(&model.OrderItem{}).
+			Where("id = ? AND order_id = ?", item.ID, order.ID).
+			Update("confirmed_amount", amount)
+		if result.Error != nil {
+			return result.Error
+		}
+		if result.RowsAffected == 0 {
+			return newCalendarRequestError(errors.New("请求包含无效订单项"))
+		}
 	}
 
-	return tx.Commit().Error
+	var items []model.OrderItem
+	if err := tx.Where("order_id = ?", order.ID).Find(&items).Error; err != nil {
+		return err
+	}
+	values := make([]*float64, 0, len(items))
+	for _, item := range items {
+		values = append(values, item.ConfirmedAmount)
+	}
+	total := sumAmounts(values)
+	if err := validateAmountTotal(total); err != nil {
+		return newCalendarRequestError(fmt.Errorf("订单总金额无效: %w", err))
+	}
+	if err := tx.Model(&model.Order{}).Where("id = ?", order.ID).
+		Select("total_amount").Updates(model.Order{TotalAmount: total}).Error; err != nil {
+		return err
+	}
+	return tx.Model(&model.CalendarRecord{}).Where("id = ?", record.ID).
+		Select("amount").Updates(model.CalendarRecord{Amount: total}).Error
 }
 
 // DeleteRecord 删除日历记录
@@ -151,17 +301,44 @@ func (s *CalendarService) DeleteRecord(ctx context.Context, uid uuid.UUID, recor
 	return result.Error
 }
 
-// GetRecord 获取记录详情
-func (s *CalendarService) GetRecord(ctx context.Context, uid uuid.UUID, recordID uuid.UUID) (*model.CalendarRecord, error) {
+// GetRecord 获取记录详情；订单来源同时返回可编辑的订单项金额。
+func (s *CalendarService) GetRecord(ctx context.Context, uid uuid.UUID, recordID uuid.UUID) (*CalendarRecordDetail, error) {
 	if _, err := CanAccessRecord(ctx, uid, recordID); err != nil {
 		return nil, errors.New("记录不存在")
 	}
 
 	var record model.CalendarRecord
-	if err := database.DB.Preload("Photos").Preload("Comments").First(&record, "id = ?", recordID).Error; err != nil {
+	if err := database.DB.WithContext(ctx).Preload("Photos").Preload("Comments").First(&record, "id = ?", recordID).Error; err != nil {
 		return nil, errors.New("记录不存在")
 	}
-	return &record, nil
+	detail := &CalendarRecordDetail{CalendarRecord: record}
+	if record.Source != "order" {
+		return detail, nil
+	}
+
+	var order model.Order
+	if err := database.DB.WithContext(ctx).Where("calendar_record_id = ?", record.ID).First(&order).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, fmt.Errorf("关联订单不存在: %w", gorm.ErrRecordNotFound)
+		}
+		return nil, err
+	}
+	var items []CalendarOrderItemDetail
+	result := database.DB.WithContext(ctx).
+		Table("order_items").
+		Select("order_items.id, order_items.dish_id, COALESCE(dishes.name, '') AS dish_name, order_items.quantity, order_items.unit_price, order_items.confirmed_amount").
+		Joins("LEFT JOIN dishes ON dishes.id = order_items.dish_id").
+		Where("order_items.order_id = ?", order.ID).
+		Order("order_items.id ASC").
+		Scan(&items)
+	if result.Error != nil {
+		return nil, result.Error
+	}
+	if result.RowsAffected == 0 {
+		return nil, fmt.Errorf("关联订单项不存在: %w", gorm.ErrRecordNotFound)
+	}
+	detail.Order = &CalendarOrderDetail{ID: order.ID, Items: items}
+	return detail, nil
 }
 
 // ListRecords 按月份获取日历记录：按 [月初, 下月初) 查询，避免月底日期边界问题。
@@ -325,10 +502,16 @@ type PhotoReq struct {
 	Type string `json:"type"`                   // image / video
 }
 
-// UpdateRecordReq 是日历记录局部更新请求，空字段表示不更新。
+// UpdateRecordReq 是日历记录局部更新请求，缺省字段表示不更新。
 type UpdateRecordReq struct {
-	MealType   string   `json:"meal_type"`   // 餐型
-	MealPeriod string   `json:"meal_period"` // 餐段
-	Restaurant string   `json:"restaurant"`  // 餐厅名称
-	Amount     *float64 `json:"amount"`      // 金额，nil 表示不更新
+	MealType   string                     `json:"meal_type"`   // 餐型
+	MealPeriod string                     `json:"meal_period"` // 餐段
+	Restaurant OptionalString             `json:"restaurant"`  // 缺省不更新，空字符串显式清空
+	Amount     OptionalAmount             `json:"amount"`      // 缺省不更新，null 显式清空
+	OrderItems []UpdateOrderItemAmountReq `json:"order_items"` // 订单来源记录的逐项确认金额
+}
+
+type UpdateOrderItemAmountReq struct {
+	ID              uuid.UUID      `json:"id" binding:"required"`
+	ConfirmedAmount OptionalAmount `json:"confirmed_amount"`
 }

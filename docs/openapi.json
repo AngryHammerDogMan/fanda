@@ -798,6 +798,10 @@
           "unit_price": {
             "type": "number",
             "nullable": true
+          },
+          "confirmed_amount": {
+            "type": "number",
+            "nullable": true
           }
         },
         "required": [
@@ -805,7 +809,8 @@
           "order_id",
           "dish_id",
           "quantity",
-          "unit_price"
+          "unit_price",
+          "confirmed_amount"
         ]
       },
       "OrderParticipant": {
@@ -974,7 +979,7 @@
           "quantity": {
             "type": "integer"
           },
-          "unit_price": {
+          "confirmed_amount": {
             "type": "number",
             "nullable": true
           }
@@ -982,7 +987,7 @@
         "required": [
           "dish_id",
           "quantity",
-          "unit_price"
+          "confirmed_amount"
         ]
       },
       "OrderBasketItemPayload": {
@@ -1152,6 +1157,62 @@
           "created_at"
         ]
       },
+      "CalendarOrderItem": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "dish_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "dish_name": {
+            "type": "string"
+          },
+          "quantity": {
+            "type": "integer"
+          },
+          "unit_price": {
+            "type": "number",
+            "nullable": true
+          },
+          "confirmed_amount": {
+            "type": "number",
+            "nullable": true
+          }
+        },
+        "required": [
+          "id",
+          "dish_id",
+          "dish_name",
+          "quantity",
+          "unit_price",
+          "confirmed_amount"
+        ]
+      },
+      "CalendarOrder": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CalendarOrderItem"
+            }
+          }
+        },
+        "required": [
+          "id",
+          "items"
+        ]
+      },
       "CalendarRecord": {
         "type": "object",
         "additionalProperties": false,
@@ -1208,6 +1269,10 @@
             "items": {
               "$ref": "#/components/schemas/RecordComment"
             }
+          },
+          "order": {
+            "$ref": "#/components/schemas/CalendarOrder",
+            "nullable": true
           },
           "created_at": {
             "type": "string",
@@ -1294,6 +1359,24 @@
           "meal_type"
         ]
       },
+      "CalendarRecordUpdateOrderItem": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "confirmed_amount": {
+            "type": "number",
+            "nullable": true
+          }
+        },
+        "required": [
+          "id",
+          "confirmed_amount"
+        ]
+      },
       "CalendarRecordUpdatePayload": {
         "type": "object",
         "additionalProperties": false,
@@ -1310,6 +1393,12 @@
           "amount": {
             "type": "number",
             "nullable": true
+          },
+          "order_items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CalendarRecordUpdateOrderItem"
+            }
           }
         },
         "required": []

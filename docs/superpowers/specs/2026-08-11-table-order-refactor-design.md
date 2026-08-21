@@ -212,8 +212,11 @@ id
 order_id
 dish_id
 quantity
-unit_price
+unit_price: 下单时的参考金额快照
+confirmed_amount: 该订单项本次合计确认金额
 ```
+
+金额语义以后续的[用餐金额确认与同步设计](2026-08-21-meal-spending-amount-design.md)为准：`dishes.price` 是当前参考金额，创建订单时复制到 `order_items.unit_price`；用户确认值写入 `order_items.confirmed_amount`。数量只用于生成默认确认值，订单总金额不再按 `unit_price × quantity` 计算。
 
 ### order_participants
 
@@ -252,12 +255,16 @@ status: pending / confirmed / cancelled
 
 ```text
 创建 order
-创建 order_items
-创建 calendar_record
+从 dishes.price 保存 order_items.unit_price 参考快照
+保存 order_items.confirmed_amount 本次确认金额
+按全部订单项确认金额汇总 orders.total_amount
+创建 calendar_record，并同步 calendar_records.amount
 如一起吃，创建 order_participants
 回写 orders.calendar_record_id
 提交事务
 ```
+
+订单来源日历不能直接修改总金额；修改历史金额时必须逐项更新 `order_items.confirmed_amount`，再在同一事务中重新汇总 `orders.total_amount` 和 `calendar_records.amount`。手工日历记录仍可直接修改本餐金额。
 
 状态规则：
 
@@ -352,6 +359,8 @@ last-order-table-id
 6. 后端服务改为基于 `table_id` 查询与鉴权。
 7. 前端切换到 `table` API。
 8. 确认无旧依赖后，再考虑清理旧字段或保留兼容字段。
+
+餐桌模型迁移完成后的金额扩展由 `006_order_item_confirmed_amount.sql` 承担：新增 `order_items.confirmed_amount`，按历史 `unit_price × quantity` 回填，随后以订单项确认金额汇总订单总金额并同步关联日历金额。该迁移是新增版本，不修改已发布的 `001` 至 `005`。
 
 ## 验证范围
 

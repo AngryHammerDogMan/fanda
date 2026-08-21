@@ -3,11 +3,13 @@ package service
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	"fanda-server/internal/database"
 	"fanda-server/internal/model"
 
 	"github.com/google/uuid"
+	"gorm.io/gorm"
 )
 
 var (
@@ -53,7 +55,7 @@ func CanAccessGroup(ctx context.Context, uid uuid.UUID, groupType string, groupI
 // CanAccessTable 校验用户是否为活跃餐桌的活跃成员，是新餐桌模型的统一鉴权入口。
 func CanAccessTable(ctx context.Context, uid uuid.UUID, tableID uuid.UUID) error {
 	if uid == uuid.Nil || tableID == uuid.Nil {
-		return errors.New("餐桌不存在")
+		return fmt.Errorf("餐桌不存在: %w", gorm.ErrRecordNotFound)
 	}
 
 	var count int64
@@ -65,7 +67,7 @@ func CanAccessTable(ctx context.Context, uid uuid.UUID, tableID uuid.UUID) error
 		return err
 	}
 	if count == 0 {
-		return errors.New("无权访问该餐桌")
+		return fmt.Errorf("无权访问该餐桌: %w", gorm.ErrRecordNotFound)
 	}
 	return nil
 }

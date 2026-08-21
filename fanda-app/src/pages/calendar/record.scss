@@ -14,6 +14,69 @@
   text-align: center;
 }
 
+.record-form-header.compact {
+  padding-bottom: 14px;
+}
+
+.order-amount-section {
+  margin: 0 24px 18px;
+  padding: 8px 24px 14px;
+  box-sizing: border-box;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.order-amount-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.order-amount-info {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.order-amount-name {
+  overflow: hidden;
+  color: var(--color-text);
+  font-size: var(--font-sm);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.order-amount-reference {
+  color: var(--color-text-light);
+  font-size: var(--font-xs);
+}
+
+.order-amount-input {
+  width: 112px;
+  min-width: 0;
+  height: 38px;
+  padding: 0 10px;
+  box-sizing: border-box;
+  border-radius: var(--radius-sm);
+  background: var(--color-bg);
+  color: var(--color-text);
+  text-align: right;
+}
+
+.order-amount-total {
+  display: flex;
+  justify-content: space-between;
+  padding-top: 14px;
+  color: var(--color-primary);
+  font-size: var(--font-md);
+  font-weight: 700;
+}
+
 .form-sticker {
   width: 96px;
   height: 96px;

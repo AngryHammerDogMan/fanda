@@ -30,3 +30,22 @@ func TestCoupleMembersMigrationNormalizesActiveUserUniqueness(t *testing.T) {
 		t.Fatal("005 迁移必须在建立唯一索引前检查历史 active 用户冲突")
 	}
 }
+
+// 测试意图：006 迁移新增订单项确认金额，并回填订单及关联日历的汇总金额。
+func TestConfirmedAmountMigration(t *testing.T) {
+	content, err := os.ReadFile(filepath.Join("006_order_item_confirmed_amount.sql"))
+	if err != nil {
+		t.Fatalf("006 迁移必须存在: %v", err)
+	}
+	sql := string(content)
+	for _, fragment := range []string{
+		"ADD COLUMN confirmed_amount DECIMAL(10,2)",
+		"ROUND(unit_price * quantity, 2)",
+		"SUM(confirmed_amount)",
+		"orders.calendar_record_id = calendar_records.id",
+	} {
+		if !strings.Contains(sql, fragment) {
+			t.Fatalf("006 迁移缺少 %q", fragment)
+		}
+	}
+}

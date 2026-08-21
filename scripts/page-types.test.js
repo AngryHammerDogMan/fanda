@@ -170,6 +170,47 @@ test('ordering page opens cart detail sheet for item editing', () => {
   assert(ordersCreateStyle.includes('\n}\n\n.cart-open-area {'), 'cart open area styles must not be nested inside quantity button styles')
 })
 
+test('ordering confirmation submits per-item confirmed amounts', () => {
+  const source = fs.readFileSync(
+    path.join(process.cwd(), 'fanda-app/src/pages/orders/create.tsx'),
+    'utf8'
+  )
+
+  assert.match(source, /本次确认金额/)
+  assert.match(source, /本餐总金额/)
+  assert.match(source, /confirmed_amount\s*:/)
+  assert.doesNotMatch(source, /unit_price\s*:/)
+  assert.match(source, /validateAmountInput/)
+  assert.match(source, /sumNullableAmounts/)
+})
+
+test('order list loads a real table and displays yuan confirmed amounts', () => {
+  const source = fs.readFileSync(
+    path.join(process.cwd(), 'fanda-app/src/pages/orders/index.tsx'),
+    'utf8'
+  )
+
+  assert.doesNotMatch(source, /DEFAULT_TABLE_ID/)
+  assert.doesNotMatch(source, /\/\s*100/)
+  assert.match(source, /tableAPI\.list/)
+  assert.match(source, /getStoredTableId/)
+  assert.match(source, /confirmed_amount/)
+  assert.match(source, /if\s*\(!activeTableId\)\s*return/)
+})
+
+test('calendar record supports source-aware amount editing', () => {
+  const source = fs.readFileSync(
+    path.join(process.cwd(), 'fanda-app/src/pages/calendar/record.tsx'),
+    'utf8'
+  )
+
+  assert.match(source, /router\.params\?\.edit\s*===\s*'1'/)
+  assert.match(source, /order_items\s*:/)
+  assert.match(source, /record\.source\s*===\s*'order'/)
+  assert.match(source, /parseAmountInput/)
+  assert.match(source, /sumNullableAmounts/)
+})
+
 test('ordering cart bar is fixed inside the mobile preview width', () => {
   const ordersCreateStyle = fs.readFileSync(
     path.join(process.cwd(), 'fanda-app/src/pages/orders/create.scss'),
